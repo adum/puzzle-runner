@@ -416,6 +416,10 @@ exec python3 ./coil_solver.py
             argv,
             cwd=self.workspace,
             stdin_text=f"{password}\n",
+            env={
+                self.config.full_eval_password_env: password,
+                "COIL_FULL_PASSWORD": password,
+            },
             timeout_seconds=(
                 self.config.evaluation_process_timeout_seconds
                 if self.config.evaluation_process_timeout_seconds > 0

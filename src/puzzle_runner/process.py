@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import os
 import subprocess
 import sys
 import threading
@@ -28,6 +29,7 @@ def run_streamed(
     stdout_path: Path,
     stderr_path: Path,
     echo: bool,
+    env: dict[str, str] | None = None,
 ) -> CommandResult:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -39,6 +41,7 @@ def run_streamed(
                 process = subprocess.Popen(
                     argv,
                     cwd=cwd,
+                    env=_merged_env(env),
                     stdin=subprocess.PIPE if stdin_text is not None else None,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -111,9 +114,20 @@ def run_streamed(
 def _copy_stream(source, dest_handle, echo_handle, echo: bool) -> None:
     if source is None:
         return
-    for line in iter(source.readline, ""):
-        dest_handle.write(line)
-        dest_handle.flush()
-        if echo:
-            echo_handle.write(line)
-            echo_handle.flush()
+    try:
+        for line in iter(source.readline, ""):
+            dest_handle.write(line)
+            dest_handle.flush()
+            if echo:
+                echo_handle.write(line)
+                echo_handle.flush()
+    finally:
+        source.close()
+
+
+def _merged_env(extra: dict[str, str] | None) -> dict[str, str] | None:
+    if extra is None:
+        return None
+    merged = os.environ.copy()
+    merged.update(extra)
+    return merged
