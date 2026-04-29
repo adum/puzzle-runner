@@ -54,6 +54,4 @@ command = [
   "gpt-5.3-codex-spark",
   "--sandbox",
   "danger-full-access",
-  "--approval-policy",
-  "never",
 ]

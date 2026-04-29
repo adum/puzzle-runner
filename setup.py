@@ -7,5 +7,10 @@ setup(
     package_dir={"": "src"},
     packages=find_packages("src"),
     python_requires=">=3.10",
-    entry_points={"console_scripts": ["puzzle-runner=puzzle_runner.cli:main"]},
+    entry_points={
+        "console_scripts": [
+            "puzzle-runner=puzzle_runner.cli:main",
+            "puzzle-runner-watch=puzzle_runner.watch:main",
+        ]
+    },
 )

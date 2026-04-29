@@ -1,7 +1,7 @@
 .puzzle-runs/
 runner.toml
+final_results.md
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
-

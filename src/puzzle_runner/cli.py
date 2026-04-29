@@ -5,10 +5,14 @@ import sys
 
 from .config import ConfigError, load_config
 from .runner import Runner, RunnerError
+from .watch import add_watch_arguments, run_watch
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run an iterative puzzle benchmark agent.")
+    parser = argparse.ArgumentParser(
+        description="Run an iterative puzzle benchmark agent.",
+        epilog="Commands: run (default), watch. Use `puzzle-runner watch --help` for the live dashboard.",
+    )
     parser.add_argument(
         "--config",
         default="runner.toml",
@@ -22,7 +26,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_watch_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Watch Puzzle Runner live status.")
+    add_watch_arguments(parser)
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "watch":
+        args = build_watch_parser().parse_args(argv[1:])
+        return run_watch(args)
+    if argv and argv[0] == "run":
+        argv = argv[1:]
+
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config, run_id=args.run_id)
@@ -35,4 +52,3 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Stop reason: {result.stop_reason}")
     print(f"Logs: {result.log_dir}")
     return 0
-

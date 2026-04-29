@@ -58,6 +58,18 @@ Use them to track phase, round, best score, last score, stale count, remaining n
 watch -n 5 cat .puzzle-runs/current/status.md
 ```
 
+For a terminal dashboard with colors:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner watch
+```
+
+or after installing:
+
+```sh
+puzzle-runner watch
+```
+
 ## Benchmark Source
 
 Default config clones the benchmark per run.
