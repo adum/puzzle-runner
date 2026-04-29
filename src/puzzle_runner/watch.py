@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 CLEAR_SCREEN = "\033[2J\033[H"
+CLEAR_LINE = "\033[2K"
 HIDE_CURSOR = "\033[?25l"
 SHOW_CURSOR = "\033[?25h"
 
@@ -64,24 +66,31 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_watch(args: argparse.Namespace) -> int:
     status_path = resolve_status_path(args.status, args.config)
-    color = (not args.no_color) and sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+    use_ansi = sys.stdout.isatty()
+    color = (not args.no_color) and use_ansi and os.environ.get("NO_COLOR") is None
 
     try:
         if args.once:
             print(render_status(load_status(status_path), status_path=status_path, color=color))
             return 0
 
-        sys.stdout.write(HIDE_CURSOR if color else "")
+        previous_lines: list[str] = []
+        first_frame = True
+        sys.stdout.write(HIDE_CURSOR if use_ansi else "")
         sys.stdout.flush()
         while True:
             rendered = render_status(load_status(status_path), status_path=status_path, color=color)
-            sys.stdout.write((CLEAR_SCREEN if color else "\033[H\033[J") + rendered)
+            if use_ansi:
+                previous_lines = _draw_frame(rendered, previous_lines, first_frame=first_frame)
+                first_frame = False
+            else:
+                sys.stdout.write(rendered + "\n")
             sys.stdout.flush()
             time.sleep(max(args.interval, 0.1))
     except KeyboardInterrupt:
         return 130
     finally:
-        if color:
+        if use_ansi:
             sys.stdout.write(SHOW_CURSOR + RESET + "\n")
             sys.stdout.flush()
 
@@ -131,6 +140,8 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
     stale_count = _int(status.get("stale_count"))
     stale_limit = _int(status.get("stale_limit"))
     remaining = status.get("remaining_no_progress_tries")
+    phase_elapsed = _duration_since(status.get("phase_started_at"))
+    agent_elapsed = _agent_elapsed(status, phase)
 
     title = _c("Puzzle Runner", BOLD + CYAN, color)
     state = _state_label(active, phase, stop_reason, color)
@@ -143,16 +154,26 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
         _kv("Round", f"{current_round}/{max_rounds}", color, width),
         _kv("Updated", status.get("updated_at"), color, width),
         _kv("Elapsed", _duration(status.get("elapsed_seconds")), color, width),
-        "",
-        _section("Score", color),
-        _kv("Best", status.get("best_score"), color, width),
-        _kv("Best round", status.get("best_round"), color, width),
-        _kv("Last", status.get("last_score"), color, width),
-        _kv("Improved", _yes_no(status.get("last_improved")), color, width),
-        _kv("No-progress", f"{stale_count}/{stale_limit} {_bar(stale_count, stale_limit, color)}", color, width),
-        _kv("Remaining tries", remaining, color, width),
-        _kv("Stop reason", stop_reason, color, width),
+        _kv("Phase time", phase_elapsed, color, width),
     ]
+    if phase == "agent_running":
+        lines.append(_kv("Agent running", agent_elapsed, color, width))
+    elif status.get("last_agent_elapsed_seconds") is not None:
+        lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
+
+    lines.extend(
+        [
+            "",
+            _section("Score", color),
+            _kv("Best", status.get("best_score"), color, width),
+            _kv("Best round", status.get("best_round"), color, width),
+            _kv("Last", status.get("last_score"), color, width),
+            _kv("Improved", _yes_no(status.get("last_improved")), color, width),
+            _kv("No-progress", f"{stale_count}/{stale_limit} {_bar(stale_count, stale_limit, color)}", color, width),
+            _kv("Remaining tries", remaining, color, width),
+            _kv("Stop reason", stop_reason, color, width),
+        ]
+    )
 
     command = status.get("current_command")
     if command:
@@ -189,6 +210,24 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
     lines.append("")
     lines.append(_c("Ctrl-C to exit watcher. The run keeps going.", DIM, color))
     return "\n".join(_trim(line, width) for line in lines) + "\n"
+
+
+def _draw_frame(rendered: str, previous_lines: list[str], *, first_frame: bool) -> list[str]:
+    lines = rendered.rstrip("\n").split("\n")
+    if first_frame:
+        sys.stdout.write(CLEAR_SCREEN + rendered)
+        return lines
+
+    max_lines = max(len(lines), len(previous_lines))
+    for index in range(max_lines):
+        old = previous_lines[index] if index < len(previous_lines) else None
+        new = lines[index] if index < len(lines) else ""
+        if new == old:
+            continue
+        sys.stdout.write(f"\033[{index + 1};1H{CLEAR_LINE}{new}")
+
+    sys.stdout.write(f"\033[{len(lines) + 1};1H{CLEAR_LINE}")
+    return lines
 
 
 def _state_label(active: bool, phase: str, stop_reason, color: bool) -> str:
@@ -240,12 +279,39 @@ def _duration(value) -> str:
     return f"{hours}h {minutes}m"
 
 
+def _duration_since(value) -> str:
+    instant = _parse_timestamp(value)
+    if instant is None:
+        return "-"
+    elapsed = max((datetime.now(timezone.utc) - instant).total_seconds(), 0)
+    return _duration(elapsed)
+
+
+def _agent_elapsed(status: dict[str, Any], phase: str) -> str:
+    timestamp = status.get("agent_started_at")
+    if timestamp is None and phase == "agent_running":
+        timestamp = status.get("phase_started_at") or status.get("updated_at")
+    return _duration_since(timestamp)
+
+
 def _yes_no(value) -> str:
     if value is True:
         return "yes"
     if value is False:
         return "no"
     return "-"
+
+
+def _parse_timestamp(value) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _wrap_command(command, width: int) -> str:

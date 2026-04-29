@@ -126,6 +126,7 @@ class Runner:
                 phase="agent_finished",
                 last_agent_returncode=agent_result.returncode,
                 last_agent_timed_out=agent_result.timed_out,
+                last_agent_elapsed_seconds=round(agent_result.elapsed_seconds, 2),
             )
 
             if agent_result.timed_out:
@@ -519,6 +520,7 @@ Elapsed seconds: {elapsed_seconds:.2f}
             handle.write(json.dumps(_jsonable(payload), sort_keys=True) + "\n")
 
     def _update_status(self, **updates) -> None:
+        now = _utc_now()
         if not self._status:
             self._status = {
                 "run_id": self.config.run_id,
@@ -535,7 +537,8 @@ Elapsed seconds: {elapsed_seconds:.2f}
                 "results_path": self.config.results_path,
                 "status_json": self.status_json_path,
                 "status_md": self.status_md_path,
-                "started_at": _utc_now(),
+                "started_at": now,
+                "phase_started_at": now,
                 "current_round": 0,
                 "max_rounds": self.config.max_rounds,
                 "best_score": 0,
@@ -548,6 +551,13 @@ Elapsed seconds: {elapsed_seconds:.2f}
                 "latest": {},
             }
 
+        if "phase" in updates and updates["phase"] != self._status.get("phase"):
+            updates.setdefault("phase_started_at", now)
+            if updates["phase"] == "agent_running":
+                updates.setdefault("agent_started_at", now)
+            elif updates["phase"] == "agent_finished":
+                updates.setdefault("last_agent_finished_at", now)
+
         for key, value in updates.items():
             if key == "latest":
                 latest = dict(self._status.get("latest") or {})
@@ -559,7 +569,7 @@ Elapsed seconds: {elapsed_seconds:.2f}
         stale_count = int(self._status.get("stale_count") or 0)
         remaining = max(self.config.stale_limit - stale_count, 0)
         self._status["remaining_no_progress_tries"] = remaining
-        self._status["updated_at"] = _utc_now()
+        self._status["updated_at"] = now
         if self._run_started_monotonic is not None:
             self._status["elapsed_seconds"] = round(time.monotonic() - self._run_started_monotonic, 2)
 
