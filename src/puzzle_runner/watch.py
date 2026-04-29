@@ -160,6 +160,9 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
         lines.append(_kv("Agent running", agent_elapsed, color, width))
     elif status.get("last_agent_elapsed_seconds") is not None:
         lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
+    agent_chars = _agent_output_chars(latest)
+    if agent_chars is not None:
+        lines.append(_kv("Agent output", f"{agent_chars:,} chars", color, width))
 
     lines.extend(
         [
@@ -292,6 +295,24 @@ def _agent_elapsed(status: dict[str, Any], phase: str) -> str:
     if timestamp is None and phase == "agent_running":
         timestamp = status.get("phase_started_at") or status.get("updated_at")
     return _duration_since(timestamp)
+
+
+def _agent_output_chars(latest: dict[str, Any]) -> int | None:
+    paths = [latest.get("agent_stdout"), latest.get("agent_stderr")]
+    if not any(paths):
+        return None
+
+    total = 0
+    saw_file = False
+    for path_value in paths:
+        if not path_value:
+            continue
+        try:
+            total += Path(str(path_value)).stat().st_size
+            saw_file = True
+        except OSError:
+            continue
+    return total if saw_file else None
 
 
 def _yes_no(value) -> str:

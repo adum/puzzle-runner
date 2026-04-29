@@ -44,6 +44,26 @@ class WatchTests(unittest.TestCase):
         self.assertIn("agent.stdout.log", rendered)
         self.assertNotIn("\033[", rendered)
 
+    def test_render_status_includes_agent_output_chars(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stderr = Path(temp_dir) / "agent.stderr.log"
+            stdout.write_text("abc", encoding="utf-8")
+            stderr.write_text("defgh", encoding="utf-8")
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "latest": {
+                    "agent_stdout": str(stdout),
+                    "agent_stderr": str(stderr),
+                },
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Agent output", rendered)
+        self.assertIn("8 chars", rendered)
+
     def test_resolve_status_path_default_without_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             cwd = Path.cwd()
