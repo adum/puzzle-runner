@@ -27,7 +27,15 @@ generate_full_eval_password = true
 
 stale_limit = 3
 max_rounds = 20
+
+# Wall-clock cap for a single agent call. If the agent process exceeds this
+# many seconds for one prompt, the runner stops the run with agent_timeout.
 agent_timeout_seconds = 7200
+
+# Idle-output cap for a single agent call. If the agent writes nothing to
+# stdout or stderr for this many seconds, the runner stops with
+# agent_idle_timeout. Set to 0 to disable.
+agent_idle_timeout_seconds = 1800
 
 build_checker = true
 echo_agent_output = true

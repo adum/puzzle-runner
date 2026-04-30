@@ -126,11 +126,16 @@ class Runner:
                 phase="agent_finished",
                 last_agent_returncode=agent_result.returncode,
                 last_agent_timed_out=agent_result.timed_out,
+                last_agent_timeout_reason=agent_result.timeout_reason,
                 last_agent_elapsed_seconds=round(agent_result.elapsed_seconds, 2),
             )
 
             if agent_result.timed_out:
-                stop_reason = "agent_timeout"
+                stop_reason = (
+                    "agent_idle_timeout"
+                    if agent_result.timeout_reason == "idle"
+                    else "agent_timeout"
+                )
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
             if agent_result.returncode != 0:
@@ -399,6 +404,7 @@ exec python3 ./coil_solver.py
             stdout_path=round_dir / "agent.stdout.log",
             stderr_path=round_dir / "agent.stderr.log",
             echo=self.config.echo_agent_output,
+            idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
         )
 
     def _run_evaluation(self, round_dir: Path) -> CommandResult:
@@ -487,6 +493,8 @@ Solver wrapper: ./{self.config.solver_wrapper}
 Evaluation: ./{self.config.evaluation_script}
 Evaluation timeout: {self.config.evaluation_timeout_seconds}s
 Stale limit: {self.config.stale_limit}
+Agent timeout: {self.config.agent_timeout_seconds}s
+Agent idle timeout: {self.config.agent_idle_timeout_seconds}s
 Total rounds: {final.total_rounds}
 Best score: {final.best_score}
 Best round: {final.best_round}

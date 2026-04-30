@@ -26,6 +26,27 @@ class ProcessTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertEqual(stdout.read_text(encoding="utf-8").strip(), "ok")
 
+    def test_run_streamed_times_out_when_agent_goes_quiet(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            stdout = temp_path / "stdout.log"
+            stderr = temp_path / "stderr.log"
+
+            result = run_streamed(
+                ["python3", "-c", "import time; time.sleep(5)"],
+                cwd=temp_path,
+                stdin_text=None,
+                timeout_seconds=10,
+                stdout_path=stdout,
+                stderr_path=stderr,
+                echo=False,
+                idle_timeout_seconds=1,
+            )
+
+            self.assertTrue(result.timed_out)
+            self.assertEqual(result.timeout_reason, "idle")
+            self.assertLess(result.elapsed_seconds, 3)
+
 
 if __name__ == "__main__":
     unittest.main()
