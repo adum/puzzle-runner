@@ -30,7 +30,7 @@ max_rounds = 20
 
 # Wall-clock cap for a single agent call. If the agent process exceeds this
 # many seconds for one prompt, the runner stops the run with agent_timeout.
-agent_timeout_seconds = 7200
+agent_timeout_seconds = 86400
 
 # Idle-output cap for a single agent call. If the agent writes nothing to
 # stdout or stderr for this many seconds, the runner stops with

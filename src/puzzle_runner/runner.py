@@ -31,6 +31,7 @@ class FinalResult:
     best_round: int | None
     total_rounds: int
     stop_reason: str
+    stop_detail: str
     log_dir: Path
     workspace: Path
 
@@ -239,12 +240,14 @@ class Runner:
         if best_score < 0:
             best_score = 0
 
+        stop_detail = explain_stop_reason(stop_reason, self.config, self._status)
         final = FinalResult(
             run_id=self.config.run_id,
             best_score=best_score,
             best_round=best_round,
             total_rounds=completed_rounds,
             stop_reason=stop_reason,
+            stop_detail=stop_detail,
             log_dir=self.log_dir,
             workspace=self.workspace,
         )
@@ -256,6 +259,7 @@ class Runner:
             best_round=final.best_round,
             current_round=final.total_rounds,
             stop_reason=final.stop_reason,
+            stop_detail=final.stop_detail,
             final_result=self.log_dir / "final_result.md",
         )
         self._write_final_result(final, elapsed)
@@ -575,6 +579,7 @@ Total rounds: {final.total_rounds}
 Best score: {final.best_score}
 Best round: {final.best_round}
 Stop reason: {final.stop_reason}
+Stop detail: {final.stop_detail}
 Elapsed seconds: {elapsed_seconds:.2f}
 """
         (self.log_dir / "final_result.md").write_text(body, encoding="utf-8")
@@ -705,6 +710,54 @@ def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]
     return round_dir / f"{prefix}.stdout.log", round_dir / f"{prefix}.stderr.log"
 
 
+def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) -> str:
+    if stop_reason == "agent_timeout":
+        elapsed = _duration_text(status.get("last_agent_elapsed_seconds"))
+        return (
+            "Agent call exceeded "
+            f"agent_timeout_seconds={config.agent_timeout_seconds}s"
+            f"{elapsed} and was killed."
+        )
+    if stop_reason == "agent_idle_timeout":
+        return (
+            "Agent call produced no stdout or stderr for "
+            f"agent_idle_timeout_seconds={config.agent_idle_timeout_seconds}s "
+            "and was killed."
+        )
+    if stop_reason == "agent_failed":
+        return (
+            "Agent process exited nonzero. Puzzle Runner retried eligible failures "
+            f"for up to agent_failure_retry_limit_seconds="
+            f"{config.agent_failure_retry_limit_seconds}s."
+        )
+    if stop_reason == "evaluation_timeout":
+        return (
+            "Evaluation process exceeded "
+            f"evaluation_process_timeout_seconds={config.evaluation_process_timeout_seconds}s "
+            "and was killed."
+        )
+    if stop_reason == "evaluation_failed":
+        return "Evaluation process exited nonzero after running evaluate_full.py."
+    if stop_reason == "stale_limit":
+        return (
+            "No score improvement for "
+            f"stale_limit={config.stale_limit} consecutive completed evaluations."
+        )
+    if stop_reason == "max_rounds":
+        return f"Reached max_rounds={config.max_rounds}."
+    if stop_reason == "forbidden_edit_detected":
+        return "Forbidden path guard detected edits under configured forbidden_paths."
+    return "Run stopped."
+
+
+def _duration_text(value) -> str:
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return f" after {seconds:.2f}s"
+
+
 def _status_markdown(status: dict) -> str:
     latest = status.get("latest") or {}
     lines = [
@@ -722,16 +775,22 @@ def _status_markdown(status: dict) -> str:
         f"- No-Progress Count: `{status.get('stale_count')}/{status.get('stale_limit')}`",
         f"- Remaining No-Progress Tries: `{status.get('remaining_no_progress_tries')}`",
         f"- Stop Reason: `{status.get('stop_reason')}`",
-        f"- Elapsed Seconds: `{status.get('elapsed_seconds')}`",
-        f"- Updated At: `{status.get('updated_at')}`",
-        "",
-        "## Paths",
-        "",
-        f"- Workspace: `{status.get('workspace')}`",
-        f"- Log Dir: `{status.get('log_dir')}`",
-        f"- Events: `{status.get('events_log')}`",
-        f"- Results: `{status.get('results_path')}`",
     ]
+    if status.get("stop_detail"):
+        lines.append(f"- Stop Detail: `{status.get('stop_detail')}`")
+    lines.extend(
+        [
+            f"- Elapsed Seconds: `{status.get('elapsed_seconds')}`",
+            f"- Updated At: `{status.get('updated_at')}`",
+            "",
+            "## Paths",
+            "",
+            f"- Workspace: `{status.get('workspace')}`",
+            f"- Log Dir: `{status.get('log_dir')}`",
+            f"- Events: `{status.get('events_log')}`",
+            f"- Results: `{status.get('results_path')}`",
+        ]
+    )
 
     if latest:
         lines.extend(["", "## Latest Files", ""])

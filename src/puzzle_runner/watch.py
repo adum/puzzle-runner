@@ -190,6 +190,8 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
             _kv("Stop reason", stop_reason, color, width),
         ]
     )
+    if status.get("stop_detail"):
+        lines.append(_kv("Stop detail", status.get("stop_detail"), color, width))
 
     command = status.get("current_command")
     if command:
