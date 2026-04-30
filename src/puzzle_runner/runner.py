@@ -76,6 +76,7 @@ class Runner:
         stale_count = 0
         last_score: int | None = None
         last_improved: bool | None = None
+        score_history: list[int] = []
         stop_reason = "max_rounds"
         completed_rounds = 0
 
@@ -175,11 +176,13 @@ class Runner:
 
             last_score = parsed.highest_passed
             last_improved = improved
+            score_history.append(last_score)
             self._update_status(
                 phase="evaluation_finished",
                 best_score=best_score,
                 best_round=best_round,
                 last_score=last_score,
+                score_history=list(score_history),
                 last_improved=last_improved,
                 stale_count=stale_count,
                 first_failing_level=parsed.first_failing_level,
@@ -556,6 +559,7 @@ Elapsed seconds: {elapsed_seconds:.2f}
                 "best_score": 0,
                 "best_round": None,
                 "last_score": None,
+                "score_history": [],
                 "last_improved": None,
                 "stale_count": 0,
                 "stale_limit": self.config.stale_limit,
@@ -625,7 +629,7 @@ def _status_markdown(status: dict) -> str:
         f"- Round: `{status.get('current_round')}/{status.get('max_rounds')}`",
         f"- Best Score: `{status.get('best_score')}`",
         f"- Best Round: `{status.get('best_round')}`",
-        f"- Last Score: `{status.get('last_score')}`",
+        f"- Scores: `{_score_history_text(status)}`",
         f"- Last Improved: `{status.get('last_improved')}`",
         f"- No-Progress Count: `{status.get('stale_count')}/{status.get('stale_limit')}`",
         f"- Remaining No-Progress Tries: `{status.get('remaining_no_progress_tries')}`",
@@ -652,3 +656,12 @@ def _status_markdown(status: dict) -> str:
 
     lines.append("")
     return "\n".join(lines)
+
+
+def _score_history_text(status: dict) -> str:
+    history = status.get("score_history")
+    if isinstance(history, list) and history:
+        return ", ".join(str(item) for item in history)
+    if status.get("last_score") is not None:
+        return str(status.get("last_score"))
+    return "-"

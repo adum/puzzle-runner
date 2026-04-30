@@ -25,6 +25,7 @@ class WatchTests(unittest.TestCase):
             "best_score": 47,
             "best_round": 1,
             "last_score": 47,
+            "score_history": [35, 47],
             "last_improved": False,
             "stale_count": 1,
             "stale_limit": 3,
@@ -40,6 +41,8 @@ class WatchTests(unittest.TestCase):
         self.assertIn("agent_running", rendered)
         self.assertIn("Agent running", rendered)
         self.assertIn("47", rendered)
+        self.assertIn("Scores", rendered)
+        self.assertIn("35, 47", rendered)
         self.assertIn("Remaining tries", rendered)
         self.assertIn("agent.stdout.log", rendered)
         self.assertNotIn("\033[", rendered)
@@ -63,6 +66,24 @@ class WatchTests(unittest.TestCase):
 
         self.assertIn("Agent output", rendered)
         self.assertIn("8 chars", rendered)
+
+    def test_render_status_includes_evaluation_level_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "evaluation.stdout.log"
+            stdout.write_text(
+                "Level 1 (5x5): PASS (0.02s)\nLevel 3 (10x10): ",
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "evaluation_running",
+                "latest": {"evaluation_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Evaluating", rendered)
+        self.assertIn("level 3 (10x10)", rendered)
 
     def test_resolve_status_path_default_without_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

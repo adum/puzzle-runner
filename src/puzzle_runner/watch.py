@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -27,6 +28,10 @@ CLEAR_SCREEN = "\033[2J\033[H"
 CLEAR_LINE = "\033[2K"
 HIDE_CURSOR = "\033[?25l"
 SHOW_CURSOR = "\033[?25h"
+EVALUATION_LEVEL_RE = re.compile(
+    r"^Level\s+(\d+)\s+\(([^)]*)\):[ \t]*(PASS|FAIL|TIMEOUT|ERROR)?",
+    re.MULTILINE,
+)
 
 
 def add_watch_arguments(parser: argparse.ArgumentParser) -> None:
@@ -160,6 +165,10 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
         lines.append(_kv("Agent running", agent_elapsed, color, width))
     elif status.get("last_agent_elapsed_seconds") is not None:
         lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
+    if phase == "evaluation_running":
+        evaluation_progress = _evaluation_progress(latest)
+        if evaluation_progress is not None:
+            lines.append(_kv("Evaluating", evaluation_progress, color, width))
     agent_chars = _agent_output_chars(latest)
     if agent_chars is not None:
         lines.append(_kv("Agent output", f"{agent_chars:,} chars", color, width))
@@ -170,7 +179,7 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
             _section("Score", color),
             _kv("Best", status.get("best_score"), color, width),
             _kv("Best round", status.get("best_round"), color, width),
-            _kv("Last", status.get("last_score"), color, width),
+            _kv("Scores", _score_history(status), color, width),
             _kv("Improved", _yes_no(status.get("last_improved")), color, width),
             _kv("No-progress", f"{stale_count}/{stale_limit} {_bar(stale_count, stale_limit, color)}", color, width),
             _kv("Remaining tries", remaining, color, width),
@@ -313,6 +322,38 @@ def _agent_output_chars(latest: dict[str, Any]) -> int | None:
         except OSError:
             continue
     return total if saw_file else None
+
+
+def _evaluation_progress(latest: dict[str, Any]) -> str | None:
+    path_value = latest.get("evaluation_stdout")
+    if not path_value:
+        return None
+    try:
+        text = Path(str(path_value)).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+    matches = list(EVALUATION_LEVEL_RE.finditer(text))
+    if not matches:
+        return None
+
+    match = matches[-1]
+    level = match.group(1)
+    dimensions = match.group(2)
+    status = match.group(3)
+    progress = f"level {level} ({dimensions})"
+    if status:
+        progress = f"{progress} {status.lower()}"
+    return progress
+
+
+def _score_history(status: dict[str, Any]) -> str:
+    history = status.get("score_history")
+    if isinstance(history, list) and history:
+        return ", ".join(str(item) for item in history)
+    if status.get("last_score") is not None:
+        return str(status.get("last_score"))
+    return "-"
 
 
 def _yes_no(value) -> str:
