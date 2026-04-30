@@ -34,6 +34,10 @@ EVALUATION_LEVEL_RE = re.compile(
     r"^Level\s+(\d+)\s+\(([^)]*)\):[ \t]*(PASS|FAIL|TIMEOUT|ERROR)?",
     re.MULTILINE,
 )
+TESTED_LEVEL_LINE_RE = re.compile(
+    r"^Level\s+\d+\s+\([^)]*\):\s+(?:PASS|FAIL|TIMEOUT|ERROR)\b.*$",
+    re.MULTILINE,
+)
 NOISY_WORKSPACE_EXACT_PATHS = {
     "coil_check/check",
     "levels_secret_even.tar.enc",
@@ -49,6 +53,7 @@ NOISY_WORKSPACE_SUFFIXES = (
     ".pyo",
 )
 MAX_UNTRACKED_LINE_COUNT_BYTES = 2_000_000
+AGENT_TESTED_LINE_TAIL_BYTES = 256_000
 
 
 @dataclasses.dataclass(frozen=True)
@@ -265,6 +270,9 @@ def render_status(
     if agent_output is not None:
         lines.append(_kv("Agent output", _agent_output_summary(agent_output), color, width))
         lines.append(_kv("Last output", _last_output_age(agent_output), color, width))
+    last_tested = _last_tested_puzzle(latest)
+    if last_tested is not None:
+        lines.append(_kv("Last tested", last_tested, color, width))
 
     lines.extend(
         [
@@ -445,6 +453,50 @@ def _last_output_age(stats: AgentOutputStats) -> str:
         return "none yet"
     elapsed = max((datetime.now(timezone.utc) - stats.last_output_at).total_seconds(), 0)
     return f"{_duration(elapsed)} ago"
+
+
+def _last_tested_puzzle(latest: dict[str, Any]) -> str | None:
+    candidates: list[tuple[float, str]] = []
+    for key in ("agent_stdout", "agent_stderr"):
+        path_value = latest.get(key)
+        if not path_value:
+            continue
+        path = Path(str(path_value))
+        try:
+            modified = path.stat().st_mtime
+        except OSError:
+            continue
+
+        line = _last_tested_line_in_file(path)
+        if line is not None:
+            candidates.append((modified, line))
+
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: item[0])[1]
+
+
+def _last_tested_line_in_file(path: Path) -> str | None:
+    text = _tail_text(path, AGENT_TESTED_LINE_TAIL_BYTES)
+    if text is None:
+        return None
+
+    matches = list(TESTED_LEVEL_LINE_RE.finditer(text))
+    if not matches:
+        return None
+    return matches[-1].group(0).strip()
+
+
+def _tail_text(path: Path, max_bytes: int) -> str | None:
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(size - max_bytes, 0), os.SEEK_SET)
+            data = handle.read()
+    except OSError:
+        return None
+    return data.decode("utf-8", errors="replace")
 
 
 def _workspace_change_summary(workspace: Path) -> str | None:

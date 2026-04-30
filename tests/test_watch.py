@@ -87,6 +87,27 @@ class WatchTests(unittest.TestCase):
         self.assertIn("/min", rendered)
         self.assertIn("Last output", rendered)
 
+    def test_render_status_includes_last_tested_puzzle_from_agent_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stderr = Path(temp_dir) / "agent.stderr.log"
+            stderr.write_text(
+                "Level 73 (27x27): PASS (7.51s)\n"
+                "Level 75 (29x27): PASS (37.22s)\n"
+                "Level 77 (28x28): PASS (2.09s)\n"
+                "Level 79 (30x28): FAIL (No solution found) (58.03s)\n",
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "latest": {"agent_stderr": str(stderr)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Last tested", rendered)
+        self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
+
     def test_render_status_includes_evaluation_level_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "evaluation.stdout.log"
