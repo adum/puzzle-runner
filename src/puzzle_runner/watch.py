@@ -165,6 +165,10 @@ def render_status(status: dict[str, Any], *, status_path: Path, color: bool = Tr
         lines.append(_kv("Agent running", agent_elapsed, color, width))
     elif status.get("last_agent_elapsed_seconds") is not None:
         lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
+    if phase in {"agent_running", "agent_retry_wait"} and status.get("agent_attempt") is not None:
+        lines.append(_kv("Agent attempt", status.get("agent_attempt"), color, width))
+    if phase == "agent_retry_wait":
+        lines.append(_kv("Retry wait", _duration(status.get("agent_retry_delay_seconds")), color, width))
     if phase == "evaluation_running":
         evaluation_progress = _evaluation_progress(latest)
         if evaluation_progress is not None:

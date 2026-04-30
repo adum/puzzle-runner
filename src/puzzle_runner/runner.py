@@ -17,6 +17,9 @@ from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
 
 
+AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
+
+
 class RunnerError(RuntimeError):
     pass
 
@@ -114,7 +117,7 @@ class Runner:
             self._update_status(phase="agent_running")
             self._event("agent_started", round=round_number)
 
-            agent_result = self._run_agent(round_dir, prompt)
+            agent_result = self._run_agent(round_number, round_dir, prompt)
             self._write_round_command(round_dir, "agent_result.json", agent_result)
             self._event(
                 "agent_finished",
@@ -129,6 +132,7 @@ class Runner:
                 last_agent_timed_out=agent_result.timed_out,
                 last_agent_timeout_reason=agent_result.timeout_reason,
                 last_agent_elapsed_seconds=round(agent_result.elapsed_seconds, 2),
+                agent_retry_delay_seconds=None,
             )
 
             if agent_result.timed_out:
@@ -390,25 +394,93 @@ exec python3 ./coil_solver.py
         if result.returncode != 0 or result.timed_out:
             raise RunnerError(f"setup command failed: {' '.join(argv)}")
 
-    def _run_agent(self, round_dir: Path, prompt: str) -> CommandResult:
+    def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
         command = self._render_command(self.config.agent.command, round_dir)
         if self.config.agent.prompt_mode == "arg":
             command = [*command, prompt]
             stdin_text = None
         else:
             stdin_text = prompt
-        self._update_status(current_command=command)
 
-        return run_streamed(
-            command,
-            cwd=self.workspace,
-            stdin_text=stdin_text,
-            timeout_seconds=self.config.agent_timeout_seconds,
-            stdout_path=round_dir / "agent.stdout.log",
-            stderr_path=round_dir / "agent.stderr.log",
-            echo=self.config.echo_agent_output,
-            idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
-        )
+        attempt = 1
+        retry_deadline: float | None = None
+        retry_delay = AGENT_RETRY_INITIAL_DELAY_SECONDS
+
+        while True:
+            stdout_path, stderr_path = _agent_attempt_log_paths(round_dir, attempt)
+            self._update_status(
+                phase="agent_running",
+                current_command=command,
+                agent_attempt=attempt,
+                agent_retry_count=attempt - 1,
+                agent_retry_delay_seconds=None,
+                latest={
+                    "agent_stdout": stdout_path,
+                    "agent_stderr": stderr_path,
+                },
+            )
+            self._event(
+                "agent_attempt_started",
+                round=round_number,
+                attempt=attempt,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+            )
+
+            result = run_streamed(
+                command,
+                cwd=self.workspace,
+                stdin_text=stdin_text,
+                timeout_seconds=self.config.agent_timeout_seconds,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                echo=self.config.echo_agent_output,
+                idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
+            )
+            self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
+            self._event(
+                "agent_attempt_finished",
+                round=round_number,
+                attempt=attempt,
+                returncode=result.returncode,
+                timed_out=result.timed_out,
+                timeout_reason=result.timeout_reason,
+                elapsed_seconds=result.elapsed_seconds,
+            )
+
+            if not _agent_result_is_retryable(result):
+                return result
+
+            retry_limit = self.config.agent_failure_retry_limit_seconds
+            if retry_limit <= 0:
+                return result
+
+            if retry_deadline is None:
+                retry_deadline = time.monotonic() + retry_limit
+
+            remaining = retry_deadline - time.monotonic()
+            if remaining <= 0:
+                return result
+
+            sleep_seconds = min(retry_delay, remaining)
+            self._event(
+                "agent_retry_scheduled",
+                round=round_number,
+                attempt=attempt,
+                delay_seconds=sleep_seconds,
+                remaining_retry_seconds=max(remaining - sleep_seconds, 0),
+            )
+            self._update_status(
+                phase="agent_retry_wait",
+                last_agent_returncode=result.returncode,
+                last_agent_timed_out=result.timed_out,
+                last_agent_timeout_reason=result.timeout_reason,
+                agent_retry_delay_seconds=round(sleep_seconds, 2),
+                agent_retry_remaining_seconds=round(max(remaining - sleep_seconds, 0), 2),
+            )
+            time.sleep(sleep_seconds)
+            attempt += 1
+            retry_delay *= 2
 
     def _run_evaluation(self, round_dir: Path) -> CommandResult:
         password = self._get_full_eval_password()
@@ -498,6 +570,7 @@ Evaluation timeout: {self.config.evaluation_timeout_seconds}s
 Stale limit: {self.config.stale_limit}
 Agent timeout: {self.config.agent_timeout_seconds}s
 Agent idle timeout: {self.config.agent_idle_timeout_seconds}s
+Agent failure retry limit: {self.config.agent_failure_retry_limit_seconds}s
 Total rounds: {final.total_rounds}
 Best score: {final.best_score}
 Best round: {final.best_round}
@@ -561,6 +634,10 @@ Elapsed seconds: {elapsed_seconds:.2f}
                 "last_score": None,
                 "score_history": [],
                 "last_improved": None,
+                "agent_attempt": None,
+                "agent_retry_count": 0,
+                "agent_retry_delay_seconds": None,
+                "agent_retry_remaining_seconds": None,
                 "stale_count": 0,
                 "stale_limit": self.config.stale_limit,
                 "stop_reason": None,
@@ -615,6 +692,17 @@ def _jsonable(value):
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _agent_result_is_retryable(result: CommandResult) -> bool:
+    return result.returncode != 0 and not result.timed_out
+
+
+def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]:
+    if attempt == 1:
+        return round_dir / "agent.stdout.log", round_dir / "agent.stderr.log"
+    prefix = f"agent.attempt-{attempt:03d}"
+    return round_dir / f"{prefix}.stdout.log", round_dir / f"{prefix}.stderr.log"
 
 
 def _status_markdown(status: dict) -> str:

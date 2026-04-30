@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from puzzle_runner.process import run_streamed
+from puzzle_runner.runner import _agent_attempt_log_paths
 
 
 class ProcessTests(unittest.TestCase):
@@ -46,6 +47,17 @@ class ProcessTests(unittest.TestCase):
             self.assertTrue(result.timed_out)
             self.assertEqual(result.timeout_reason, "idle")
             self.assertLess(result.elapsed_seconds, 3)
+
+    def test_agent_retry_attempt_paths_keep_first_attempt_compatible(self) -> None:
+        root = Path("/tmp/round")
+
+        first_stdout, first_stderr = _agent_attempt_log_paths(root, 1)
+        second_stdout, second_stderr = _agent_attempt_log_paths(root, 2)
+
+        self.assertEqual(first_stdout.name, "agent.stdout.log")
+        self.assertEqual(first_stderr.name, "agent.stderr.log")
+        self.assertEqual(second_stdout.name, "agent.attempt-002.stdout.log")
+        self.assertEqual(second_stderr.name, "agent.attempt-002.stderr.log")
 
 
 if __name__ == "__main__":

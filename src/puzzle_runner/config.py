@@ -50,6 +50,7 @@ class RunnerConfig:
     max_rounds: int
     agent_timeout_seconds: int
     agent_idle_timeout_seconds: int
+    agent_failure_retry_limit_seconds: int
     build_checker: bool
     echo_agent_output: bool
     echo_evaluation_output: bool
@@ -92,6 +93,7 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
         max_rounds=_positive_int(raw, "max_rounds", 20),
         agent_timeout_seconds=_positive_int(raw, "agent_timeout_seconds", 7200),
         agent_idle_timeout_seconds=_non_negative_int(raw, "agent_idle_timeout_seconds", 1800),
+        agent_failure_retry_limit_seconds=_non_negative_int(raw, "agent_failure_retry_limit_seconds", 900),
         build_checker=bool(raw.get("build_checker", True)),
         echo_agent_output=bool(raw.get("echo_agent_output", True)),
         echo_evaluation_output=bool(raw.get("echo_evaluation_output", True)),

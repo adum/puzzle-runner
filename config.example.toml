@@ -37,6 +37,10 @@ agent_timeout_seconds = 7200
 # agent_idle_timeout. Set to 0 to disable.
 agent_idle_timeout_seconds = 1800
 
+# Retry window for non-timeout agent process failures. Retries use exponential
+# backoff starting at 5s and doubling each time. Set to 0 to disable.
+agent_failure_retry_limit_seconds = 900
+
 build_checker = true
 echo_agent_output = true
 echo_evaluation_output = true
@@ -52,14 +56,16 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "codex-5.3-spark"
+name = "codex-5.3"
 backend = "codex"
 prompt_mode = "stdin"
 command = [
   "codex",
+  "-c",
+  "model_reasoning_effort=\"xhigh\"",
   "exec",
   "--model",
-  "gpt-5.3-codex-spark",
+  "gpt-5.3-codex",
   "--sandbox",
   "danger-full-access",
 ]
