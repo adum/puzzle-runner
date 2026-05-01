@@ -59,6 +59,8 @@ NOISY_WORKSPACE_SUFFIXES = (
 )
 MAX_UNTRACKED_LINE_COUNT_BYTES = 2_000_000
 AGENT_TESTED_LINE_TAIL_BYTES = 256_000
+CLAUDE_STREAM_TAIL_BYTES = 2_000_000
+CLAUDE_TEXT_PREVIEW_CHARS = 120
 
 
 @dataclasses.dataclass(frozen=True)
@@ -81,6 +83,18 @@ class EvaluationResultLine:
     status: str
     time_text: str | None
     reason: str | None
+
+
+@dataclasses.dataclass(frozen=True)
+class ClaudeStreamSummary:
+    events: int
+    text_chars: int
+    text_preview: str | None
+    latest_event: str | None
+    usage: dict[str, Any] | None
+    cost_usd: float | None
+    result: str | None
+    is_error: bool | None
 
 
 class WorkspaceChangeCache:
@@ -283,6 +297,15 @@ def render_status(
     if agent_output is not None:
         lines.append(_kv("Agent output", _agent_output_summary(agent_output), color, width))
         lines.append(_kv("Last output", _last_output_age(agent_output), color, width))
+    if _uses_claude_stream_json(status):
+        claude_stream = _claude_stream_summary(latest)
+        if claude_stream is not None:
+            lines.append(_kv("Claude stream", _claude_stream_overview(claude_stream), color, width))
+            if claude_stream.text_chars or claude_stream.text_preview:
+                lines.append(_kv("Claude text", _claude_text_summary(claude_stream), color, width))
+            usage = _claude_usage_summary(claude_stream)
+            if usage is not None:
+                lines.append(_kv("Claude usage", usage, color, width))
     last_tested = _last_tested_puzzle(latest)
     if last_tested is not None:
         lines.append(_kv("Last tested", last_tested, color, width))
@@ -496,6 +519,9 @@ def _last_tested_line_in_file(path: Path) -> str | None:
 
     matches = list(TESTED_LEVEL_LINE_RE.finditer(text))
     if not matches:
+        claude_text = _claude_text_from_stream(text)
+        matches = list(TESTED_LEVEL_LINE_RE.finditer(claude_text))
+    if not matches:
         return None
     return matches[-1].group(0).strip()
 
@@ -510,6 +536,239 @@ def _tail_text(path: Path, max_bytes: int) -> str | None:
     except OSError:
         return None
     return data.decode("utf-8", errors="replace")
+
+
+def _uses_claude_stream_json(status: dict[str, Any]) -> bool:
+    if status.get("agent_stream_format") == "claude-stream-json":
+        return True
+    if status.get("backend") != "claude-code":
+        return False
+    command = status.get("current_command")
+    if not isinstance(command, list):
+        return False
+    return _command_uses_stream_json([str(part) for part in command])
+
+
+def _command_uses_stream_json(command: list[str]) -> bool:
+    for index, part in enumerate(command):
+        if part == "--output-format" and index + 1 < len(command) and command[index + 1] == "stream-json":
+            return True
+        if part == "--output-format=stream-json":
+            return True
+    return False
+
+
+def _claude_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None:
+    path_value = latest.get("agent_stdout")
+    if not path_value:
+        return None
+    text = _tail_text(Path(str(path_value)), CLAUDE_STREAM_TAIL_BYTES)
+    if text is None:
+        return None
+
+    events = 0
+    text_parts: list[str] = []
+    assistant_fallback: str | None = None
+    latest_event = None
+    usage = None
+    cost_usd = None
+    result = None
+    is_error = None
+
+    for event in _claude_stream_events(text):
+        events += 1
+        latest_event = _claude_event_description(event) or latest_event
+        event_type = event.get("type")
+
+        if event_type == "stream_event":
+            stream_event = event.get("event")
+            if isinstance(stream_event, dict):
+                if stream_event.get("type") == "content_block_delta":
+                    delta = stream_event.get("delta")
+                    if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                        text_delta = delta.get("text")
+                        if isinstance(text_delta, str):
+                            text_parts.append(text_delta)
+                usage = _latest_usage(usage, stream_event.get("usage"))
+                if stream_event.get("type") == "message_start":
+                    message = stream_event.get("message")
+                    if isinstance(message, dict):
+                        usage = _latest_usage(usage, message.get("usage"))
+
+        elif event_type == "assistant":
+            message = event.get("message")
+            if isinstance(message, dict):
+                usage = _latest_usage(usage, message.get("usage"))
+                assistant_fallback = _assistant_message_text(message) or assistant_fallback
+
+        elif event_type == "result":
+            usage = _latest_usage(usage, event.get("usage"))
+            cost = event.get("total_cost_usd")
+            if isinstance(cost, (int, float)):
+                cost_usd = float(cost)
+            result_text = event.get("result")
+            if isinstance(result_text, str):
+                result = result_text
+            is_error_value = event.get("is_error")
+            if isinstance(is_error_value, bool):
+                is_error = is_error_value
+
+    if events == 0:
+        return None
+
+    combined_text = "".join(text_parts) if text_parts else assistant_fallback or result or ""
+    return ClaudeStreamSummary(
+        events=events,
+        text_chars=len(combined_text),
+        text_preview=_text_preview(combined_text),
+        latest_event=latest_event,
+        usage=usage,
+        cost_usd=cost_usd,
+        result=result,
+        is_error=is_error,
+    )
+
+
+def _claude_stream_events(text: str) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            continue
+        try:
+            event = json.loads(stripped)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            events.append(event)
+    return events
+
+
+def _claude_text_from_stream(text: str) -> str:
+    parts: list[str] = []
+    fallback: str | None = None
+    result: str | None = None
+    for event in _claude_stream_events(text):
+        if event.get("type") == "stream_event":
+            stream_event = event.get("event")
+            if not isinstance(stream_event, dict) or stream_event.get("type") != "content_block_delta":
+                continue
+            delta = stream_event.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                text_delta = delta.get("text")
+                if isinstance(text_delta, str):
+                    parts.append(text_delta)
+        elif event.get("type") == "assistant":
+            message = event.get("message")
+            if isinstance(message, dict):
+                fallback = _assistant_message_text(message) or fallback
+        elif event.get("type") == "result":
+            result_text = event.get("result")
+            if isinstance(result_text, str):
+                result = result_text
+    return "".join(parts) if parts else fallback or result or ""
+
+
+def _assistant_message_text(message: dict[str, Any]) -> str | None:
+    content = message.get("content")
+    if not isinstance(content, list):
+        return None
+    parts = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+    return "".join(parts) if parts else None
+
+
+def _latest_usage(current: dict[str, Any] | None, candidate) -> dict[str, Any] | None:
+    if isinstance(candidate, dict):
+        return candidate
+    return current
+
+
+def _claude_event_description(event: dict[str, Any]) -> str | None:
+    event_type = event.get("type")
+    if event_type == "system":
+        detail = event.get("status") or event.get("subtype")
+        return f"system {detail}" if detail else "system"
+    if event_type == "rate_limit_event":
+        info = event.get("rate_limit_info")
+        if isinstance(info, dict) and info.get("status"):
+            return f"rate limit {info['status']}"
+        return "rate limit"
+    if event_type == "stream_event":
+        stream_event = event.get("event")
+        if not isinstance(stream_event, dict):
+            return "stream event"
+        stream_type = stream_event.get("type")
+        if stream_type == "content_block_start":
+            block = stream_event.get("content_block")
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                name = block.get("name")
+                return f"tool {name} started" if name else "tool started"
+        if stream_type == "content_block_delta":
+            delta = stream_event.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                return "text delta"
+        return str(stream_type or "stream event").replace("_", " ")
+    if event_type == "assistant":
+        return "assistant message"
+    if event_type == "result":
+        subtype = event.get("subtype")
+        if subtype:
+            return f"result {subtype}"
+        return "result"
+    if isinstance(event_type, str):
+        return event_type.replace("_", " ")
+    return None
+
+
+def _claude_stream_overview(summary: ClaudeStreamSummary) -> str:
+    parts = [f"{summary.events:,} recent events"]
+    if summary.latest_event:
+        parts.append(f"latest {summary.latest_event}")
+    if summary.is_error is True:
+        parts.append("error")
+    elif (
+        summary.is_error is False
+        and summary.result is not None
+        and summary.latest_event != "result success"
+    ):
+        parts.append("success")
+    return ", ".join(parts)
+
+
+def _claude_text_summary(summary: ClaudeStreamSummary) -> str:
+    if summary.text_preview:
+        return f"{summary.text_chars:,} chars: {summary.text_preview}"
+    return f"{summary.text_chars:,} chars"
+
+
+def _claude_usage_summary(summary: ClaudeStreamSummary) -> str | None:
+    usage = summary.usage or {}
+    if not usage and summary.cost_usd is None:
+        return None
+
+    parts = []
+    for key, label in (
+        ("input_tokens", "in"),
+        ("output_tokens", "out"),
+        ("cache_read_input_tokens", "cache read"),
+        ("cache_creation_input_tokens", "cache write"),
+    ):
+        value = usage.get(key)
+        if isinstance(value, int):
+            parts.append(f"{label} {value:,}")
+    if summary.cost_usd is not None:
+        parts.append(f"cost ${summary.cost_usd:.4f}")
+    return ", ".join(parts) if parts else None
+
+
+def _text_preview(text: str) -> str | None:
+    normalized = " ".join(text.split())
+    if not normalized:
+        return None
+    return _shorten_middle(normalized, CLAUDE_TEXT_PREVIEW_CHARS)
 
 
 def _workspace_change_summary(workspace: Path) -> str | None:

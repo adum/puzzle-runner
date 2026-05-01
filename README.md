@@ -88,10 +88,10 @@ PYTHONPATH=src python3 -m puzzle_runner watch --config runner.claude.toml
 The Claude config pipes Puzzle Runner's prompt to:
 
 ```sh
-claude --print --no-session-persistence --dangerously-skip-permissions --model claude-sonnet-4-6
+claude --print --no-session-persistence --verbose --output-format stream-json --include-partial-messages --dangerously-skip-permissions --model claude-sonnet-4-6
 ```
 
-The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Edit the model value to another full Claude model id when desired.
+The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Claude agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value to another full Claude model id when desired.
 
 ## Benchmark Source
 

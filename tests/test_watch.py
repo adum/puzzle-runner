@@ -108,6 +108,42 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Last tested", rendered)
         self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
 
+    def test_render_status_summarizes_claude_stream_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stdout.write_text(
+                '{"type":"system","subtype":"init"}\n'
+                '{"type":"stream_event","event":{"type":"content_block_delta",'
+                '"delta":{"type":"text_delta","text":"Level 79 (30x28): FAIL (No solution found) (58.03s)"}}}\n'
+                '{"type":"stream_event","event":{"type":"message_delta",'
+                '"usage":{"input_tokens":2,"output_tokens":11,'
+                '"cache_read_input_tokens":11631,"cache_creation_input_tokens":5813}}}\n'
+                '{"type":"result","subtype":"success","is_error":false,'
+                '"result":"Level 79 (30x28): FAIL (No solution found) (58.03s)",'
+                '"total_cost_usd":0.02587405,'
+                '"usage":{"input_tokens":2,"output_tokens":11,'
+                '"cache_read_input_tokens":11631,"cache_creation_input_tokens":5813}}\n',
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "backend": "claude-code",
+                "agent_stream_format": "claude-stream-json",
+                "latest": {"agent_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Claude stream", rendered)
+        self.assertIn("4 recent events", rendered)
+        self.assertIn("latest result success", rendered)
+        self.assertIn("Claude text", rendered)
+        self.assertIn("Claude usage", rendered)
+        self.assertIn("in 2, out 11, cache read 11,631, cache write 5,813, cost $0.0259", rendered)
+        self.assertIn("Last tested", rendered)
+        self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
+
     def test_render_status_includes_evaluation_level_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "evaluation.stdout.log"

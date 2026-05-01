@@ -687,6 +687,7 @@ Code lines added: {final.code_lines_added}
                 "phase": "initializing",
                 "agent": self.config.agent.name,
                 "backend": self.config.agent.backend,
+                "agent_stream_format": _agent_stream_format(self.config),
                 "benchmark_repo_url": self.config.benchmark_repo_url,
                 "benchmark_ref": self.config.benchmark_ref,
                 "benchmark_path": self.config.benchmark_path,
@@ -767,6 +768,19 @@ def _utc_now() -> str:
 
 def _agent_result_is_retryable(result: CommandResult) -> bool:
     return result.returncode != 0 and not result.timed_out
+
+
+def _agent_stream_format(config: RunnerConfig) -> str | None:
+    if config.agent.backend != "claude-code":
+        return None
+
+    command = config.agent.command
+    for index, part in enumerate(command):
+        if part == "--output-format" and index + 1 < len(command) and command[index + 1] == "stream-json":
+            return "claude-stream-json"
+        if part == "--output-format=stream-json":
+            return "claude-stream-json"
+    return None
 
 
 def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]:
@@ -1017,6 +1031,7 @@ def _status_markdown(status: dict) -> str:
         f"- Active: `{status.get('active')}`",
         f"- Phase: `{status.get('phase')}`",
         f"- Agent: `{status.get('agent')}`",
+        f"- Agent Stream Format: `{status.get('agent_stream_format')}`",
         f"- Round: `{status.get('current_round')}/{status.get('max_rounds')}`",
         f"- Best Score: `{status.get('best_score')}`",
         f"- Best Round: `{status.get('best_round')}`",
