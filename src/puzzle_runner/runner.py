@@ -23,6 +23,13 @@ RESULTS_SUMMARY_HEADER = (
     "Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
 )
+RESULTS_SUMMARY_NO_EFFORT_HEADER = (
+    "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | "
+    "Timeout | Wall Time | Agent Chars | Code Lines Added |"
+)
+RESULTS_SUMMARY_NO_EFFORT_SEPARATOR = (
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+)
 AGENT_OUTPUT_LOG_PATTERNS = (
     "round-*/agent*.stdout.log",
     "round-*/agent*.stderr.log",
@@ -1021,12 +1028,58 @@ def _ensure_results_summary_header(path: Path) -> None:
     if RESULTS_SUMMARY_HEADER.splitlines()[0] in text.splitlines():
         return
 
+    migrated = _migrate_results_summary_effort_column(text)
+    if migrated != text:
+        path.write_text(migrated, encoding="utf-8")
+        return
+
     with path.open("a", encoding="utf-8") as handle:
         if text and not text.endswith("\n"):
             handle.write("\n")
         if text.strip():
             handle.write("\n")
         handle.write(RESULTS_SUMMARY_HEADER)
+
+
+def _migrate_results_summary_effort_column(text: str) -> str:
+    lines = text.splitlines()
+    output = []
+    in_old_table = False
+
+    for line in lines:
+        if line == RESULTS_SUMMARY_NO_EFFORT_HEADER:
+            output.append(RESULTS_SUMMARY_HEADER.splitlines()[0])
+            in_old_table = True
+            continue
+
+        if in_old_table and line == RESULTS_SUMMARY_NO_EFFORT_SEPARATOR:
+            output.append(RESULTS_SUMMARY_HEADER.splitlines()[1])
+            continue
+
+        if in_old_table and line.startswith("|"):
+            cells = _markdown_table_cells(line)
+            if len(cells) == 10:
+                cells.insert(2, "")
+                output.append(_markdown_table_row(cells))
+                continue
+
+        if in_old_table and not line.startswith("|"):
+            in_old_table = False
+        output.append(line)
+
+    trailing_newline = "\n" if text.endswith("\n") else ""
+    return "\n".join(output) + trailing_newline
+
+
+def _markdown_table_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return []
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _markdown_table_row(cells: list[str]) -> str:
+    return "| " + " | ".join(cells) + " |"
 
 
 def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:

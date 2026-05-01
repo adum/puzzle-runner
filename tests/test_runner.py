@@ -9,6 +9,7 @@ from puzzle_runner.runner import (
     Runner,
     _apply_agent_effort,
     _ensure_results_summary_header,
+    _migrate_results_summary_effort_column,
     _results_summary_row,
     count_agent_output_chars,
     count_code_lines_added,
@@ -140,6 +141,33 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("Code Lines Added", text)
         self.assertIn("| Run ID | Agent | Effort |", text)
         self.assertNotIn("Timeout | Logs |\n\n| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs", text)
+
+    def test_results_summary_header_migrates_no_effort_schema(self) -> None:
+        old_table = (
+            "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+            "| run-1 | claude | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |\n"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "final_results.md"
+            path.write_text(old_table, encoding="utf-8")
+
+            _ensure_results_summary_header(path)
+            text = path.read_text(encoding="utf-8")
+
+        self.assertIn("| Run ID | Agent | Effort | Best Score |", text)
+        self.assertIn("| run-1 | claude |  | 0 |", text)
+        self.assertEqual(text.count("| Run ID | Agent |"), 1)
+
+    def test_results_summary_migration_preserves_trailing_newline(self) -> None:
+        old_table = (
+            "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+        )
+
+        migrated = _migrate_results_summary_effort_column(old_table)
+
+        self.assertTrue(migrated.endswith("\n"))
 
     def test_render_command_supports_config_dir_placeholder(self) -> None:
         runner = Runner(self.config)
