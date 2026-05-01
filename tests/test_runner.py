@@ -6,6 +6,7 @@ from pathlib import Path
 from puzzle_runner.config import load_config
 from puzzle_runner.runner import (
     FinalResult,
+    Runner,
     _ensure_results_summary_header,
     _results_summary_row,
     count_agent_output_chars,
@@ -114,6 +115,14 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("Agent Chars", text)
         self.assertIn("Code Lines Added", text)
         self.assertNotIn("Timeout | Logs |\n\n| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs", text)
+
+    def test_render_command_supports_config_dir_placeholder(self) -> None:
+        runner = Runner(self.config)
+
+        command = runner._render_command(["{config_dir}/scripts/tool", "{run_id}"], Path("/tmp/round"))
+
+        self.assertEqual(command[0], str(self.config.config_path.parent / "scripts/tool"))
+        self.assertEqual(command[1], "test-run")
 
 
 if __name__ == "__main__":

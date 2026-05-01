@@ -2,7 +2,7 @@
 
 Iterative benchmark orchestrator for AI coding agents.
 
-First backend: OpenAI Codex CLI using `gpt-5.3-codex-spark`.
+Backends: OpenAI Codex CLI and Claude Code.
 
 Requires Python 3.10 or newer.
 
@@ -69,6 +69,29 @@ or after installing:
 ```sh
 puzzle-runner watch
 ```
+
+## Claude Code
+
+Use the Claude config:
+
+```sh
+cp config.claude.example.toml runner.claude.toml
+PYTHONPATH=src python3 -m puzzle_runner --config runner.claude.toml
+```
+
+Watch that run with:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner watch --config runner.claude.toml
+```
+
+The Claude config pipes Puzzle Runner's prompt to:
+
+```sh
+claude --print --no-session-persistence --dangerously-skip-permissions --model claude-sonnet-4-6
+```
+
+The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Edit the model value to another full Claude model id when desired.
 
 ## Benchmark Source
 

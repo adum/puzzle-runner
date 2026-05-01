@@ -611,6 +611,7 @@ exec python3 ./coil_solver.py
 
     def _render_command(self, command: list[str], round_dir: Path) -> list[str]:
         replacements = {
+            "config_dir": str(self.config.config_path.parent),
             "workspace": str(self.workspace),
             "log_dir": str(self.log_dir),
             "round_dir": str(round_dir),

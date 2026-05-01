@@ -15,6 +15,20 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("gpt-5.3-codex", config.agent.command)
         self.assertEqual(config.agent_failure_retry_limit_seconds, 900)
 
+    def test_claude_example_config_loads(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.claude.example.toml"
+
+        config = load_config(str(config_path), run_id="test-run")
+
+        self.assertEqual(config.agent.name, "claude-code-sonnet")
+        self.assertEqual(config.agent.backend, "claude-code")
+        self.assertEqual(config.agent.prompt_mode, "stdin")
+        self.assertIn("{config_dir}/scripts/claude-code", config.agent.command)
+        self.assertIn("--print", config.agent.command)
+        self.assertIn("--no-session-persistence", config.agent.command)
+        self.assertIn("--dangerously-skip-permissions", config.agent.command)
+        self.assertIn("claude-sonnet-4-6", config.agent.command)
+
 
 if __name__ == "__main__":
     unittest.main()
