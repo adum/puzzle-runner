@@ -305,7 +305,10 @@ class Runner:
             best_score = 0
 
         elapsed = time.monotonic() - started
-        agent_output_chars = count_agent_output_chars(self.log_dir)
+        agent_output_chars = count_agent_output_chars(
+            self.log_dir,
+            agent_stream_format=_agent_stream_format(self.config),
+        )
         code_lines_added = count_code_lines_added(self.workspace)
         stop_detail = explain_stop_reason(stop_reason, self.config, self._status)
         final = FinalResult(
@@ -807,7 +810,10 @@ def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]
     return round_dir / f"{prefix}.stdout.log", round_dir / f"{prefix}.stderr.log"
 
 
-def count_agent_output_chars(log_dir: Path) -> int:
+def count_agent_output_chars(log_dir: Path, *, agent_stream_format: str | None = None) -> int:
+    if agent_stream_format == "claude-stream-json":
+        return _count_claude_agent_text_chars(log_dir)
+
     total = 0
     seen: set[Path] = set()
     for pattern in AGENT_OUTPUT_LOG_PATTERNS:
@@ -820,6 +826,71 @@ def count_agent_output_chars(log_dir: Path) -> int:
             except OSError:
                 continue
     return total
+
+
+def _count_claude_agent_text_chars(log_dir: Path) -> int:
+    total = 0
+    seen: set[Path] = set()
+    for path in log_dir.glob("round-*/agent*.stdout.log"):
+        if path in seen:
+            continue
+        seen.add(path)
+        total += _claude_stream_text_char_count(path)
+    return total
+
+
+def _claude_stream_text_char_count(path: Path) -> int:
+    delta_chars = 0
+    assistant_chars = 0
+    result_chars = 0
+
+    for event in _claude_stream_events(path):
+        event_type = event.get("type")
+        if event_type == "stream_event":
+            stream_event = event.get("event")
+            if not isinstance(stream_event, dict) or stream_event.get("type") != "content_block_delta":
+                continue
+            delta = stream_event.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta" and isinstance(delta.get("text"), str):
+                delta_chars += len(delta["text"])
+        elif event_type == "assistant":
+            message = event.get("message")
+            if isinstance(message, dict):
+                assistant_chars += len(_assistant_message_text(message))
+        elif event_type == "result":
+            result = event.get("result")
+            if isinstance(result, str):
+                result_chars += len(result)
+
+    return delta_chars or assistant_chars or result_chars
+
+
+def _claude_stream_events(path: Path):
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped.startswith("{"):
+                    continue
+                try:
+                    event = json.loads(stripped)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict):
+                    yield event
+    except OSError:
+        return
+
+
+def _assistant_message_text(message: dict) -> str:
+    content = message.get("content")
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+    return "".join(parts)
 
 
 def count_code_lines_added(workspace: Path) -> int:

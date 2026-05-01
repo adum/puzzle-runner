@@ -55,6 +55,29 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(total, 9)
 
+    def test_count_agent_output_chars_uses_claude_text_not_json_size(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir)
+            round_dir = log_dir / "round-001"
+            round_dir.mkdir()
+            (round_dir / "agent.stdout.log").write_text(
+                '{"type":"system","subtype":"init"}\n'
+                '{"type":"stream_event","event":{"type":"content_block_delta",'
+                '"delta":{"type":"text_delta","text":"Hello"}}}\n'
+                '{"type":"assistant","message":{"content":[{"type":"text","text":"Hello"}]}}\n'
+                '{"type":"result","result":"Hello"}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "agent.stderr.log").write_text("raw stderr ignored", encoding="utf-8")
+            (round_dir / "agent.attempt-002.stdout.log").write_text(
+                '{"type":"assistant","message":{"content":[{"type":"text","text":"Bye"}]}}\n',
+                encoding="utf-8",
+            )
+
+            total = count_agent_output_chars(log_dir, agent_stream_format="claude-stream-json")
+
+        self.assertEqual(total, len("HelloBye"))
+
     def test_count_code_lines_added_counts_code_and_ignores_levels(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

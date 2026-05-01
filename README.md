@@ -43,6 +43,9 @@ Per-run logs include:
 
 Top-level final summaries append to `final_results.md`.
 
+For Claude stream JSON runs, `Agent Chars` counts assistant text content only,
+not the raw JSON event envelope.
+
 ## Live Status
 
 The runner updates these files throughout the run:
