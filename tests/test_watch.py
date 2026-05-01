@@ -28,6 +28,7 @@ class WatchTests(unittest.TestCase):
             "agent_started_at": agent_started_at,
             "run_id": "run-1",
             "agent": "codex",
+            "agent_effort": "xhigh",
             "current_round": 2,
             "max_rounds": 5,
             "best_score": 47,
@@ -50,6 +51,8 @@ class WatchTests(unittest.TestCase):
         self.assertIn("[ACTIVE]", rendered)
         self.assertIn("agent_running", rendered)
         self.assertIn("Agent running", rendered)
+        self.assertIn("Effort", rendered)
+        self.assertIn("xhigh", rendered)
         self.assertIn("47", rendered)
         self.assertIn("Scores", rendered)
         self.assertIn("35, 47", rendered)

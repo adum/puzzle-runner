@@ -19,9 +19,9 @@ from .prompts import ScoreFeedback, compose_prompt
 
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
 RESULTS_SUMMARY_HEADER = (
-    "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | "
+    "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
     "Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
 )
 AGENT_OUTPUT_LOG_PATTERNS = (
     "round-*/agent*.stdout.log",
@@ -470,7 +470,7 @@ exec python3 ./coil_solver.py
             raise RunnerError(f"setup command failed: {' '.join(argv)}")
 
     def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
-        command = self._render_command(self.config.agent.command, round_dir)
+        command = self._agent_command(round_dir)
         if self.config.agent.prompt_mode == "arg":
             command = [*command, prompt]
             stdin_text = None
@@ -619,6 +619,10 @@ exec python3 ./coil_solver.py
         }
         return [part.format(**replacements) for part in command]
 
+    def _agent_command(self, round_dir: Path) -> list[str]:
+        command = self._render_command(self.config.agent.command, round_dir)
+        return _apply_agent_effort(self.config, command)
+
     def _write_git_diff(self, path: Path) -> None:
         result = subprocess.run(
             ["git", "-C", str(self.workspace), "diff", "--no-ext-diff", "--"],
@@ -636,6 +640,7 @@ exec python3 ./coil_solver.py
 Run id: {final.run_id}
 Agent: {self.config.agent.name}
 Backend: {self.config.agent.backend}
+Effort: {_agent_effort_text(self.config)}
 Benchmark repo: {self.config.benchmark_repo_url}
 Benchmark ref: {self.config.benchmark_ref}
 Benchmark local path: {self.config.benchmark_path}
@@ -687,6 +692,7 @@ Code lines added: {final.code_lines_added}
                 "phase": "initializing",
                 "agent": self.config.agent.name,
                 "backend": self.config.agent.backend,
+                "agent_effort": self.config.agent.effort,
                 "agent_stream_format": _agent_stream_format(self.config),
                 "benchmark_repo_url": self.config.benchmark_repo_url,
                 "benchmark_ref": self.config.benchmark_ref,
@@ -781,6 +787,17 @@ def _agent_stream_format(config: RunnerConfig) -> str | None:
         if part == "--output-format=stream-json":
             return "claude-stream-json"
     return None
+
+
+def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
+    effort = config.agent.effort
+    if not effort or config.agent.backend != "claude-code" or _command_has_option(command, "--effort"):
+        return command
+    return [*command, "--effort", effort]
+
+
+def _command_has_option(command: list[str], option: str) -> bool:
+    return any(part == option or part.startswith(f"{option}=") for part in command)
 
 
 def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]:
@@ -945,6 +962,7 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
     row = [
         final.run_id,
         config.agent.name,
+        _agent_effort_text(config),
         str(final.best_score),
         "" if final.best_round is None else str(final.best_round),
         str(final.total_rounds),
@@ -955,6 +973,10 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
         str(final.code_lines_added),
     ]
     return "| " + " | ".join(_escape_table_cell(value) for value in row) + " |\n"
+
+
+def _agent_effort_text(config: RunnerConfig) -> str:
+    return config.agent.effort or ""
 
 
 def _escape_table_cell(value: str) -> str:
@@ -1031,6 +1053,7 @@ def _status_markdown(status: dict) -> str:
         f"- Active: `{status.get('active')}`",
         f"- Phase: `{status.get('phase')}`",
         f"- Agent: `{status.get('agent')}`",
+        f"- Agent Effort: `{status.get('agent_effort')}`",
         f"- Agent Stream Format: `{status.get('agent_stream_format')}`",
         f"- Round: `{status.get('current_round')}/{status.get('max_rounds')}`",
         f"- Best Score: `{status.get('best_score')}`",

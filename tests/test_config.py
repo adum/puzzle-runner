@@ -23,6 +23,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.agent.name, "claude-code-sonnet")
         self.assertEqual(config.agent.backend, "claude-code")
         self.assertEqual(config.agent.prompt_mode, "stdin")
+        self.assertEqual(config.agent.effort, "xhigh")
         self.assertEqual(config.agent_idle_timeout_seconds, 1800)
         self.assertFalse(config.echo_agent_output)
         self.assertIn("{config_dir}/scripts/claude-code", config.agent.command)

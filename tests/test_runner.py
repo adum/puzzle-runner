@@ -7,6 +7,7 @@ from puzzle_runner.config import load_config
 from puzzle_runner.runner import (
     FinalResult,
     Runner,
+    _apply_agent_effort,
     _ensure_results_summary_header,
     _results_summary_row,
     count_agent_output_chars,
@@ -114,6 +115,7 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("Agent Chars", text)
         self.assertIn("Code Lines Added", text)
+        self.assertIn("| Run ID | Agent | Effort |", text)
         self.assertNotIn("Timeout | Logs |\n\n| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs", text)
 
     def test_render_command_supports_config_dir_placeholder(self) -> None:
@@ -123,6 +125,24 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(command[0], str(self.config.config_path.parent / "scripts/tool"))
         self.assertEqual(command[1], "test-run")
+
+    def test_claude_effort_is_added_to_agent_command(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.claude.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        runner = Runner(config)
+
+        command = runner._agent_command(Path("/tmp/round"))
+
+        self.assertIn("--effort", command)
+        self.assertIn("xhigh", command)
+
+    def test_agent_effort_is_not_duplicated(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.claude.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        command = _apply_agent_effort(config, ["claude", "--effort", "high"])
+
+        self.assertEqual(command, ["claude", "--effort", "high"])
 
 
 if __name__ == "__main__":

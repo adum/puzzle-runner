@@ -25,6 +25,7 @@ class AgentConfig:
     backend: str
     command: list[str]
     prompt_mode: PromptMode = "stdin"
+    effort: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -103,6 +104,7 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
             backend=_str(agent_raw, "backend", "codex"),
             command=_str_list(agent_raw.get("command"), "agent.command"),
             prompt_mode=_literal(agent_raw.get("prompt_mode", "stdin"), {"stdin", "arg"}, "agent.prompt_mode"),
+            effort=_optional_str(agent_raw, "effort"),
         ),
     )
 

@@ -60,6 +60,7 @@ forbidden_paths = [
 name = "claude-code-sonnet"
 backend = "claude-code"
 prompt_mode = "stdin"
+effort = "xhigh"
 command = [
   "{config_dir}/scripts/claude-code",
   "--print",

@@ -281,6 +281,8 @@ def render_status(
         _kv("Elapsed", _duration(status.get("elapsed_seconds")), color, width),
         _kv("Phase time", phase_elapsed, color, width),
     ]
+    if status.get("agent_effort") is not None:
+        lines.append(_kv("Effort", status.get("agent_effort"), color, width))
     if phase == "agent_running":
         lines.append(_kv("Agent running", agent_elapsed, color, width))
     elif status.get("last_agent_elapsed_seconds") is not None:
