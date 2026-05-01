@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import signal
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Callable
 
 
 @dataclasses.dataclass(frozen=True)
@@ -24,15 +26,24 @@ class CommandResult:
 @dataclasses.dataclass
 class _OutputActivity:
     last_output_monotonic: float
+    stdout_completed: bool = False
     lock: threading.Lock = dataclasses.field(default_factory=threading.Lock)
 
     def mark(self) -> None:
         with self.lock:
             self.last_output_monotonic = time.monotonic()
 
+    def mark_stdout_completed(self) -> None:
+        with self.lock:
+            self.stdout_completed = True
+
     def idle_seconds(self) -> float:
         with self.lock:
             return time.monotonic() - self.last_output_monotonic
+
+    def is_stdout_completed(self) -> bool:
+        with self.lock:
+            return self.stdout_completed
 
 
 def run_streamed(
@@ -46,6 +57,7 @@ def run_streamed(
     echo: bool,
     idle_timeout_seconds: int | None = None,
     env: dict[str, str] | None = None,
+    stdout_completion_predicate: Callable[[str], bool] | None = None,
 ) -> CommandResult:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +77,7 @@ def run_streamed(
                     encoding="utf-8",
                     errors="replace",
                     bufsize=1,
+                    **_process_group_kwargs(),
                 )
             except OSError as exc:
                 err_handle.write(f"failed to start command: {exc}\n")
@@ -87,6 +100,7 @@ def run_streamed(
             stdout_thread = threading.Thread(
                 target=_copy_stream,
                 args=(process.stdout, out_handle, sys.stdout, echo, activity),
+                kwargs={"completion_predicate": stdout_completion_predicate},
                 daemon=True,
             )
             stderr_thread = threading.Thread(
@@ -130,9 +144,18 @@ def run_streamed(
     )
 
 
-def _copy_stream(source, dest_handle, echo_handle, echo: bool, activity: _OutputActivity) -> None:
+def _copy_stream(
+    source,
+    dest_handle,
+    echo_handle,
+    echo: bool,
+    activity: _OutputActivity,
+    *,
+    completion_predicate: Callable[[str], bool] | None = None,
+) -> None:
     if source is None:
         return
+    line_parts: list[str] = []
     try:
         for chunk in iter(lambda: source.read(1), ""):
             activity.mark()
@@ -141,6 +164,15 @@ def _copy_stream(source, dest_handle, echo_handle, echo: bool, activity: _Output
             if echo:
                 echo_handle.write(chunk)
                 echo_handle.flush()
+            if completion_predicate is not None:
+                line_parts.append(chunk)
+                if chunk == "\n":
+                    line = "".join(line_parts)
+                    line_parts = []
+                    if completion_predicate(line):
+                        activity.mark_stdout_completed()
+        if line_parts and completion_predicate is not None and completion_predicate("".join(line_parts)):
+            activity.mark_stdout_completed()
     finally:
         source.close()
 
@@ -161,6 +193,8 @@ def _wait_for_process(
     )
 
     while True:
+        if activity.is_stdout_completed():
+            return _stop_completed_process(process)
         returncode = process.poll()
         if returncode is not None:
             return returncode, False, None
@@ -180,11 +214,62 @@ def _wait_for_process(
 
 
 def _kill_timed_out_process(process: subprocess.Popen, reason: str) -> tuple[int, bool, str]:
+    _kill_process_tree(process)
+    return process.wait(), True, reason
+
+
+def _stop_completed_process(process: subprocess.Popen) -> tuple[int, bool, str | None]:
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        _terminate_process_tree(process)
+
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            _kill_process_tree(process)
+            process.wait()
+    return 0, False, None
+
+
+def _process_group_kwargs() -> dict:
+    if os.name == "posix":
+        return {"start_new_session": True}
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {}
+
+
+def _terminate_process_tree(process: subprocess.Popen) -> None:
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+            return
+        except OSError:
+            pass
+    if os.name == "nt":
+        try:
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+            return
+        except OSError:
+            pass
+    try:
+        process.terminate()
+    except OSError:
+        pass
+
+
+def _kill_process_tree(process: subprocess.Popen) -> None:
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except OSError:
+            pass
     try:
         process.kill()
     except OSError:
         pass
-    return process.wait(), True, reason
 
 
 def _merged_env(extra: dict[str, str] | None) -> dict[str, str] | None:

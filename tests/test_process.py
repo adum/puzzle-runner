@@ -48,6 +48,33 @@ class ProcessTests(unittest.TestCase):
             self.assertEqual(result.timeout_reason, "idle")
             self.assertLess(result.elapsed_seconds, 3)
 
+    def test_run_streamed_can_stop_after_stdout_completion_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            stdout = temp_path / "stdout.log"
+            stderr = temp_path / "stderr.log"
+
+            result = run_streamed(
+                [
+                    "python3",
+                    "-c",
+                    "import time; print('DONE', flush=True); time.sleep(30)",
+                ],
+                cwd=temp_path,
+                stdin_text=None,
+                timeout_seconds=30,
+                stdout_path=stdout,
+                stderr_path=stderr,
+                echo=False,
+                idle_timeout_seconds=30,
+                stdout_completion_predicate=lambda line: line.strip() == "DONE",
+            )
+
+            self.assertFalse(result.timed_out)
+            self.assertEqual(result.returncode, 0)
+            self.assertLess(result.elapsed_seconds, 4)
+            self.assertEqual(stdout.read_text(encoding="utf-8").strip(), "DONE")
+
     def test_agent_retry_attempt_paths_keep_first_attempt_compatible(self) -> None:
         root = Path("/tmp/round")
 

@@ -9,6 +9,7 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
@@ -521,6 +522,7 @@ exec python3 ./coil_solver.py
                 stderr_path=stderr_path,
                 echo=self.config.echo_agent_output,
                 idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
+                stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
             )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             self._event(
@@ -797,6 +799,22 @@ def _agent_stream_format(config: RunnerConfig) -> str | None:
         if part == "--output-format=stream-json":
             return "claude-stream-json"
     return None
+
+
+def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], bool] | None:
+    if _agent_stream_format(config) == "claude-stream-json":
+        return _is_successful_claude_result_line
+    return None
+
+
+def _is_successful_claude_result_line(line: str) -> bool:
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(event, dict) or event.get("type") != "result":
+        return False
+    return event.get("subtype") == "success" and event.get("is_error") is not True
 
 
 def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:

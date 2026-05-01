@@ -9,6 +9,7 @@ from puzzle_runner.runner import (
     Runner,
     _apply_agent_effort,
     _ensure_results_summary_header,
+    _is_successful_claude_result_line,
     _migrate_results_summary_effort_column,
     _results_summary_row,
     count_agent_output_chars,
@@ -194,6 +195,20 @@ class RunnerTests(unittest.TestCase):
         command = _apply_agent_effort(config, ["claude", "--effort", "high"])
 
         self.assertEqual(command, ["claude", "--effort", "high"])
+
+    def test_claude_success_result_line_is_terminal(self) -> None:
+        self.assertTrue(
+            _is_successful_claude_result_line(
+                '{"type":"result","subtype":"success","is_error":false}\n'
+            )
+        )
+        self.assertFalse(
+            _is_successful_claude_result_line(
+                '{"type":"result","subtype":"error","is_error":true}\n'
+            )
+        )
+        self.assertFalse(_is_successful_claude_result_line('{"type":"assistant"}\n'))
+        self.assertFalse(_is_successful_claude_result_line("not json\n"))
 
 
 if __name__ == "__main__":
