@@ -142,6 +142,47 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Last eval", rendered)
         self.assertIn("passed 119, timeout at 120", rendered)
 
+    def test_render_status_includes_last_eval_times_and_failure_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "evaluation.stdout.log"
+            stdout.write_text(
+                "Level 149 (31x31): PASS (1.00s)\n"
+                "Level 151 (32x32): PASS (12.34s)\n"
+                "Level 152 (32x33): FAIL (No solution found) (58.03s)\n",
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "last_score": 151,
+                "first_failing_level": 152,
+                "stop_status": "FAIL",
+                "latest": {"evaluation_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Last eval", rendered)
+        self.assertIn("passed 151 (12.34s), fail at 152 (No solution found, 58.03s)", rendered)
+
+    def test_render_status_includes_last_eval_timeout_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "evaluation.stdout.log"
+            stdout.write_text(
+                "Level 119 (30x30): PASS (3.21s)\n"
+                "Level 120 (31x30): TIMEOUT - Exceeded 600.0s limit (600.11s)\n",
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "latest": {"evaluation_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("passed 119 (3.21s), timeout at 120 (Exceeded 600.0s limit, 600.11s)", rendered)
+
     def test_render_status_includes_retry_countdown(self) -> None:
         phase_started_at = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat(
             timespec="seconds"

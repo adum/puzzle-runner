@@ -34,6 +34,11 @@ EVALUATION_LEVEL_RE = re.compile(
     r"^Level\s+(\d+)\s+\(([^)]*)\):[ \t]*(PASS|FAIL|TIMEOUT|ERROR)?",
     re.MULTILINE,
 )
+EVALUATION_RESULT_LINE_RE = re.compile(
+    r"^Level\s+(?P<level>\d+)\s+\((?P<dimensions>[^)]*)\):\s+"
+    r"(?P<status>PASS|FAIL|TIMEOUT|ERROR)\b(?P<rest>.*)$",
+    re.MULTILINE,
+)
 TESTED_LEVEL_LINE_RE = re.compile(
     r"^Level\s+\d+\s+\([^)]*\):\s+(?:PASS|FAIL|TIMEOUT|ERROR)\b.*$",
     re.MULTILINE,
@@ -68,6 +73,14 @@ class FileTypeChange:
     files: int = 0
     additions: int = 0
     deletions: int = 0
+
+
+@dataclasses.dataclass(frozen=True)
+class EvaluationResultLine:
+    level: int
+    status: str
+    time_text: str | None
+    reason: str | None
 
 
 class WorkspaceChangeCache:
@@ -281,7 +294,7 @@ def render_status(
             _kv("Best", status.get("best_score"), color, width),
             _kv("Best round", status.get("best_round"), color, width),
             _kv("Scores", _score_history(status), color, width),
-            _kv("Last eval", _last_eval_summary(status), color, width),
+            _kv("Last eval", _last_eval_summary(status, latest), color, width),
             _kv("Improved", _yes_no(status.get("last_improved")), color, width),
             _kv("No-progress", f"{stale_count}/{stale_limit} {_bar(stale_count, stale_limit, color)}", color, width),
             _kv("Remaining tries", remaining, color, width),
@@ -717,7 +730,12 @@ def _evaluation_progress(latest: dict[str, Any]) -> str | None:
     return progress
 
 
-def _last_eval_summary(status: dict[str, Any]) -> str:
+def _last_eval_summary(status: dict[str, Any], latest: dict[str, Any] | None = None) -> str:
+    if latest is not None:
+        summary = _last_eval_summary_from_log(latest)
+        if summary is not None:
+            return summary
+
     score = status.get("last_score")
     failing_level = status.get("first_failing_level")
     stop_status = status.get("stop_status")
@@ -731,6 +749,118 @@ def _last_eval_summary(status: dict[str, Any]) -> str:
         label = str(stop_status).lower() if stop_status else "stopped"
         parts.append(f"{label} at {failing_level}")
     return ", ".join(parts)
+
+
+def _last_eval_summary_from_log(latest: dict[str, Any]) -> str | None:
+    path_value = latest.get("evaluation_stdout")
+    if not path_value:
+        return None
+    try:
+        text = Path(str(path_value)).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+    results = _evaluation_result_lines(text)
+    if not results:
+        return None
+
+    pass_result = None
+    stop_result = None
+    for result in results:
+        if result.status == "PASS":
+            pass_result = result
+        elif stop_result is None:
+            stop_result = result
+
+    parts = []
+    if pass_result is not None:
+        parts.append(_passed_eval_summary(pass_result))
+    if stop_result is not None:
+        parts.append(_stopped_eval_summary(stop_result))
+    return ", ".join(parts) if parts else None
+
+
+def _evaluation_result_lines(text: str) -> list[EvaluationResultLine]:
+    results = []
+    for match in EVALUATION_RESULT_LINE_RE.finditer(text):
+        status = match.group("status")
+        rest = match.group("rest").strip()
+        time_text, reason = _parse_evaluation_rest(status, rest, text, match.end())
+        results.append(
+            EvaluationResultLine(
+                level=int(match.group("level")),
+                status=status,
+                time_text=time_text,
+                reason=reason,
+            )
+        )
+    return results
+
+
+def _parse_evaluation_rest(
+    status: str,
+    rest: str,
+    text: str,
+    match_end: int,
+) -> tuple[str | None, str | None]:
+    time_text = None
+    reason = None
+
+    time_match = re.search(r"\((\d+(?:\.\d+)?)s\)\s*(?::\s*(.*))?$", rest)
+    before_time = rest
+    if time_match is not None:
+        time_text = f"{time_match.group(1)}s"
+        before_time = rest[: time_match.start()].strip()
+        if time_match.group(2):
+            reason = time_match.group(2).strip()
+
+    if status != "PASS" and not reason:
+        reason = _reason_from_text_before_time(before_time)
+    if status != "PASS" and not reason:
+        reason = _following_failure_reason(text, match_end)
+
+    return time_text, reason
+
+
+def _reason_from_text_before_time(text: str) -> str | None:
+    stripped = text.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("-"):
+        return stripped.removeprefix("-").strip() or None
+
+    groups = re.findall(r"\(([^)]*)\)", stripped)
+    if groups:
+        reason = " ".join(item.strip() for item in groups if item.strip())
+        return reason or None
+    return stripped
+
+
+def _following_failure_reason(text: str, match_end: int) -> str | None:
+    tail = text[match_end:].splitlines()[1:6]
+    for line in tail:
+        stripped = line.strip()
+        if stripped.startswith("Error:"):
+            return stripped
+        if stripped.startswith("Solver stderr:"):
+            return stripped
+        if stripped.startswith("Traceback"):
+            return stripped
+    return None
+
+
+def _passed_eval_summary(result: EvaluationResultLine) -> str:
+    if result.time_text:
+        return f"passed {result.level} ({result.time_text})"
+    return f"passed {result.level}"
+
+
+def _stopped_eval_summary(result: EvaluationResultLine) -> str:
+    label = result.status.lower()
+    details = [item for item in (result.reason, result.time_text) if item]
+    if details:
+        return f"{label} at {result.level} ({', '.join(details)})"
+    return f"{label} at {result.level}"
 
 
 def _retry_countdown(status: dict[str, Any]) -> str:
