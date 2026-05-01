@@ -18,6 +18,67 @@ from .prompts import ScoreFeedback, compose_prompt
 
 
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
+RESULTS_SUMMARY_HEADER = (
+    "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | "
+    "Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+)
+AGENT_OUTPUT_LOG_PATTERNS = (
+    "round-*/agent*.stdout.log",
+    "round-*/agent*.stderr.log",
+)
+NOISY_CODE_EXACT_PATHS = {
+    "coil_check/check",
+    "levels_secret_even.tar.enc",
+}
+NOISY_CODE_PREFIXES = (
+    ".git/",
+    "__pycache__/",
+    "levels_public/",
+    "levels_secret_even/",
+)
+NOISY_CODE_SUFFIXES = (
+    ".pyc",
+    ".pyo",
+)
+CODE_SUFFIXES = {
+    ".bash",
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cs",
+    ".cxx",
+    ".fish",
+    ".go",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".lua",
+    ".m",
+    ".mm",
+    ".php",
+    ".pl",
+    ".pm",
+    ".py",
+    ".rb",
+    ".rs",
+    ".sh",
+    ".swift",
+    ".ts",
+    ".tsx",
+    ".zsh",
+}
+CODE_FILENAMES = {
+    "Makefile",
+    "makefile",
+}
+MAX_UNTRACKED_CODE_LINE_COUNT_BYTES = 2_000_000
 
 
 class RunnerError(RuntimeError):
@@ -32,6 +93,9 @@ class FinalResult:
     total_rounds: int
     stop_reason: str
     stop_detail: str
+    total_wall_seconds: float
+    agent_output_chars: int
+    code_lines_added: int
     log_dir: Path
     workspace: Path
 
@@ -240,6 +304,9 @@ class Runner:
         if best_score < 0:
             best_score = 0
 
+        elapsed = time.monotonic() - started
+        agent_output_chars = count_agent_output_chars(self.log_dir)
+        code_lines_added = count_code_lines_added(self.workspace)
         stop_detail = explain_stop_reason(stop_reason, self.config, self._status)
         final = FinalResult(
             run_id=self.config.run_id,
@@ -248,10 +315,12 @@ class Runner:
             total_rounds=completed_rounds,
             stop_reason=stop_reason,
             stop_detail=stop_detail,
+            total_wall_seconds=elapsed,
+            agent_output_chars=agent_output_chars,
+            code_lines_added=code_lines_added,
             log_dir=self.log_dir,
             workspace=self.workspace,
         )
-        elapsed = time.monotonic() - started
         self._update_status(
             active=False,
             phase="finished",
@@ -260,11 +329,13 @@ class Runner:
             current_round=final.total_rounds,
             stop_reason=final.stop_reason,
             stop_detail=final.stop_detail,
+            agent_output_chars=final.agent_output_chars,
+            code_lines_added=final.code_lines_added,
             final_result=self.log_dir / "final_result.md",
         )
-        self._write_final_result(final, elapsed)
-        self._append_results_summary(final, elapsed)
-        self._event("run_finished", **_jsonable(dataclasses.asdict(final)), elapsed_seconds=elapsed)
+        self._write_final_result(final)
+        self._append_results_summary(final)
+        self._event("run_finished", **_jsonable(dataclasses.asdict(final)))
         return final
 
     def _prepare_paths(self) -> None:
@@ -558,7 +629,7 @@ exec python3 ./coil_solver.py
         )
         path.write_text(result.stdout, encoding="utf-8", errors="replace")
 
-    def _write_final_result(self, final: FinalResult, elapsed_seconds: float) -> None:
+    def _write_final_result(self, final: FinalResult) -> None:
         body = f"""# Puzzle Runner Final Result
 
 Run id: {final.run_id}
@@ -580,23 +651,17 @@ Best score: {final.best_score}
 Best round: {final.best_round}
 Stop reason: {final.stop_reason}
 Stop detail: {final.stop_detail}
-Elapsed seconds: {elapsed_seconds:.2f}
+Wall time: {_format_duration(final.total_wall_seconds)}
+Wall time seconds: {final.total_wall_seconds:.2f}
+Agent output chars: {final.agent_output_chars}
+Code lines added: {final.code_lines_added}
 """
         (self.log_dir / "final_result.md").write_text(body, encoding="utf-8")
 
-    def _append_results_summary(self, final: FinalResult, elapsed_seconds: float) -> None:
-        if not self.config.results_path.exists():
-            self.config.results_path.write_text(
-                "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs |\n"
-                "| --- | --- | --- | --- | --- | --- | --- | --- |\n",
-                encoding="utf-8",
-            )
+    def _append_results_summary(self, final: FinalResult) -> None:
+        _ensure_results_summary_header(self.config.results_path)
         with self.config.results_path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                f"| {final.run_id} | {self.config.agent.name} | {final.best_score} | "
-                f"{final.best_round} | {final.total_rounds} | {final.stop_reason} | "
-                f"{self.config.evaluation_timeout_seconds}s | {self.log_dir} |\n"
-            )
+            handle.write(_results_summary_row(final, self.config))
 
     def _write_json(self, name: str, data) -> None:
         self._write_json_at(self.log_dir / name, data)
@@ -710,6 +775,190 @@ def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]
     return round_dir / f"{prefix}.stdout.log", round_dir / f"{prefix}.stderr.log"
 
 
+def count_agent_output_chars(log_dir: Path) -> int:
+    total = 0
+    seen: set[Path] = set()
+    for pattern in AGENT_OUTPUT_LOG_PATTERNS:
+        for path in log_dir.glob(pattern):
+            if path in seen:
+                continue
+            seen.add(path)
+            try:
+                total += len(path.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                continue
+    return total
+
+
+def count_code_lines_added(workspace: Path) -> int:
+    if not workspace.exists():
+        return 0
+
+    total = 0
+    for path, additions in _tracked_code_additions(workspace):
+        if _is_counted_code_path(path, workspace / path):
+            total += additions
+
+    for path in _untracked_workspace_paths(workspace):
+        if not _is_counted_code_path(path, workspace / path):
+            continue
+        total += _count_text_lines(workspace / path) or 0
+
+    return total
+
+
+def _tracked_code_additions(workspace: Path) -> list[tuple[str, int]]:
+    result = _git_numstat(workspace, ["diff", "HEAD", "--numstat", "--"])
+    if result is None:
+        result = _git_numstat(workspace, ["diff", "--numstat", "--"])
+    if result is None:
+        return []
+
+    changes: list[tuple[str, int]] = []
+    for line in result.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        additions_text = parts[0]
+        path = _normalize_git_path(parts[2])
+        additions = int(additions_text) if additions_text.isdigit() else 0
+        changes.append((path, additions))
+    return changes
+
+
+def _git_numstat(workspace: Path, args: list[str]) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(workspace), *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _untracked_workspace_paths(workspace: Path) -> list[str]:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(workspace), "ls-files", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0:
+        return []
+    return [_normalize_git_path(line) for line in result.stdout.splitlines() if line.strip()]
+
+
+def _normalize_git_path(path: str) -> str:
+    return path.replace("\\", "/").strip()
+
+
+def _is_counted_code_path(path: str, full_path: Path) -> bool:
+    normalized = _normalize_git_path(path)
+    if _ignore_code_path(normalized):
+        return False
+    path_obj = Path(normalized)
+    if path_obj.name in CODE_FILENAMES:
+        return True
+    if path_obj.suffix.lower() in CODE_SUFFIXES:
+        return True
+    return _shebang_mentions(full_path)
+
+
+def _ignore_code_path(path: str) -> bool:
+    if path in NOISY_CODE_EXACT_PATHS:
+        return True
+    if path.endswith(NOISY_CODE_SUFFIXES):
+        return True
+    return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in NOISY_CODE_PREFIXES)
+
+
+def _shebang_mentions(path: Path) -> bool:
+    try:
+        with path.open("rb") as handle:
+            first_line = handle.readline(200).decode("utf-8", errors="ignore")
+    except OSError:
+        return False
+    return first_line.startswith("#!")
+
+
+def _count_text_lines(path: Path) -> int | None:
+    try:
+        if path.stat().st_size > MAX_UNTRACKED_CODE_LINE_COUNT_BYTES:
+            return None
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if b"\0" in data:
+        return None
+    if not data:
+        return 0
+    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
+def _ensure_results_summary_header(path: Path) -> None:
+    if not path.exists() or path.stat().st_size == 0:
+        path.write_text(RESULTS_SUMMARY_HEADER, encoding="utf-8")
+        return
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if RESULTS_SUMMARY_HEADER.splitlines()[0] in text.splitlines():
+        return
+
+    with path.open("a", encoding="utf-8") as handle:
+        if text and not text.endswith("\n"):
+            handle.write("\n")
+        if text.strip():
+            handle.write("\n")
+        handle.write(RESULTS_SUMMARY_HEADER)
+
+
+def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
+    row = [
+        final.run_id,
+        config.agent.name,
+        str(final.best_score),
+        "" if final.best_round is None else str(final.best_round),
+        str(final.total_rounds),
+        final.stop_reason,
+        f"{config.evaluation_timeout_seconds}s",
+        _format_duration(final.total_wall_seconds),
+        str(final.agent_output_chars),
+        str(final.code_lines_added),
+    ]
+    return "| " + " | ".join(_escape_table_cell(value) for value in row) + " |\n"
+
+
+def _escape_table_cell(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _format_duration(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(seconds), 60)
+    if minutes < 60:
+        return f"{minutes}m {sec}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 48:
+        return f"{hours}h {minutes}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h"
+
+
 def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) -> str:
     if stop_reason == "agent_timeout":
         elapsed = _duration_text(status.get("last_agent_elapsed_seconds"))
@@ -778,6 +1027,10 @@ def _status_markdown(status: dict) -> str:
     ]
     if status.get("stop_detail"):
         lines.append(f"- Stop Detail: `{status.get('stop_detail')}`")
+    if status.get("agent_output_chars") is not None:
+        lines.append(f"- Agent Output Chars: `{status.get('agent_output_chars')}`")
+    if status.get("code_lines_added") is not None:
+        lines.append(f"- Code Lines Added: `{status.get('code_lines_added')}`")
     lines.extend(
         [
             f"- Elapsed Seconds: `{status.get('elapsed_seconds')}`",

@@ -51,5 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Final score: {result.best_score}")
     print(f"Stop reason: {result.stop_reason}")
     print(f"Stop detail: {result.stop_detail}")
+    print(f"Wall time: {result.total_wall_seconds:.2f}s")
+    print(f"Agent output chars: {result.agent_output_chars}")
+    print(f"Code lines added: {result.code_lines_added}")
     print(f"Logs: {result.log_dir}")
     return 0
