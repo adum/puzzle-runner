@@ -295,6 +295,8 @@ def render_status(
         lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
     if phase in {"agent_running", "agent_retry_wait"} and status.get("agent_attempt") is not None:
         lines.append(_kv("Agent attempt", status.get("agent_attempt"), color, width))
+    if status.get("agent_error_count") is not None or status.get("last_agent_returned_error") is not None:
+        lines.append(_kv("Agent errors", _agent_error_summary(status), color, width))
     if phase == "agent_retry_wait":
         lines.append(_kv("Retrying in", _retry_countdown(status), color, width))
     if phase == "evaluation_running":
@@ -485,6 +487,13 @@ def _agent_output_summary(stats: AgentOutputStats) -> str:
     if rate is None:
         return f"{stats.chars:,} chars"
     return f"{stats.chars:,} chars ({rate})"
+
+
+def _agent_error_summary(status: dict[str, Any]) -> str:
+    count = _int(status.get("agent_error_count"))
+    if status.get("last_agent_returned_error") is True:
+        return f"{count} (last turn error)"
+    return str(count)
 
 
 def _format_rate(chars_per_minute: float | None) -> str | None:

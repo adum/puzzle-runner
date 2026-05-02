@@ -12,8 +12,9 @@ from puzzle_runner.runner import (
     _agent_effort_text,
     _agent_result_is_retryable,
     _apply_agent_effort,
+    _claude_stdout_has_error_result,
     _ensure_results_summary_header,
-    _is_successful_claude_result_line,
+    _is_terminal_claude_result_line,
     _migrate_results_summary_effort_column,
     _results_summary_row,
     count_agent_output_chars,
@@ -270,19 +271,30 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(command, ["claude", "--effort", "high"])
 
-    def test_claude_success_result_line_is_terminal(self) -> None:
+    def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(
-            _is_successful_claude_result_line(
+            _is_terminal_claude_result_line(
                 '{"type":"result","subtype":"success","is_error":false}\n'
             )
         )
-        self.assertFalse(
-            _is_successful_claude_result_line(
-                '{"type":"result","subtype":"error","is_error":true}\n'
+        self.assertTrue(
+            _is_terminal_claude_result_line(
+                '{"type":"result","subtype":"success","is_error":true}\n'
             )
         )
-        self.assertFalse(_is_successful_claude_result_line('{"type":"assistant"}\n'))
-        self.assertFalse(_is_successful_claude_result_line("not json\n"))
+        self.assertFalse(_is_terminal_claude_result_line('{"type":"assistant"}\n'))
+        self.assertFalse(_is_terminal_claude_result_line("not json\n"))
+
+    def test_claude_error_result_is_detected_from_stdout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stdout.write_text(
+                '{"type":"assistant","message":{"content":[]}}\n'
+                '{"type":"result","subtype":"success","is_error":true}\n',
+                encoding="utf-8",
+            )
+
+            self.assertTrue(_claude_stdout_has_error_result(stdout))
 
     def test_codex_effort_is_read_from_command_config(self) -> None:
         self.assertEqual(_agent_effort_text(self.config), "xhigh")

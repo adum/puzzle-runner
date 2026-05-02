@@ -624,6 +624,21 @@ exec python3 ./coil_solver.py
                     stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
+            agent_returned_error = _agent_returned_error(self.config, stdout_path)
+            if agent_returned_error:
+                agent_error_count = int(self._status.get("agent_error_count") or 0) + 1
+                self._event(
+                    "agent_returned_error",
+                    round=round_number,
+                    attempt=attempt,
+                    error_count=agent_error_count,
+                )
+            else:
+                agent_error_count = int(self._status.get("agent_error_count") or 0)
+            self._update_status(
+                agent_error_count=agent_error_count,
+                last_agent_returned_error=agent_returned_error,
+            )
             self._event(
                 "agent_attempt_finished",
                 round=round_number,
@@ -834,6 +849,7 @@ Code lines added: {final.code_lines_added}
                 "score_history": [],
                 "last_improved": None,
                 "agent_attempt": None,
+                "agent_error_count": 0,
                 "agent_retry_count": 0,
                 "agent_retry_delay_seconds": None,
                 "agent_retry_remaining_seconds": None,
@@ -962,18 +978,29 @@ def _agent_stream_format(config: RunnerConfig) -> str | None:
 
 def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], bool] | None:
     if _agent_stream_format(config) == "claude-stream-json":
-        return _is_successful_claude_result_line
+        return _is_terminal_claude_result_line
     return None
 
 
-def _is_successful_claude_result_line(line: str) -> bool:
+def _is_terminal_claude_result_line(line: str) -> bool:
     try:
         event = json.loads(line)
     except json.JSONDecodeError:
         return False
-    if not isinstance(event, dict) or event.get("type") != "result":
+    return isinstance(event, dict) and event.get("type") == "result"
+
+
+def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
+    if _agent_stream_format(config) != "claude-stream-json":
         return False
-    return event.get("subtype") == "success" and event.get("is_error") is not True
+    return _claude_stdout_has_error_result(stdout_path)
+
+
+def _claude_stdout_has_error_result(path: Path) -> bool:
+    for event in _claude_stream_events(path):
+        if event.get("type") == "result" and event.get("is_error") is True:
+            return True
+    return False
 
 
 def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
@@ -1486,6 +1513,7 @@ def _status_markdown(status: dict) -> str:
         f"- Best Round: `{status.get('best_round')}`",
         f"- Scores: `{_score_history_text(status)}`",
         f"- Last Improved: `{status.get('last_improved')}`",
+        f"- Agent Errors: `{status.get('agent_error_count')}`",
         f"- No-Progress Count: `{status.get('stale_count')}/{status.get('stale_limit')}`",
         f"- Remaining No-Progress Tries: `{status.get('remaining_no_progress_tries')}`",
         f"- Stop Reason: `{status.get('stop_reason')}`",

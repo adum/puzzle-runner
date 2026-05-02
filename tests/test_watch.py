@@ -36,6 +36,8 @@ class WatchTests(unittest.TestCase):
             "last_score": 47,
             "score_history": [35, 47],
             "last_improved": False,
+            "agent_error_count": 2,
+            "last_agent_returned_error": True,
             "stale_count": 1,
             "stale_limit": 3,
             "remaining_no_progress_tries": 2,
@@ -56,6 +58,8 @@ class WatchTests(unittest.TestCase):
         self.assertIn("47", rendered)
         self.assertIn("Scores", rendered)
         self.assertIn("35, 47", rendered)
+        self.assertIn("Agent errors", rendered)
+        self.assertIn("2 (last turn error)", rendered)
         self.assertIn("Remaining tries", rendered)
         self.assertNotIn("Paths", rendered)
         self.assertNotIn("Latest Round Files", rendered)
