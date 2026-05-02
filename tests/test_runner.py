@@ -19,6 +19,7 @@ from puzzle_runner.runner import (
     count_agent_output_chars,
     count_code_lines_added,
     explain_stop_reason,
+    normalize_script_line_endings,
 )
 
 
@@ -81,6 +82,26 @@ class RunnerTests(unittest.TestCase):
             total = count_agent_output_chars(log_dir)
 
         self.assertEqual(total, 9)
+
+    def test_normalize_script_line_endings_only_touches_script_like_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            script = root / "evaluate.py"
+            script.write_bytes(b"#!/usr/bin/env python3\r\nprint('ok')\r\n")
+            shell = root / "run_solver"
+            shell.write_bytes(b"#!/usr/bin/env sh\r\necho ok\r\n")
+            notes = root / "notes.txt"
+            notes.write_bytes(b"hello\r\n")
+
+            changed = normalize_script_line_endings(root)
+            script_bytes = script.read_bytes()
+            shell_bytes = shell.read_bytes()
+            notes_bytes = notes.read_bytes()
+
+        self.assertEqual(changed, ["evaluate.py", "run_solver"])
+        self.assertEqual(script_bytes, b"#!/usr/bin/env python3\nprint('ok')\n")
+        self.assertEqual(shell_bytes, b"#!/usr/bin/env sh\necho ok\n")
+        self.assertEqual(notes_bytes, b"hello\r\n")
 
     def test_count_agent_output_chars_uses_claude_text_not_json_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

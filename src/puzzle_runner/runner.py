@@ -105,6 +105,20 @@ CODE_FILENAMES = {
     "makefile",
 }
 MAX_UNTRACKED_CODE_LINE_COUNT_BYTES = 2_000_000
+SCRIPT_LINE_ENDING_SUFFIXES = {
+    ".bash",
+    ".fish",
+    ".pl",
+    ".py",
+    ".rb",
+    ".sh",
+    ".zsh",
+}
+SCRIPT_LINE_ENDING_FILENAMES = {
+    "Makefile",
+    "makefile",
+}
+MAX_LINE_ENDING_NORMALIZE_BYTES = 5_000_000
 
 
 class RunnerError(RuntimeError):
@@ -156,6 +170,9 @@ class Runner:
             stop_reason=None,
         )
         self._prepare_workspace()
+        self._normalize_workspace_line_endings()
+        if self.config.download_full_levels:
+            self._download_full_levels()
         self._update_status(phase="ensuring_solver_wrapper")
         self._ensure_solver_wrapper()
 
@@ -392,8 +409,6 @@ class Runner:
 
         if self.config.benchmark_path is None:
             self._clone_benchmark()
-            if self.config.download_full_levels:
-                self._download_full_levels()
             return
 
         if not self.config.benchmark_path.exists():
@@ -405,8 +420,6 @@ class Runner:
                 "git-worktree",
                 cwd=self.config.benchmark_path,
             )
-            if self.config.download_full_levels:
-                self._download_full_levels()
             return
 
         shutil.copytree(
@@ -414,22 +427,67 @@ class Runner:
             self.workspace,
             ignore=shutil.ignore_patterns(".git"),
         )
-        if self.config.download_full_levels:
-            self._download_full_levels()
 
     def _clone_benchmark(self) -> None:
         self._run_setup_command(
-            ["git", "clone", self.config.benchmark_repo_url, str(self.workspace)],
+            [
+                "git",
+                "-c",
+                "core.autocrlf=false",
+                "-c",
+                "core.eol=lf",
+                "clone",
+                self.config.benchmark_repo_url,
+                str(self.workspace),
+            ],
             "git-clone",
             cwd=self.config.worktree_root,
             timeout_seconds=1800,
         )
         if self.config.benchmark_ref is not None:
             self._run_setup_command(
-                ["git", "checkout", self.config.benchmark_ref],
+                [
+                    "git",
+                    "-c",
+                    "core.autocrlf=false",
+                    "-c",
+                    "core.eol=lf",
+                    "checkout",
+                    self.config.benchmark_ref,
+                ],
                 "git-checkout",
                 cwd=self.workspace,
             )
+
+    def _normalize_workspace_line_endings(self) -> None:
+        self._update_status(phase="normalizing_line_endings")
+        if _is_git_workspace(self.workspace):
+            self._run_setup_command(
+                [
+                    "git",
+                    "-c",
+                    "core.autocrlf=false",
+                    "-c",
+                    "core.eol=lf",
+                    "checkout",
+                    "-f",
+                    "HEAD",
+                    "--",
+                    ".",
+                ],
+                "git-checkout-lf",
+                cwd=self.workspace,
+                timeout_seconds=1800,
+            )
+            self._event("line_endings_normalized", mode="git_checkout_lf")
+            return
+
+        changed_paths = normalize_script_line_endings(self.workspace)
+        self._write_json_at(
+            self.log_dir / "setup" / "line-ending-normalization.json",
+            {"changed_paths": changed_paths},
+        )
+        self._event("line_endings_normalized", mode="script_scan", changed_paths=changed_paths)
 
     def _download_full_levels(self) -> None:
         script = self.workspace / "download_full_levels.sh"
@@ -833,6 +891,48 @@ def _jsonable(value):
 
 def _guard_findings_payload(findings: list[GuardFinding]) -> list[dict]:
     return [_jsonable(dataclasses.asdict(finding)) for finding in findings]
+
+
+def _is_git_workspace(workspace: Path) -> bool:
+    return (workspace / ".git").exists()
+
+
+def normalize_script_line_endings(workspace: Path) -> list[str]:
+    changed_paths = []
+    if not workspace.exists():
+        return changed_paths
+
+    for path in sorted(workspace.rglob("*")):
+        if not path.is_file() or _skip_line_ending_path(path, workspace):
+            continue
+
+        try:
+            if path.stat().st_size > MAX_LINE_ENDING_NORMALIZE_BYTES:
+                continue
+            data = path.read_bytes()
+        except OSError:
+            continue
+
+        if b"\r\n" not in data or not _is_script_like_path(path, data):
+            continue
+
+        path.write_bytes(data.replace(b"\r\n", b"\n"))
+        changed_paths.append(path.relative_to(workspace).as_posix())
+
+    return changed_paths
+
+
+def _skip_line_ending_path(path: Path, workspace: Path) -> bool:
+    rel_path = path.relative_to(workspace).as_posix()
+    return rel_path == ".git" or rel_path.startswith(".git/")
+
+
+def _is_script_like_path(path: Path, data: bytes) -> bool:
+    if data.startswith(b"#!"):
+        return True
+    if path.name in SCRIPT_LINE_ENDING_FILENAMES:
+        return True
+    return path.suffix.lower() in SCRIPT_LINE_ENDING_SUFFIXES
 
 
 def _utc_now() -> str:

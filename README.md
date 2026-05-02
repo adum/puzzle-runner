@@ -17,6 +17,8 @@ On Windows, run this inside WSL.
 
 The runner clones `https://github.com/adum/coilbench.git` into a new run workspace, runs `download_full_levels.sh` there, prompts Codex, runs `evaluate_full.py`, logs each round, and stops after the configured number of no-progress rounds. The benchmark's `evaluate_full.py` always evaluates `./run_solver`.
 
+Fresh git workspaces are checked out with `core.autocrlf=false` and LF endings before downloads, builds, or guard baselines. This keeps agents from needing to touch protected evaluator scripts just to make shebangs runnable on WSL/macOS.
+
 Fresh cloned runs generate an ephemeral password for `download_full_levels.sh` and `evaluate_full.py`. Set `COIL_FULL_PASSWORD` only when using an existing encrypted level archive.
 
 Optional install:
