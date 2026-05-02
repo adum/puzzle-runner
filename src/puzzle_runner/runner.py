@@ -14,7 +14,7 @@ from typing import Callable
 
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
-from .guard import ForbiddenGuard
+from .guard import ForbiddenGuard, GuardFinding
 from .openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE, run_openrouter_agent
 from .openrouter_usage import openrouter_usage_to_dict, summarize_openrouter_usage
 from .process import CommandResult, run_streamed
@@ -243,13 +243,16 @@ class Runner:
 
             self._update_status(phase="pre_evaluation_guard")
             pre_eval_findings = guard.check()
-            self._write_json_at(
-                round_dir / "pre_evaluation_guard_findings.json",
-                [_jsonable(dataclasses.asdict(finding)) for finding in pre_eval_findings],
-            )
+            pre_eval_findings_payload = _guard_findings_payload(pre_eval_findings)
+            self._write_json_at(round_dir / "pre_evaluation_guard_findings.json", pre_eval_findings_payload)
             if pre_eval_findings:
                 stop_reason = "forbidden_edit_detected"
-                self._update_status(phase="stopping", stop_reason=stop_reason)
+                self._update_status(
+                    phase="stopping",
+                    stop_reason=stop_reason,
+                    guard_findings=pre_eval_findings_payload,
+                    guard_phase="pre_evaluation",
+                )
                 break
 
             self._update_status(phase="evaluation_running")
@@ -292,10 +295,8 @@ class Runner:
 
             self._update_status(phase="post_evaluation_guard")
             findings = guard.check()
-            self._write_json_at(
-                round_dir / "guard_findings.json",
-                [_jsonable(dataclasses.asdict(finding)) for finding in findings],
-            )
+            findings_payload = _guard_findings_payload(findings)
+            self._write_json_at(round_dir / "guard_findings.json", findings_payload)
 
             self._event(
                 "evaluation_finished",
@@ -310,7 +311,12 @@ class Runner:
 
             if findings:
                 stop_reason = "forbidden_edit_detected"
-                self._update_status(phase="stopping", stop_reason=stop_reason)
+                self._update_status(
+                    phase="stopping",
+                    stop_reason=stop_reason,
+                    guard_findings=findings_payload,
+                    guard_phase="post_evaluation",
+                )
                 break
 
             if eval_result.timed_out:
@@ -825,6 +831,10 @@ def _jsonable(value):
     return value
 
 
+def _guard_findings_payload(findings: list[GuardFinding]) -> list[dict]:
+    return [_jsonable(dataclasses.asdict(finding)) for finding in findings]
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -1317,8 +1327,39 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
     if stop_reason == "max_rounds":
         return f"Reached max_rounds={config.max_rounds}."
     if stop_reason == "forbidden_edit_detected":
+        summary = _guard_findings_summary(status.get("guard_findings"))
+        if summary:
+            phase = status.get("guard_phase")
+            phase_text = f" during {phase}" if isinstance(phase, str) and phase else ""
+            return f"Forbidden path guard detected{phase_text}: {summary}."
         return "Forbidden path guard detected edits under configured forbidden_paths."
     return "Run stopped."
+
+
+def _guard_findings_summary(findings) -> str:
+    if not isinstance(findings, list) or not findings:
+        return ""
+
+    parts = []
+    for finding in findings[:5]:
+        if not isinstance(finding, dict):
+            continue
+        path = str(finding.get("path") or "?")
+        reason = str(finding.get("reason") or "changed forbidden file")
+        pattern = finding.get("pattern")
+        if isinstance(pattern, str) and pattern:
+            parts.append(f"{reason}: {path} (matched {pattern})")
+        else:
+            parts.append(f"{reason}: {path}")
+
+    remaining = len(findings) - len(parts)
+    if remaining > 0:
+        parts.append(f"{remaining} more forbidden {_plural('change', remaining)}")
+    return "; ".join(parts)
+
+
+def _plural(word: str, count: int) -> str:
+    return word if count == 1 else f"{word}s"
 
 
 def _duration_text(value) -> str:
@@ -1351,6 +1392,9 @@ def _status_markdown(status: dict) -> str:
     ]
     if status.get("stop_detail"):
         lines.append(f"- Stop Detail: `{status.get('stop_detail')}`")
+    guard_summary = _guard_findings_summary(status.get("guard_findings"))
+    if guard_summary:
+        lines.append(f"- Forbidden Changes: `{guard_summary}`")
     if status.get("agent_output_chars") is not None:
         lines.append(f"- Agent Output Chars: `{status.get('agent_output_chars')}`")
     if status.get("code_lines_added") is not None:

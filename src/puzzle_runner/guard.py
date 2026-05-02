@@ -10,6 +10,7 @@ from pathlib import Path
 class GuardFinding:
     path: str
     reason: str
+    pattern: str
 
 
 class ForbiddenGuard:
@@ -24,13 +25,19 @@ class ForbiddenGuard:
 
         for rel_path, digest in self._baseline.items():
             if rel_path not in current:
-                findings.append(GuardFinding(rel_path, "deleted forbidden file"))
+                findings.append(
+                    GuardFinding(rel_path, "deleted forbidden file", self._matching_pattern(rel_path))
+                )
             elif current[rel_path] != digest:
-                findings.append(GuardFinding(rel_path, "modified forbidden file"))
+                findings.append(
+                    GuardFinding(rel_path, "modified forbidden file", self._matching_pattern(rel_path))
+                )
 
         for rel_path in current:
             if rel_path not in self._baseline and self._is_forbidden(rel_path):
-                findings.append(GuardFinding(rel_path, "created forbidden file"))
+                findings.append(
+                    GuardFinding(rel_path, "created forbidden file", self._matching_pattern(rel_path))
+                )
 
         return findings
 
@@ -45,7 +52,13 @@ class ForbiddenGuard:
         return snapshot
 
     def _is_forbidden(self, rel_path: str) -> bool:
-        return any(fnmatch.fnmatch(rel_path, pattern) for pattern in self.patterns)
+        return self._matching_pattern(rel_path) != ""
+
+    def _matching_pattern(self, rel_path: str) -> str:
+        for pattern in self.patterns:
+            if fnmatch.fnmatch(rel_path, pattern):
+                return pattern
+        return ""
 
 
 def _sha256(path: Path) -> str:
@@ -54,4 +67,3 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
-

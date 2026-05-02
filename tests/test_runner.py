@@ -47,6 +47,27 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("stale_limit=3", detail)
 
+    def test_explain_forbidden_edit_names_path_reason_and_pattern(self) -> None:
+        detail = explain_stop_reason(
+            "forbidden_edit_detected",
+            self.config,
+            {
+                "guard_phase": "pre_evaluation",
+                "guard_findings": [
+                    {
+                        "path": "levels_public/101",
+                        "reason": "modified forbidden file",
+                        "pattern": "levels_public/**",
+                    }
+                ],
+            },
+        )
+
+        self.assertIn("pre_evaluation", detail)
+        self.assertIn("modified forbidden file", detail)
+        self.assertIn("levels_public/101", detail)
+        self.assertIn("levels_public/**", detail)
+
     def test_count_agent_output_chars_sums_attempt_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = Path(temp_dir)
