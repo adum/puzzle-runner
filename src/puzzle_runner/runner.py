@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -19,6 +20,9 @@ from .prompts import ScoreFeedback, compose_prompt
 
 
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
+CODEX_REASONING_EFFORT_RE = re.compile(
+    r"(?:^|\s)model_reasoning_effort\s*=\s*[\"']?([^\"'\s]+)"
+)
 RESULTS_SUMMARY_HEADER = (
     "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
     "Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
@@ -1118,7 +1122,17 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
 
 
 def _agent_effort_text(config: RunnerConfig) -> str:
-    return config.agent.effort or ""
+    if config.agent.effort:
+        return config.agent.effort
+    return _codex_reasoning_effort_from_command(config.agent.command) or ""
+
+
+def _codex_reasoning_effort_from_command(command: list[str]) -> str | None:
+    for part in command:
+        match = CODEX_REASONING_EFFORT_RE.search(part)
+        if match:
+            return match.group(1)
+    return None
 
 
 def _escape_table_cell(value: str) -> str:

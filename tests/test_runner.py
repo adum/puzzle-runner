@@ -7,6 +7,7 @@ from puzzle_runner.config import load_config
 from puzzle_runner.runner import (
     FinalResult,
     Runner,
+    _agent_effort_text,
     _apply_agent_effort,
     _ensure_results_summary_header,
     _is_successful_claude_result_line,
@@ -209,6 +210,9 @@ class RunnerTests(unittest.TestCase):
         )
         self.assertFalse(_is_successful_claude_result_line('{"type":"assistant"}\n'))
         self.assertFalse(_is_successful_claude_result_line("not json\n"))
+
+    def test_codex_effort_is_read_from_command_config(self) -> None:
+        self.assertEqual(_agent_effort_text(self.config), "xhigh")
 
 
 if __name__ == "__main__":
