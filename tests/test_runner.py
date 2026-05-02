@@ -4,10 +4,13 @@ import unittest
 from pathlib import Path
 
 from puzzle_runner.config import load_config
+from puzzle_runner.openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE
+from puzzle_runner.process import CommandResult
 from puzzle_runner.runner import (
     FinalResult,
     Runner,
     _agent_effort_text,
+    _agent_result_is_retryable,
     _apply_agent_effort,
     _ensure_results_summary_header,
     _is_successful_claude_result_line,
@@ -213,6 +216,20 @@ class RunnerTests(unittest.TestCase):
 
     def test_codex_effort_is_read_from_command_config(self) -> None:
         self.assertEqual(_agent_effort_text(self.config), "xhigh")
+
+    def test_agent_config_error_is_not_retryable(self) -> None:
+        result = CommandResult(
+            argv=["openrouter-api"],
+            cwd=Path("/tmp"),
+            returncode=AGENT_CONFIG_ERROR_RETURN_CODE,
+            elapsed_seconds=0.1,
+            timed_out=False,
+            timeout_reason=None,
+            stdout_path=Path("/tmp/stdout.log"),
+            stderr_path=Path("/tmp/stderr.log"),
+        )
+
+        self.assertFalse(_agent_result_is_retryable(result))
 
 
 if __name__ == "__main__":

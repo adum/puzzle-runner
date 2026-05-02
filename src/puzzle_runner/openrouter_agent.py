@@ -18,6 +18,7 @@ from .prompts import SENTINEL
 
 MAX_OBSERVATION_CHARS = 60_000
 DEFAULT_READ_CHARS = 20_000
+AGENT_CONFIG_ERROR_RETURN_CODE = 2
 HTTP_REFERER = "https://github.com/adum/puzzle-runner"
 APP_TITLE = "Puzzle Runner"
 
@@ -44,7 +45,9 @@ Rules:
 
 
 class OpenRouterAgentError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def run_openrouter_agent(
@@ -68,7 +71,16 @@ def run_openrouter_agent(
             if not api_key:
                 message = f"missing OpenRouter API key env var: {config.agent.api_key_env}\n"
                 _write(err_handle, message, echo=echo, echo_handle=sys.stderr)
-                return _result(config, cwd, started, 1, False, None, stdout_path, stderr_path)
+                return _result(
+                    config,
+                    cwd,
+                    started,
+                    AGENT_CONFIG_ERROR_RETURN_CODE,
+                    False,
+                    None,
+                    stdout_path,
+                    stderr_path,
+                )
 
             messages: list[dict[str, str]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -92,7 +104,8 @@ def run_openrouter_agent(
                     )
                 except OpenRouterAgentError as exc:
                     _write(err_handle, f"{exc}\n", echo=echo, echo_handle=sys.stderr)
-                    return _result(config, cwd, started, 1, False, None, stdout_path, stderr_path)
+                    returncode = 1 if exc.retryable else AGENT_CONFIG_ERROR_RETURN_CODE
+                    return _result(config, cwd, started, returncode, False, None, stdout_path, stderr_path)
 
                 _write_json(round_dir / f"openrouter-response-{step:03d}.json", response)
                 assistant_text = _assistant_text(response)
@@ -198,7 +211,11 @@ def _send_chat_completion(
             body = response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise OpenRouterAgentError(f"OpenRouter HTTP {exc.code}: {_truncate(body, 4000)}") from exc
+        retryable = exc.code not in {400, 401, 402, 403, 404, 422}
+        raise OpenRouterAgentError(
+            f"OpenRouter HTTP {exc.code}: {_truncate(body, 4000)}",
+            retryable=retryable,
+        ) from exc
     except urllib.error.URLError as exc:
         raise OpenRouterAgentError(f"OpenRouter request failed: {exc}") from exc
     except TimeoutError as exc:

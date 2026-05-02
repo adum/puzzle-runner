@@ -5,7 +5,11 @@ import unittest
 from pathlib import Path
 
 from puzzle_runner.config import load_config
-from puzzle_runner.openrouter_agent import parse_action, run_openrouter_agent
+from puzzle_runner.openrouter_agent import (
+    AGENT_CONFIG_ERROR_RETURN_CODE,
+    parse_action,
+    run_openrouter_agent,
+)
 
 
 class OpenRouterAgentTests(unittest.TestCase):
@@ -43,7 +47,7 @@ class OpenRouterAgentTests(unittest.TestCase):
             )
             stderr_text = stderr.read_text(encoding="utf-8")
 
-        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.returncode, AGENT_CONFIG_ERROR_RETURN_CODE)
         self.assertFalse(result.timed_out)
         self.assertIn(missing_env, stderr_text)
 

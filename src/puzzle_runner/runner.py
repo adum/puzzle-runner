@@ -15,7 +15,7 @@ from typing import Callable
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
 from .guard import ForbiddenGuard
-from .openrouter_agent import run_openrouter_agent
+from .openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE, run_openrouter_agent
 from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
 
@@ -810,7 +810,11 @@ def _utc_now() -> str:
 
 
 def _agent_result_is_retryable(result: CommandResult) -> bool:
-    return result.returncode != 0 and not result.timed_out
+    return (
+        result.returncode != 0
+        and result.returncode != AGENT_CONFIG_ERROR_RETURN_CODE
+        and not result.timed_out
+    )
 
 
 def _agent_stream_format(config: RunnerConfig) -> str | None:
