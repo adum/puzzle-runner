@@ -144,6 +144,7 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("Agent Chars", text)
         self.assertIn("Code Lines Added", text)
+        self.assertIn("OpenRouter Cost", text)
         self.assertIn("| Run ID | Agent | Effort |", text)
         self.assertNotIn("Timeout | Logs |\n\n| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs", text)
 
@@ -162,7 +163,34 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("| Run ID | Agent | Effort | Best Score |", text)
         self.assertIn("| run-1 | claude |  | 0 |", text)
+        self.assertIn("| run-1 | claude |  | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |  |  |  |", text)
         self.assertEqual(text.count("| Run ID | Agent |"), 1)
+
+    def test_results_summary_row_includes_openrouter_usage_when_present(self) -> None:
+        final = FinalResult(
+            run_id="run-1",
+            best_score=3,
+            best_round=1,
+            total_rounds=1,
+            stop_reason="stale_limit",
+            stop_detail="done",
+            total_wall_seconds=10,
+            agent_output_chars=50,
+            code_lines_added=2,
+            log_dir=Path("/tmp/logs"),
+            workspace=Path("/tmp/workspace"),
+            openrouter_usage={
+                "calls": 4,
+                "cost_usd": 0.0123456,
+                "total_tokens": 1234,
+            },
+        )
+        config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        row = _results_summary_row(final, config)
+
+        self.assertIn("| 4 | $0.012346 | 1234 |", row)
 
     def test_results_summary_migration_preserves_trailing_newline(self) -> None:
         old_table = (

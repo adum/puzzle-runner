@@ -147,6 +147,40 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Last tested", rendered)
         self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
 
+    def test_render_status_summarizes_openrouter_usage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir)
+            round_dir = log_dir / "round-001"
+            round_dir.mkdir()
+            (round_dir / "openrouter-response-001.json").write_text(
+                '{"id":"gen-1","usage":{"prompt_tokens":100,"completion_tokens":25,"total_tokens":125},'
+                '"choices":[{"finish_reason":"stop"}]}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "openrouter-generation-001.json").write_text(
+                '{"data":{"id":"gen-1","total_cost":0.012345,"provider_name":"Infermatic",'
+                '"native_tokens_reasoning":7,"native_tokens_cached":11,"latency":1500,'
+                '"finish_reason":"stop"}}\n',
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "backend": "openrouter",
+                "log_dir": str(log_dir),
+                "latest": {},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("OpenRouter usage", rendered)
+        self.assertIn("1 call", rendered)
+        self.assertIn("$0.012345", rendered)
+        self.assertIn("in 100", rendered)
+        self.assertIn("out 25", rendered)
+        self.assertIn("reason 7", rendered)
+        self.assertIn("Infermatic", rendered)
+
     def test_render_status_includes_evaluation_level_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "evaluation.stdout.log"

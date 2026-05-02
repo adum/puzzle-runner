@@ -16,6 +16,7 @@ from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
 from .guard import ForbiddenGuard
 from .openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE, run_openrouter_agent
+from .openrouter_usage import openrouter_usage_to_dict, summarize_openrouter_usage
 from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
 
@@ -26,8 +27,16 @@ CODEX_REASONING_EFFORT_RE = re.compile(
 )
 RESULTS_SUMMARY_HEADER = (
     "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
-    "Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+    "Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | "
+    "OpenRouter Cost | OpenRouter Tokens |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+)
+RESULTS_SUMMARY_NO_OPENROUTER_HEADER = (
+    "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
+    "Timeout | Wall Time | Agent Chars | Code Lines Added |"
+)
+RESULTS_SUMMARY_NO_OPENROUTER_SEPARATOR = (
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 RESULTS_SUMMARY_NO_EFFORT_HEADER = (
     "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | "
@@ -36,6 +45,10 @@ RESULTS_SUMMARY_NO_EFFORT_HEADER = (
 RESULTS_SUMMARY_NO_EFFORT_SEPARATOR = (
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
+RESULTS_SUMMARY_OLD_LOGS_HEADER = (
+    "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs |"
+)
+RESULTS_SUMMARY_OLD_LOGS_SEPARATOR = "| --- | --- | --- | --- | --- | --- | --- | --- |"
 AGENT_OUTPUT_LOG_PATTERNS = (
     "round-*/agent*.stdout.log",
     "round-*/agent*.stderr.log",
@@ -111,6 +124,7 @@ class FinalResult:
     code_lines_added: int
     log_dir: Path
     workspace: Path
+    openrouter_usage: dict | None = None
 
 
 class Runner:
@@ -179,6 +193,7 @@ class Runner:
                     "evaluation_stderr": round_dir / "evaluation.stderr.log",
                     "evaluation_parse": round_dir / "evaluation_parse.json",
                     "workspace_diff": round_dir / "workspace.diff",
+                    "openrouter_usage_summary": round_dir / "openrouter-usage-summary.json",
                 },
             )
 
@@ -323,6 +338,7 @@ class Runner:
             agent_stream_format=_agent_stream_format(self.config),
         )
         code_lines_added = count_code_lines_added(self.workspace)
+        openrouter_usage = _openrouter_usage_for_result(self.config, self.log_dir)
         stop_detail = explain_stop_reason(stop_reason, self.config, self._status)
         final = FinalResult(
             run_id=self.config.run_id,
@@ -336,6 +352,7 @@ class Runner:
             code_lines_added=code_lines_added,
             log_dir=self.log_dir,
             workspace=self.workspace,
+            openrouter_usage=openrouter_usage,
         )
         self._update_status(
             active=False,
@@ -347,6 +364,7 @@ class Runner:
             stop_detail=final.stop_detail,
             agent_output_chars=final.agent_output_chars,
             code_lines_added=final.code_lines_added,
+            openrouter_usage=final.openrouter_usage,
             final_result=self.log_dir / "final_result.md",
         )
         self._write_final_result(final)
@@ -699,6 +717,8 @@ Wall time seconds: {final.total_wall_seconds:.2f}
 Agent output chars: {final.agent_output_chars}
 Code lines added: {final.code_lines_added}
 """
+        if final.openrouter_usage is not None:
+            body += _openrouter_final_result_text(final.openrouter_usage)
         (self.log_dir / "final_result.md").write_text(body, encoding="utf-8")
 
     def _append_results_summary(self, final: FinalResult) -> None:
@@ -1075,7 +1095,7 @@ def _ensure_results_summary_header(path: Path) -> None:
     if RESULTS_SUMMARY_HEADER.splitlines()[0] in text.splitlines():
         return
 
-    migrated = _migrate_results_summary_effort_column(text)
+    migrated = _migrate_results_summary_schema(text)
     if migrated != text:
         path.write_text(migrated, encoding="utf-8")
         return
@@ -1089,33 +1109,74 @@ def _ensure_results_summary_header(path: Path) -> None:
 
 
 def _migrate_results_summary_effort_column(text: str) -> str:
+    return _migrate_results_summary_schema(text)
+
+
+def _migrate_results_summary_schema(text: str) -> str:
     lines = text.splitlines()
     output = []
-    in_old_table = False
+    in_migrated_table = False
 
     for line in lines:
-        if line == RESULTS_SUMMARY_NO_EFFORT_HEADER:
+        if line in {
+            RESULTS_SUMMARY_NO_EFFORT_HEADER,
+            RESULTS_SUMMARY_NO_OPENROUTER_HEADER,
+            RESULTS_SUMMARY_OLD_LOGS_HEADER,
+        }:
             output.append(RESULTS_SUMMARY_HEADER.splitlines()[0])
-            in_old_table = True
+            in_migrated_table = True
             continue
 
-        if in_old_table and line == RESULTS_SUMMARY_NO_EFFORT_SEPARATOR:
+        if in_migrated_table and line in {
+            RESULTS_SUMMARY_NO_EFFORT_SEPARATOR,
+            RESULTS_SUMMARY_NO_OPENROUTER_SEPARATOR,
+            RESULTS_SUMMARY_OLD_LOGS_SEPARATOR,
+        }:
             output.append(RESULTS_SUMMARY_HEADER.splitlines()[1])
             continue
 
-        if in_old_table and line.startswith("|"):
+        if in_migrated_table and line.startswith("|"):
             cells = _markdown_table_cells(line)
-            if len(cells) == 10:
-                cells.insert(2, "")
-                output.append(_markdown_table_row(cells))
+            migrated_cells = _migrate_results_summary_row_cells(cells)
+            if migrated_cells is not None:
+                output.append(_markdown_table_row(migrated_cells))
                 continue
 
-        if in_old_table and not line.startswith("|"):
-            in_old_table = False
+        if in_migrated_table and not line.startswith("|"):
+            in_migrated_table = False
         output.append(line)
 
     trailing_newline = "\n" if text.endswith("\n") else ""
     return "\n".join(output) + trailing_newline
+
+
+def _migrate_results_summary_row_cells(cells: list[str]) -> list[str] | None:
+    if len(cells) == 14:
+        return cells
+    if len(cells) == 11:
+        return [*cells, "", "", ""]
+    if len(cells) == 10:
+        migrated = list(cells)
+        migrated.insert(2, "")
+        return [*migrated, "", "", ""]
+    if len(cells) == 8:
+        return [
+            cells[0],
+            cells[1],
+            "",
+            cells[2],
+            cells[3],
+            cells[4],
+            cells[5],
+            cells[6],
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+    return None
 
 
 def _markdown_table_cells(line: str) -> list[str]:
@@ -1130,6 +1191,7 @@ def _markdown_table_row(cells: list[str]) -> str:
 
 
 def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
+    usage = final.openrouter_usage or {}
     row = [
         final.run_id,
         config.agent.name,
@@ -1142,8 +1204,50 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
         _format_duration(final.total_wall_seconds),
         str(final.agent_output_chars),
         str(final.code_lines_added),
+        _openrouter_int_cell(usage, "calls"),
+        _openrouter_cost_cell(usage),
+        _openrouter_int_cell(usage, "total_tokens"),
     ]
     return "| " + " | ".join(_escape_table_cell(value) for value in row) + " |\n"
+
+
+def _openrouter_usage_for_result(config: RunnerConfig, log_dir: Path) -> dict | None:
+    if config.agent.backend != "openrouter":
+        return None
+    summary = summarize_openrouter_usage(log_dir)
+    if summary.calls == 0:
+        return None
+    return openrouter_usage_to_dict(summary)
+
+
+def _openrouter_final_result_text(usage: dict) -> str:
+    lines = [
+        "",
+        "OpenRouter calls: " + _openrouter_int_cell(usage, "calls"),
+        "OpenRouter metadata calls: " + _openrouter_int_cell(usage, "metadata_calls"),
+        "OpenRouter metadata failures: " + _openrouter_int_cell(usage, "metadata_failures"),
+        "OpenRouter cost USD: " + _openrouter_cost_cell(usage),
+        "OpenRouter prompt tokens: " + _openrouter_int_cell(usage, "prompt_tokens"),
+        "OpenRouter completion tokens: " + _openrouter_int_cell(usage, "completion_tokens"),
+        "OpenRouter total tokens: " + _openrouter_int_cell(usage, "total_tokens"),
+        "OpenRouter native reasoning tokens: " + _openrouter_int_cell(usage, "native_reasoning_tokens"),
+        "OpenRouter native cached tokens: " + _openrouter_int_cell(usage, "native_cached_tokens"),
+        "OpenRouter last provider: " + str(usage.get("last_provider") or ""),
+        "OpenRouter last finish reason: " + str(usage.get("last_finish_reason") or ""),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _openrouter_int_cell(usage: dict, key: str) -> str:
+    value = usage.get(key)
+    return str(value) if isinstance(value, int) else ""
+
+
+def _openrouter_cost_cell(usage: dict) -> str:
+    value = usage.get("cost_usd")
+    if not isinstance(value, (int, float)):
+        return ""
+    return f"${float(value):.6f}"
 
 
 def _agent_effort_text(config: RunnerConfig) -> str:
@@ -1251,6 +1355,11 @@ def _status_markdown(status: dict) -> str:
         lines.append(f"- Agent Output Chars: `{status.get('agent_output_chars')}`")
     if status.get("code_lines_added") is not None:
         lines.append(f"- Code Lines Added: `{status.get('code_lines_added')}`")
+    if status.get("openrouter_usage") is not None:
+        usage = status.get("openrouter_usage") or {}
+        lines.append(f"- OpenRouter Calls: `{usage.get('calls')}`")
+        lines.append(f"- OpenRouter Cost: `{_openrouter_cost_cell(usage)}`")
+        lines.append(f"- OpenRouter Tokens: `{usage.get('total_tokens')}`")
     lines.extend(
         [
             f"- Elapsed Seconds: `{status.get('elapsed_seconds')}`",

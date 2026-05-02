@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from .config import ConfigError, load_config
+from .openrouter_usage import (
+    OpenRouterUsageSummary,
+    load_openrouter_usage_summary,
+    openrouter_usage_from_dict,
+    summarize_openrouter_usage,
+)
 
 
 RESET = "\033[0m"
@@ -308,6 +314,9 @@ def render_status(
             usage = _claude_usage_summary(claude_stream)
             if usage is not None:
                 lines.append(_kv("Claude usage", usage, color, width))
+    openrouter_usage = _openrouter_usage_summary(status, latest)
+    if openrouter_usage is not None:
+        lines.append(_kv("OpenRouter usage", _openrouter_usage_text(openrouter_usage), color, width))
     last_tested = _last_tested_puzzle(latest)
     if last_tested is not None:
         lines.append(_kv("Last tested", last_tested, color, width))
@@ -764,6 +773,58 @@ def _claude_usage_summary(summary: ClaudeStreamSummary) -> str | None:
     if summary.cost_usd is not None:
         parts.append(f"cost ${summary.cost_usd:.4f}")
     return ", ".join(parts) if parts else None
+
+
+def _openrouter_usage_summary(
+    status: dict[str, Any],
+    latest: dict[str, Any],
+) -> OpenRouterUsageSummary | None:
+    if status.get("backend") != "openrouter":
+        return None
+
+    log_dir_value = status.get("log_dir")
+    if log_dir_value:
+        summary = summarize_openrouter_usage(Path(str(log_dir_value)))
+        if summary.calls:
+            return summary
+
+    status_usage = status.get("openrouter_usage")
+    if isinstance(status_usage, dict):
+        summary = openrouter_usage_from_dict(status_usage)
+        if summary.calls:
+            return summary
+
+    path_value = latest.get("openrouter_usage_summary")
+    if path_value:
+        summary = load_openrouter_usage_summary(Path(str(path_value)))
+        if summary is not None and summary.calls:
+            return summary
+
+    return None
+
+
+def _openrouter_usage_text(summary: OpenRouterUsageSummary) -> str:
+    parts = [f"{summary.calls:,} {_plural('call', summary.calls)}"]
+    if summary.cost_usd:
+        parts.append(f"${summary.cost_usd:.6f}")
+    if summary.prompt_tokens or summary.completion_tokens:
+        parts.append(f"in {summary.prompt_tokens:,}")
+        parts.append(f"out {summary.completion_tokens:,}")
+    elif summary.total_tokens:
+        parts.append(f"tokens {summary.total_tokens:,}")
+    if summary.native_reasoning_tokens:
+        parts.append(f"reason {summary.native_reasoning_tokens:,}")
+    if summary.native_cached_tokens:
+        parts.append(f"cache {summary.native_cached_tokens:,}")
+    if summary.last_provider:
+        parts.append(summary.last_provider)
+    if summary.last_latency_ms is not None:
+        parts.append(f"{summary.last_latency_ms / 1000:.1f}s")
+    if summary.last_finish_reason:
+        parts.append(summary.last_finish_reason)
+    if summary.metadata_failures:
+        parts.append(f"metadata errors {summary.metadata_failures:,}")
+    return ", ".join(parts)
 
 
 def _text_preview(text: str) -> str | None:

@@ -108,6 +108,8 @@ PYTHONPATH=src python3 -m puzzle_runner --config runner.openrouter.toml
 
 The OpenRouter backend calls the chat completions API directly and runs a small JSON-action loop around the model so it can read files, run shell commands, write files, and return control. Configure the model with `[agent].model`; the example starts with `poolside/laguna-xs.2:free`.
 
+Each OpenRouter response is logged as `openrouter-response-*.json`. When the response has a generation id, Puzzle Runner also asks OpenRouter for `/generation` metadata and logs `openrouter-generation-*.json`. The watcher and final results use that metadata for API calls, token counts, cost, provider, latency, and metadata fetch failures.
+
 ## Benchmark Source
 
 Default config clones the benchmark per run.

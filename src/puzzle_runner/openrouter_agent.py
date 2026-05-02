@@ -6,12 +6,14 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from json import JSONDecoder
 from pathlib import Path
 from typing import Any
 
 from .config import RunnerConfig
+from .openrouter_usage import write_openrouter_usage_summary
 from .process import CommandResult
 from .prompts import SENTINEL
 
@@ -19,6 +21,7 @@ from .prompts import SENTINEL
 MAX_OBSERVATION_CHARS = 60_000
 DEFAULT_READ_CHARS = 20_000
 AGENT_CONFIG_ERROR_RETURN_CODE = 2
+METADATA_TIMEOUT_SECONDS = 20
 HTTP_REFERER = "https://github.com/adum/puzzle-runner"
 APP_TITLE = "Puzzle Runner"
 
@@ -108,6 +111,18 @@ def run_openrouter_agent(
                     return _result(config, cwd, started, returncode, False, None, stdout_path, stderr_path)
 
                 _write_json(round_dir / f"openrouter-response-{step:03d}.json", response)
+                _record_generation_metadata(
+                    config,
+                    api_key=api_key,
+                    response=response,
+                    round_dir=round_dir,
+                    step=step,
+                    timeout_seconds=remaining,
+                    err_handle=err_handle,
+                    echo=echo,
+                )
+                write_openrouter_usage_summary(round_dir)
+
                 assistant_text = _assistant_text(response)
                 messages.append({"role": "assistant", "content": assistant_text})
                 _write(
@@ -227,6 +242,98 @@ def _send_chat_completion(
         raise OpenRouterAgentError(f"OpenRouter returned non-JSON response: {_truncate(body, 4000)}") from exc
     if not isinstance(parsed, dict):
         raise OpenRouterAgentError("OpenRouter returned an unexpected response shape")
+    return parsed
+
+
+def _record_generation_metadata(
+    config: RunnerConfig,
+    *,
+    api_key: str,
+    response: dict[str, Any],
+    round_dir: Path,
+    step: int,
+    timeout_seconds: float | None,
+    err_handle,
+    echo: bool,
+) -> None:
+    generation_id = response.get("id")
+    if not isinstance(generation_id, str) or not generation_id:
+        return
+
+    try:
+        metadata = _send_generation_metadata(
+            config,
+            api_key=api_key,
+            generation_id=generation_id,
+            timeout_seconds=_metadata_timeout(timeout_seconds),
+        )
+    except OpenRouterAgentError as exc:
+        _write_json(
+            round_dir / f"openrouter-generation-error-{step:03d}.json",
+            {
+                "id": generation_id,
+                "error": str(exc),
+                "retryable": exc.retryable,
+            },
+        )
+        _write(
+            err_handle,
+            f"OpenRouter generation metadata unavailable for {generation_id}: {exc}\n",
+            echo=echo,
+            echo_handle=sys.stderr,
+        )
+        return
+
+    _write_json(round_dir / f"openrouter-generation-{step:03d}.json", metadata)
+
+
+def _metadata_timeout(remaining_seconds: float | None) -> float:
+    if remaining_seconds is None:
+        return METADATA_TIMEOUT_SECONDS
+    return max(min(METADATA_TIMEOUT_SECONDS, remaining_seconds), 1)
+
+
+def _send_generation_metadata(
+    config: RunnerConfig,
+    *,
+    api_key: str,
+    generation_id: str,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    query = urllib.parse.urlencode({"id": generation_id})
+    url = config.agent.api_base_url.rstrip("/") + f"/generation?{query}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": HTTP_REFERER,
+            "X-Title": APP_TITLE,
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            body = response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        retryable = exc.code not in {400, 401, 402, 403, 404, 422}
+        raise OpenRouterAgentError(
+            f"OpenRouter metadata HTTP {exc.code}: {_truncate(body, 4000)}",
+            retryable=retryable,
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise OpenRouterAgentError(f"OpenRouter metadata request failed: {exc}") from exc
+    except TimeoutError as exc:
+        raise OpenRouterAgentError("OpenRouter metadata request timed out") from exc
+
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise OpenRouterAgentError(
+            f"OpenRouter metadata returned non-JSON response: {_truncate(body, 4000)}"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise OpenRouterAgentError("OpenRouter metadata returned an unexpected response shape")
     return parsed
 
 
