@@ -1,0 +1,50 @@
+# Copy to runner.toml and set OPENROUTER_API_KEY in the environment.
+
+benchmark_repo_url = "https://github.com/adum/coilbench.git"
+benchmark_ref = "main"
+download_full_levels = true
+
+workspace_mode = "worktree"
+worktree_root = ".puzzle-runs/worktrees"
+log_root = ".puzzle-runs/logs"
+status_dir = ".puzzle-runs/current"
+results_path = "final_results.md"
+
+solver_wrapper = "run_solver"
+evaluation_script = "evaluate_full.py"
+evaluation_timeout_seconds = 600
+evaluation_process_timeout_seconds = 0
+
+full_eval_password_env = "COIL_FULL_PASSWORD"
+generate_full_eval_password = true
+
+stale_limit = 3
+max_rounds = 20
+
+agent_timeout_seconds = 86400
+agent_idle_timeout_seconds = 0
+agent_failure_retry_limit_seconds = 900
+
+build_checker = true
+echo_agent_output = true
+echo_evaluation_output = true
+
+forbidden_paths = [
+  "levels_public/**",
+  "levels_secret_even.tar.enc",
+  "evaluate.py",
+  "evaluate_full.py",
+  "coil_check/check.c",
+  "coil_check/Makefile",
+  "coil_check/check",
+]
+
+[agent]
+name = "openrouter-laguna-xs-2-free"
+backend = "openrouter"
+model = "poolside/laguna-xs.2:free"
+api_key_env = "OPENROUTER_API_KEY"
+api_base_url = "https://openrouter.ai/api/v1"
+max_tokens = 4096
+max_steps = 40
+command_timeout_seconds = 120

@@ -26,6 +26,12 @@ class AgentConfig:
     command: list[str]
     prompt_mode: PromptMode = "stdin"
     effort: str | None = None
+    model: str | None = None
+    api_key_env: str = "OPENROUTER_API_KEY"
+    api_base_url: str = "https://openrouter.ai/api/v1"
+    max_tokens: int | None = None
+    max_steps: int = 40
+    command_timeout_seconds: int = 120
 
 
 @dataclasses.dataclass(frozen=True)
@@ -68,6 +74,7 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
 
     base_dir = config_path.parent
     agent_raw = _table(raw, "agent")
+    agent_backend = _str(agent_raw, "backend", "codex")
     resolved_run_id = run_id or raw.get("run_id") or _default_run_id(agent_raw.get("name", "run"))
     log_root = _path(base_dir, raw, "log_root")
     status_dir = _optional_path(base_dir, raw, "status_dir") or (log_root.parent / "current").resolve()
@@ -101,10 +108,16 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
         forbidden_paths=_str_list(raw.get("forbidden_paths", []), "forbidden_paths"),
         agent=AgentConfig(
             name=_str(agent_raw, "name", "codex-5.3-spark"),
-            backend=_str(agent_raw, "backend", "codex"),
-            command=_str_list(agent_raw.get("command"), "agent.command"),
+            backend=agent_backend,
+            command=_agent_command(agent_raw, agent_backend),
             prompt_mode=_literal(agent_raw.get("prompt_mode", "stdin"), {"stdin", "arg"}, "agent.prompt_mode"),
             effort=_optional_str(agent_raw, "effort"),
+            model=_agent_model(agent_raw, agent_backend),
+            api_key_env=_str(agent_raw, "api_key_env", "OPENROUTER_API_KEY"),
+            api_base_url=_str(agent_raw, "api_base_url", "https://openrouter.ai/api/v1"),
+            max_tokens=_optional_positive_int(agent_raw, "max_tokens"),
+            max_steps=_positive_int(agent_raw, "max_steps", 40),
+            command_timeout_seconds=_positive_int(agent_raw, "command_timeout_seconds", 120),
         ),
     )
 
@@ -254,6 +267,29 @@ def _non_negative_int(raw: dict[str, Any], key: str, default: int) -> int:
     if not isinstance(value, int) or value < 0:
         raise ConfigError(f"{key} must be a non-negative integer")
     return value
+
+
+def _optional_positive_int(raw: dict[str, Any], key: str) -> int | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, int) or value <= 0:
+        raise ConfigError(f"{key} must be a positive integer when set")
+    return value
+
+
+def _agent_command(agent_raw: dict[str, Any], backend: str) -> list[str]:
+    value = agent_raw.get("command")
+    if backend == "openrouter" and value is None:
+        return []
+    return _str_list(value, "agent.command")
+
+
+def _agent_model(agent_raw: dict[str, Any], backend: str) -> str | None:
+    model = _optional_str(agent_raw, "model")
+    if backend == "openrouter" and model is None:
+        raise ConfigError("agent.model is required when agent.backend is openrouter")
+    return model
 
 
 def _str_list(value: Any, key: str) -> list[str]:

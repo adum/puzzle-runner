@@ -2,7 +2,7 @@
 
 Iterative benchmark orchestrator for AI coding agents.
 
-Backends: OpenAI Codex CLI and Claude Code.
+Backends: OpenAI Codex CLI, Claude Code, and OpenRouter API.
 
 Requires Python 3.10 or newer.
 
@@ -95,6 +95,18 @@ claude --print --no-session-persistence --verbose --output-format stream-json --
 ```
 
 The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Claude agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value or `effort` in `[agent]` when desired.
+
+## OpenRouter
+
+Use the OpenRouter config:
+
+```sh
+cp config.openrouter.example.toml runner.openrouter.toml
+export OPENROUTER_API_KEY=...
+PYTHONPATH=src python3 -m puzzle_runner --config runner.openrouter.toml
+```
+
+The OpenRouter backend calls the chat completions API directly and runs a small JSON-action loop around the model so it can read files, run shell commands, write files, and return control. Configure the model with `[agent].model`; the example starts with `poolside/laguna-xs.2:free`.
 
 ## Benchmark Source
 

@@ -15,6 +15,7 @@ from typing import Callable
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
 from .guard import ForbiddenGuard
+from .openrouter_agent import run_openrouter_agent
 from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
 
@@ -486,7 +487,7 @@ exec python3 ./coil_solver.py
 
     def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
         command = self._agent_command(round_dir)
-        if self.config.agent.prompt_mode == "arg":
+        if self.config.agent.backend != "openrouter" and self.config.agent.prompt_mode == "arg":
             command = [*command, prompt]
             stdin_text = None
         else:
@@ -517,17 +518,29 @@ exec python3 ./coil_solver.py
                 stderr_path=stderr_path,
             )
 
-            result = run_streamed(
-                command,
-                cwd=self.workspace,
-                stdin_text=stdin_text,
-                timeout_seconds=self.config.agent_timeout_seconds,
-                stdout_path=stdout_path,
-                stderr_path=stderr_path,
-                echo=self.config.echo_agent_output,
-                idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
-                stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
-            )
+            if self.config.agent.backend == "openrouter":
+                result = run_openrouter_agent(
+                    self.config,
+                    cwd=self.workspace,
+                    prompt=prompt,
+                    round_dir=round_dir,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                    timeout_seconds=self.config.agent_timeout_seconds,
+                    echo=self.config.echo_agent_output,
+                )
+            else:
+                result = run_streamed(
+                    command,
+                    cwd=self.workspace,
+                    stdin_text=stdin_text,
+                    timeout_seconds=self.config.agent_timeout_seconds,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                    echo=self.config.echo_agent_output,
+                    idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
+                    stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
+                )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             self._event(
                 "agent_attempt_finished",
@@ -636,6 +649,14 @@ exec python3 ./coil_solver.py
         return [part.format(**replacements) for part in command]
 
     def _agent_command(self, round_dir: Path) -> list[str]:
+        if self.config.agent.backend == "openrouter":
+            return [
+                "openrouter-api",
+                "--model",
+                str(self.config.agent.model or ""),
+                "--api-key-env",
+                self.config.agent.api_key_env,
+            ]
         command = self._render_command(self.config.agent.command, round_dir)
         return _apply_agent_effort(self.config, command)
 

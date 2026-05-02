@@ -36,6 +36,20 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("--dangerously-skip-permissions", config.agent.command)
         self.assertIn("claude-sonnet-4-6", config.agent.command)
 
+    def test_openrouter_example_config_loads(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
+
+        config = load_config(str(config_path), run_id="test-run")
+
+        self.assertEqual(config.agent.name, "openrouter-laguna-xs-2-free")
+        self.assertEqual(config.agent.backend, "openrouter")
+        self.assertEqual(config.agent.command, [])
+        self.assertEqual(config.agent.model, "poolside/laguna-xs.2:free")
+        self.assertEqual(config.agent.api_key_env, "OPENROUTER_API_KEY")
+        self.assertEqual(config.agent.max_tokens, 4096)
+        self.assertEqual(config.agent.max_steps, 40)
+        self.assertEqual(config.agent.command_timeout_seconds, 120)
+
 
 if __name__ == "__main__":
     unittest.main()
