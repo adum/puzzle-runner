@@ -34,6 +34,13 @@ class OpenRouterUsageSummary:
     last_generation_time_ms: int | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class ResponseUsageFlags:
+    has_standard_tokens: bool = False
+    has_cost: bool = False
+    has_rich_usage: bool = False
+
+
 def summarize_openrouter_usage(root: Path) -> OpenRouterUsageSummary:
     summary = OpenRouterUsageSummary()
     response_paths = _matching_paths(root, "openrouter-response-*.json")
@@ -44,10 +51,13 @@ def summarize_openrouter_usage(root: Path) -> OpenRouterUsageSummary:
             continue
 
         summary.calls += 1
-        response_had_usage = _add_response_usage(summary, response)
+        response_flags = _add_response_usage(summary, response)
 
         step = _step_suffix(response_path, "openrouter-response-")
         if step is None:
+            continue
+
+        if response_flags.has_rich_usage:
             continue
 
         generation_path = response_path.with_name(f"openrouter-generation-{step}.json")
@@ -55,7 +65,12 @@ def summarize_openrouter_usage(root: Path) -> OpenRouterUsageSummary:
         generation = _generation_data(generation_path)
         if generation is not None:
             summary.metadata_calls += 1
-            _add_generation_metadata(summary, generation, add_standard_tokens=not response_had_usage)
+            _add_generation_metadata(
+                summary,
+                generation,
+                add_standard_tokens=not response_flags.has_standard_tokens,
+                add_cost=not response_flags.has_cost,
+            )
         elif error_path.exists():
             summary.metadata_failures += 1
 
@@ -159,35 +174,68 @@ def _step_suffix(path: Path, prefix: str) -> str | None:
     return name[len(prefix) : -len(".json")]
 
 
-def _add_response_usage(summary: OpenRouterUsageSummary, response: dict[str, Any]) -> bool:
+def _add_response_usage(summary: OpenRouterUsageSummary, response: dict[str, Any]) -> ResponseUsageFlags:
     usage = response.get("usage")
-    used_usage = False
+    has_standard_tokens = False
+    has_cost = False
+    has_token_details = False
     if isinstance(usage, dict):
         prompt = _int(usage.get("prompt_tokens"))
         completion = _int(usage.get("completion_tokens"))
         total = _int(usage.get("total_tokens"))
+        cost = _float(usage.get("cost"))
         if prompt is not None:
             summary.prompt_tokens += prompt
         if completion is not None:
             summary.completion_tokens += completion
         if total is not None:
             summary.total_tokens += total
-            used_usage = True
+            has_standard_tokens = True
         elif prompt is not None or completion is not None:
             summary.total_tokens += (prompt or 0) + (completion or 0)
-            used_usage = True
+            has_standard_tokens = True
+        if cost is not None:
+            summary.cost_usd += cost
+            has_cost = True
+
+        prompt_details = usage.get("prompt_tokens_details")
+        if isinstance(prompt_details, dict):
+            cached = _int(prompt_details.get("cached_tokens"))
+            if cached is not None:
+                summary.native_cached_tokens += cached
+                has_token_details = True
+
+        completion_details = usage.get("completion_tokens_details")
+        if isinstance(completion_details, dict):
+            reasoning = _int(completion_details.get("reasoning_tokens"))
+            if reasoning is not None:
+                summary.native_reasoning_tokens += reasoning
+                has_token_details = True
 
     choices = response.get("choices")
     if isinstance(choices, list) and choices and isinstance(choices[0], dict):
         finish_reason = choices[0].get("finish_reason")
         if isinstance(finish_reason, str):
             summary.last_finish_reason = finish_reason
+        native_finish_reason = choices[0].get("native_finish_reason")
+        if isinstance(native_finish_reason, str):
+            summary.last_native_finish_reason = native_finish_reason
 
     model = response.get("model")
     if isinstance(model, str) and model:
         _increment(summary.models, model)
         summary.last_model = model
-    return used_usage
+
+    provider = response.get("provider")
+    if isinstance(provider, str) and provider:
+        _increment(summary.providers, provider)
+        summary.last_provider = provider
+
+    return ResponseUsageFlags(
+        has_standard_tokens=has_standard_tokens,
+        has_cost=has_cost,
+        has_rich_usage=has_cost or has_token_details or isinstance(provider, str),
+    )
 
 
 def _add_generation_metadata(
@@ -195,12 +243,14 @@ def _add_generation_metadata(
     data: dict[str, Any],
     *,
     add_standard_tokens: bool,
+    add_cost: bool,
 ) -> None:
-    cost = _float(data.get("total_cost"))
-    if cost is None:
-        cost = _float(data.get("usage"))
-    if cost is not None:
-        summary.cost_usd += cost
+    if add_cost:
+        cost = _float(data.get("total_cost"))
+        if cost is None:
+            cost = _float(data.get("usage"))
+        if cost is not None:
+            summary.cost_usd += cost
 
     if add_standard_tokens:
         prompt = _int(data.get("tokens_prompt"))

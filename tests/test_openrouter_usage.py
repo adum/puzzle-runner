@@ -87,6 +87,50 @@ class OpenRouterUsageTests(unittest.TestCase):
         self.assertIsNotNone(loaded)
         self.assertEqual(loaded.total_tokens, 3)
 
+    def test_response_level_cost_provider_and_details_are_counted_without_metadata_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "openrouter-response-001.json").write_text(
+                json.dumps(
+                    {
+                        "id": "gen-1",
+                        "model": "deepseek/deepseek-v4-flash-20260423",
+                        "provider": "Parasail",
+                        "usage": {
+                            "prompt_tokens": 459,
+                            "completion_tokens": 38,
+                            "total_tokens": 497,
+                            "cost": 7.49e-05,
+                            "prompt_tokens_details": {"cached_tokens": 12},
+                            "completion_tokens_details": {"reasoning_tokens": 20},
+                        },
+                        "choices": [
+                            {
+                                "finish_reason": "stop",
+                                "native_finish_reason": "stop",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "openrouter-generation-error-001.json").write_text(
+                '{"error":"OpenRouter metadata HTTP 404"}\n',
+                encoding="utf-8",
+            )
+
+            summary = summarize_openrouter_usage(root)
+
+        self.assertEqual(summary.calls, 1)
+        self.assertEqual(summary.metadata_failures, 0)
+        self.assertEqual(summary.prompt_tokens, 459)
+        self.assertEqual(summary.completion_tokens, 38)
+        self.assertEqual(summary.total_tokens, 497)
+        self.assertEqual(summary.native_cached_tokens, 12)
+        self.assertEqual(summary.native_reasoning_tokens, 20)
+        self.assertEqual(summary.last_provider, "Parasail")
+        self.assertAlmostEqual(summary.cost_usd, 7.49e-05)
+
 
 if __name__ == "__main__":
     unittest.main()

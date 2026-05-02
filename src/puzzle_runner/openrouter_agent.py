@@ -111,16 +111,17 @@ def run_openrouter_agent(
                     return _result(config, cwd, started, returncode, False, None, stdout_path, stderr_path)
 
                 _write_json(round_dir / f"openrouter-response-{step:03d}.json", response)
-                _record_generation_metadata(
-                    config,
-                    api_key=api_key,
-                    response=response,
-                    round_dir=round_dir,
-                    step=step,
-                    timeout_seconds=remaining,
-                    err_handle=err_handle,
-                    echo=echo,
-                )
+                if not _response_has_rich_usage(response):
+                    _record_generation_metadata(
+                        config,
+                        api_key=api_key,
+                        response=response,
+                        round_dir=round_dir,
+                        step=step,
+                        timeout_seconds=remaining,
+                        err_handle=err_handle,
+                        echo=echo,
+                    )
                 write_openrouter_usage_summary(round_dir)
 
                 assistant_text = _assistant_text(response)
@@ -354,6 +355,18 @@ def _assistant_text(response: dict[str, Any]) -> str:
         parts = [item.get("text") for item in content if isinstance(item, dict)]
         return "".join(part for part in parts if isinstance(part, str))
     return ""
+
+
+def _response_has_rich_usage(response: dict[str, Any]) -> bool:
+    usage = response.get("usage")
+    if isinstance(usage, dict):
+        if isinstance(usage.get("cost"), (int, float)):
+            return True
+        if isinstance(usage.get("prompt_tokens_details"), dict):
+            return True
+        if isinstance(usage.get("completion_tokens_details"), dict):
+            return True
+    return isinstance(response.get("provider"), str)
 
 
 def _execute_action(
