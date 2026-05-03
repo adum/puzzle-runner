@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import subprocess
@@ -224,14 +225,22 @@ def _send_chat_completion(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            body = response.read().decode("utf-8", errors="replace")
+            body = _read_response_body(response, context="OpenRouter")
     except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
         retryable = exc.code not in {400, 401, 402, 403, 404, 422}
+        try:
+            body = _read_response_body(exc, context="OpenRouter error")
+        except OpenRouterAgentError as read_exc:
+            raise OpenRouterAgentError(
+                f"OpenRouter HTTP {exc.code}: {read_exc}",
+                retryable=retryable,
+            ) from exc
         raise OpenRouterAgentError(
             f"OpenRouter HTTP {exc.code}: {_truncate(body, 4000)}",
             retryable=retryable,
         ) from exc
+    except http.client.HTTPException as exc:
+        raise OpenRouterAgentError(f"OpenRouter request failed: {exc}") from exc
     except urllib.error.URLError as exc:
         raise OpenRouterAgentError(f"OpenRouter request failed: {exc}") from exc
     except TimeoutError as exc:
@@ -244,6 +253,18 @@ def _send_chat_completion(
     if not isinstance(parsed, dict):
         raise OpenRouterAgentError("OpenRouter returned an unexpected response shape")
     return parsed
+
+
+def _read_response_body(response, *, context: str) -> str:
+    try:
+        body = response.read()
+    except http.client.IncompleteRead as exc:
+        partial = exc.partial or b""
+        raise OpenRouterAgentError(
+            f"{context} response ended before the complete body was read "
+            f"({len(partial)} bytes received)"
+        ) from exc
+    return body.decode("utf-8", errors="replace")
 
 
 def _record_generation_metadata(
@@ -314,14 +335,22 @@ def _send_generation_metadata(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            body = response.read().decode("utf-8", errors="replace")
+            body = _read_response_body(response, context="OpenRouter metadata")
     except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
         retryable = exc.code not in {400, 401, 402, 403, 404, 422}
+        try:
+            body = _read_response_body(exc, context="OpenRouter metadata error")
+        except OpenRouterAgentError as read_exc:
+            raise OpenRouterAgentError(
+                f"OpenRouter metadata HTTP {exc.code}: {read_exc}",
+                retryable=retryable,
+            ) from exc
         raise OpenRouterAgentError(
             f"OpenRouter metadata HTTP {exc.code}: {_truncate(body, 4000)}",
             retryable=retryable,
         ) from exc
+    except http.client.HTTPException as exc:
+        raise OpenRouterAgentError(f"OpenRouter metadata request failed: {exc}") from exc
     except urllib.error.URLError as exc:
         raise OpenRouterAgentError(f"OpenRouter metadata request failed: {exc}") from exc
     except TimeoutError as exc:
