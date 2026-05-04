@@ -47,6 +47,6 @@ api_key_env = "OPENROUTER_API_KEY"
 api_base_url = "https://openrouter.ai/api/v1"
 # Puzzle Runner uses chat response ids to fetch /generation metadata for cost,
 # provider, latency, and native token accounting when OpenRouter makes it available.
-max_tokens = 4096
+max_tokens = 16384
 max_steps = 40
 command_timeout_seconds = 120

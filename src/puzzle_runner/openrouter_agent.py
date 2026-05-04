@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from json import JSONDecoder
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .config import RunnerConfig
 from .openrouter_usage import write_openrouter_usage_summary
@@ -25,6 +25,7 @@ AGENT_CONFIG_ERROR_RETURN_CODE = 2
 METADATA_TIMEOUT_SECONDS = 20
 HTTP_REFERER = "https://github.com/adum/puzzle-runner"
 APP_TITLE = "Puzzle Runner"
+OPENROUTER_MAX_TOKENS_MARKER = "Observation: OpenRouter response hit max_tokens/completion limit"
 
 
 SYSTEM_PROMPT = f"""You are an autonomous coding agent controlled by Puzzle Runner.
@@ -64,6 +65,7 @@ def run_openrouter_agent(
     stderr_path: Path,
     timeout_seconds: int | None,
     echo: bool,
+    status_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> CommandResult:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,10 +138,16 @@ def run_openrouter_agent(
 
                 action = parse_action(assistant_text)
                 if action is None:
-                    observation = (
-                        "Observation: response was not valid action JSON. "
-                        "Return exactly one JSON object with action shell, read_file, write_file, or finish."
-                    )
+                    if _response_hit_completion_limit(response):
+                        limit_event = _completion_limit_event(config, response, step)
+                        if status_callback is not None:
+                            status_callback(limit_event)
+                        observation = _completion_limit_observation(limit_event)
+                    else:
+                        observation = (
+                            "Observation: response was not valid action JSON. "
+                            "Return exactly one JSON object with action shell, read_file, write_file, or finish."
+                        )
                     messages.append({"role": "user", "content": observation})
                     _write(out_handle, observation + "\n", echo=echo, echo_handle=sys.stdout)
                     continue
@@ -384,6 +392,60 @@ def _assistant_text(response: dict[str, Any]) -> str:
         parts = [item.get("text") for item in content if isinstance(item, dict)]
         return "".join(part for part in parts if isinstance(part, str))
     return ""
+
+
+def _response_hit_completion_limit(response: dict[str, Any]) -> bool:
+    choices = response.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return False
+    choice = choices[0]
+    return isinstance(choice, dict) and choice.get("finish_reason") == "length"
+
+
+def _completion_limit_event(
+    config: RunnerConfig,
+    response: dict[str, Any],
+    step: int,
+) -> dict[str, Any]:
+    usage = response.get("usage")
+    completion_tokens = None
+    reasoning_tokens = None
+    if isinstance(usage, dict):
+        completion_tokens = _int_or_none(usage.get("completion_tokens"))
+        completion_details = usage.get("completion_tokens_details")
+        if isinstance(completion_details, dict):
+            reasoning_tokens = _int_or_none(completion_details.get("reasoning_tokens"))
+
+    return {
+        "event": "openrouter_completion_limit",
+        "step": step,
+        "configured_max_tokens": config.agent.max_tokens,
+        "finish_reason": "length",
+        "completion_tokens": completion_tokens,
+        "reasoning_tokens": reasoning_tokens,
+    }
+
+
+def _completion_limit_observation(event: dict[str, Any]) -> str:
+    details: list[str] = ["finish_reason=length"]
+    configured_max_tokens = event.get("configured_max_tokens")
+    if configured_max_tokens is not None:
+        details.append(f"configured max_tokens={configured_max_tokens}")
+    completion_tokens = event.get("completion_tokens")
+    if completion_tokens is not None:
+        details.append(f"completion_tokens={completion_tokens}")
+    reasoning_tokens = event.get("reasoning_tokens")
+    if reasoning_tokens is not None:
+        details.append(f"reasoning_tokens={reasoning_tokens}")
+    return (
+        f"{OPENROUTER_MAX_TOKENS_MARKER} before returning a valid action JSON "
+        f"({', '.join(details)}). Return exactly one JSON object with action "
+        "shell, read_file, write_file, or finish."
+    )
+
+
+def _int_or_none(value: Any) -> int | None:
+    return value if isinstance(value, int) else None
 
 
 def _response_has_rich_usage(response: dict[str, Any]) -> bool:

@@ -297,6 +297,8 @@ def render_status(
         lines.append(_kv("Agent attempt", status.get("agent_attempt"), color, width))
     if status.get("agent_error_count") is not None or status.get("last_agent_returned_error") is not None:
         lines.append(_kv("Agent errors", _agent_error_summary(status), color, width))
+    if _uses_openrouter(status):
+        lines.append(_kv("OR max tokens", _openrouter_max_tokens_summary(status), color, width))
     if phase == "agent_retry_wait":
         lines.append(_kv("Retrying in", _retry_countdown(status), color, width))
     if phase == "evaluation_running":
@@ -493,6 +495,33 @@ def _agent_error_summary(status: dict[str, Any]) -> str:
     count = _int(status.get("agent_error_count"))
     if status.get("last_agent_returned_error") is True:
         return f"{count} (last turn error)"
+    return str(count)
+
+
+def _uses_openrouter(status: dict[str, Any]) -> bool:
+    return status.get("backend") == "openrouter"
+
+
+def _openrouter_max_tokens_summary(status: dict[str, Any]) -> str:
+    count = _int(status.get("openrouter_max_tokens_count"))
+    if count <= 0:
+        return "0"
+
+    details: list[str] = []
+    step = _int(status.get("last_openrouter_max_tokens_step"))
+    max_tokens = _int(status.get("last_openrouter_max_tokens_max_tokens"))
+    completion_tokens = _int(status.get("last_openrouter_max_tokens_completion_tokens"))
+    reasoning_tokens = _int(status.get("last_openrouter_max_tokens_reasoning_tokens"))
+    if step > 0:
+        details.append(f"last step {step}")
+    if max_tokens > 0:
+        details.append(f"limit {max_tokens:,}")
+    if completion_tokens > 0:
+        details.append(f"out {completion_tokens:,}")
+    if reasoning_tokens > 0:
+        details.append(f"reason {reasoning_tokens:,}")
+    if details:
+        return f"{count} ({', '.join(details)})"
     return str(count)
 
 

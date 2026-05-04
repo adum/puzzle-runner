@@ -68,6 +68,24 @@ class WatchTests(unittest.TestCase):
         self.assertNotIn("agent.stdout.log", rendered)
         self.assertNotIn("\033[", rendered)
 
+    def test_render_status_includes_openrouter_max_token_hits(self) -> None:
+        status = {
+            "active": True,
+            "phase": "agent_running",
+            "backend": "openrouter",
+            "openrouter_max_tokens_count": 2,
+            "last_openrouter_max_tokens_step": 14,
+            "last_openrouter_max_tokens_max_tokens": 16384,
+            "last_openrouter_max_tokens_completion_tokens": 16384,
+            "last_openrouter_max_tokens_reasoning_tokens": 14000,
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("OR max tokens", rendered)
+        self.assertIn("2 (last step 14, limit 16,384, out 16,384, reason 14,000)", rendered)
+
     def test_render_status_includes_agent_output_chars(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "agent.stdout.log"

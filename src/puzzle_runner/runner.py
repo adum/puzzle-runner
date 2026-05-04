@@ -610,6 +610,7 @@ exec python3 ./coil_solver.py
                     stderr_path=stderr_path,
                     timeout_seconds=self.config.agent_timeout_seconds,
                     echo=self.config.echo_agent_output,
+                    status_callback=self._openrouter_status_callback(round_number, attempt),
                 )
             else:
                 result = run_streamed(
@@ -682,6 +683,35 @@ exec python3 ./coil_solver.py
             time.sleep(sleep_seconds)
             attempt += 1
             retry_delay *= 2
+
+    def _openrouter_status_callback(
+        self,
+        round_number: int,
+        attempt: int,
+    ) -> Callable[[dict], None]:
+        def update(event: dict) -> None:
+            if event.get("event") != "openrouter_completion_limit":
+                return
+            count = int(self._status.get("openrouter_max_tokens_count") or 0) + 1
+            self._update_status(
+                openrouter_max_tokens_count=count,
+                last_openrouter_max_tokens_step=event.get("step"),
+                last_openrouter_max_tokens_max_tokens=event.get("configured_max_tokens"),
+                last_openrouter_max_tokens_completion_tokens=event.get("completion_tokens"),
+                last_openrouter_max_tokens_reasoning_tokens=event.get("reasoning_tokens"),
+            )
+            self._event(
+                "openrouter_max_tokens_hit",
+                round=round_number,
+                attempt=attempt,
+                count=count,
+                step=event.get("step"),
+                configured_max_tokens=event.get("configured_max_tokens"),
+                completion_tokens=event.get("completion_tokens"),
+                reasoning_tokens=event.get("reasoning_tokens"),
+            )
+
+        return update
 
     def _run_evaluation(self, round_dir: Path) -> CommandResult:
         password = self._get_full_eval_password()
@@ -796,6 +826,11 @@ Wall time seconds: {final.total_wall_seconds:.2f}
 Agent output chars: {final.agent_output_chars}
 Code lines added: {final.code_lines_added}
 """
+        if self.config.agent.backend == "openrouter":
+            body += (
+                "OpenRouter max token hits: "
+                f"{self._status.get('openrouter_max_tokens_count') or 0}\n"
+            )
         if final.openrouter_usage is not None:
             body += _openrouter_final_result_text(final.openrouter_usage)
         (self.log_dir / "final_result.md").write_text(body, encoding="utf-8")
@@ -850,6 +885,11 @@ Code lines added: {final.code_lines_added}
                 "last_improved": None,
                 "agent_attempt": None,
                 "agent_error_count": 0,
+                "openrouter_max_tokens_count": 0,
+                "last_openrouter_max_tokens_step": None,
+                "last_openrouter_max_tokens_max_tokens": None,
+                "last_openrouter_max_tokens_completion_tokens": None,
+                "last_openrouter_max_tokens_reasoning_tokens": None,
                 "agent_retry_count": 0,
                 "agent_retry_delay_seconds": None,
                 "agent_retry_remaining_seconds": None,
@@ -1514,10 +1554,18 @@ def _status_markdown(status: dict) -> str:
         f"- Scores: `{_score_history_text(status)}`",
         f"- Last Improved: `{status.get('last_improved')}`",
         f"- Agent Errors: `{status.get('agent_error_count')}`",
-        f"- No-Progress Count: `{status.get('stale_count')}/{status.get('stale_limit')}`",
-        f"- Remaining No-Progress Tries: `{status.get('remaining_no_progress_tries')}`",
-        f"- Stop Reason: `{status.get('stop_reason')}`",
     ]
+    if status.get("backend") == "openrouter":
+        lines.append(
+            f"- OpenRouter Max Token Hits: `{status.get('openrouter_max_tokens_count')}`"
+        )
+    lines.extend(
+        [
+            f"- No-Progress Count: `{status.get('stale_count')}/{status.get('stale_limit')}`",
+            f"- Remaining No-Progress Tries: `{status.get('remaining_no_progress_tries')}`",
+            f"- Stop Reason: `{status.get('stop_reason')}`",
+        ]
+    )
     if status.get("stop_detail"):
         lines.append(f"- Stop Detail: `{status.get('stop_detail')}`")
     guard_summary = _guard_findings_summary(status.get("guard_findings"))
