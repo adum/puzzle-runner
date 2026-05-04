@@ -5,3 +5,4 @@
 | 20260502-115627-DeepSeek-V4-Flash | DeepSeek V4 Flash |  | 47 | 1 | 4 | stale_limit | 600s | 48m 1s | 370927 | 431 | 160 | $0.126939 | 2161647 |
 | 20260502-132235-DeepSeek-V4-pro | DeepSeek V4 pro |  | 100 | 3 | 6 | stale_limit | 600s | 5h 50m | 528412 | 520 | 240 | $1.817208 | 3589165 |
 | 20260502-193349-grok-4-3 | grok 4.3 |  | 54 | 6 | 9 | stale_limit | 600s | 3h 28m | 1039832 | 490 | 360 | $3.516094 | 5896421 |
+| 20260503-103404-Qwen3-6-Max-Preview | Qwen3.6 Max Preview |  | 73 | 2 | 5 | stale_limit | 600s | 2h 7m | 690756 | 853 | 200 | $5.464090 | 4212948 |
