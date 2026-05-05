@@ -2,7 +2,7 @@
 
 Iterative benchmark orchestrator for AI coding agents.
 
-Backends: OpenAI Codex CLI, Claude Code, and OpenRouter API.
+Backends: OpenAI Codex CLI, Claude Code, Gemini CLI, and OpenRouter API.
 
 Requires Python 3.10 or newer.
 
@@ -97,6 +97,36 @@ claude --print --no-session-persistence --verbose --output-format stream-json --
 ```
 
 The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Claude agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value or `effort` in `[agent]` when desired.
+
+## Gemini CLI
+
+Use the Gemini config:
+
+```sh
+cp config.gemini.example.toml runner.gemini.toml
+PYTHONPATH=src python3 -m puzzle_runner --config runner.gemini.toml
+```
+
+Watch that run with:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner watch --config runner.gemini.toml
+```
+
+Install and authenticate Gemini CLI before running, for example:
+
+```sh
+npm install -g @google/gemini-cli
+gemini
+```
+
+The Gemini config pipes Puzzle Runner's prompt to:
+
+```sh
+gemini --model pro --approval-mode yolo --skip-trust --output-format text
+```
+
+The command goes through `scripts/gemini-cli`, which sources `nvm` first when available and prefers a Node 20+ Gemini install. The example uses the `pro` model alias; edit the model value and command in `[agent]` when desired.
 
 ## OpenRouter
 

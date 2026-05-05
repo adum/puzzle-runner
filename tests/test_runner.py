@@ -12,6 +12,7 @@ from puzzle_runner.runner import (
     _agent_effort_text,
     _agent_result_is_retryable,
     _apply_agent_effort,
+    _apply_agent_model,
     _claude_stdout_has_error_result,
     _ensure_results_summary_header,
     _is_terminal_claude_result_line,
@@ -270,6 +271,24 @@ class RunnerTests(unittest.TestCase):
         command = _apply_agent_effort(config, ["claude", "--effort", "high"])
 
         self.assertEqual(command, ["claude", "--effort", "high"])
+
+    def test_gemini_model_is_added_to_agent_command(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        runner = Runner(config)
+
+        command = runner._agent_command(Path("/tmp/round"))
+
+        self.assertIn("--model", command)
+        self.assertIn("pro", command)
+
+    def test_gemini_model_is_not_duplicated(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        command = _apply_agent_model(config, ["gemini", "--model", "flash"])
+
+        self.assertEqual(command, ["gemini", "--model", "flash"])
 
     def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(

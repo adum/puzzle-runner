@@ -785,7 +785,8 @@ exec python3 ./coil_solver.py
                 self.config.agent.api_key_env,
             ]
         command = self._render_command(self.config.agent.command, round_dir)
-        return _apply_agent_effort(self.config, command)
+        command = _apply_agent_effort(self.config, command)
+        return _apply_agent_model(self.config, command)
 
     def _write_git_diff(self, path: Path) -> None:
         result = subprocess.run(
@@ -1048,6 +1049,13 @@ def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
     if not effort or config.agent.backend != "claude-code" or _command_has_option(command, "--effort"):
         return command
     return [*command, "--effort", effort]
+
+
+def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
+    model = config.agent.model
+    if not model or config.agent.backend != "gemini-cli" or _command_has_option(command, "--model"):
+        return command
+    return [*command, "--model", model]
 
 
 def _command_has_option(command: list[str], option: str) -> bool:

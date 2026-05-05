@@ -1,0 +1,69 @@
+# Copy to runner.gemini.toml and edit local settings as needed.
+
+benchmark_repo_url = "https://github.com/adum/coilbench.git"
+benchmark_ref = "main"
+download_full_levels = true
+
+# Optional local override for development. If set, the runner uses this instead
+# of cloning benchmark_repo_url.
+# benchmark_path = "../cb_base"
+
+workspace_mode = "worktree"
+worktree_root = ".puzzle-runs/worktrees"
+log_root = ".puzzle-runs/logs"
+status_dir = ".puzzle-runs/current"
+results_path = "final_results.md"
+
+solver_wrapper = "run_solver"
+evaluation_script = "evaluate_full.py"
+evaluation_timeout_seconds = 600
+evaluation_process_timeout_seconds = 0
+
+# Optional override. Fresh cloned runs generate an ephemeral password when this
+# env var is absent.
+full_eval_password_env = "COIL_FULL_PASSWORD"
+generate_full_eval_password = true
+
+stale_limit = 3
+max_rounds = 20
+
+# Wall-clock cap for a single agent call. If the agent process exceeds this
+# many seconds for one prompt, the runner stops the run with agent_timeout.
+agent_timeout_seconds = 86400
+
+# Idle-output cap for a single agent call. If the agent writes nothing to
+# stdout or stderr for this many seconds, the runner stops with
+# agent_idle_timeout. Set to 0 to disable.
+agent_idle_timeout_seconds = 1800
+
+# Retry window for non-timeout agent process failures. Retries use exponential
+# backoff starting at 5s and doubling each time. Set to 0 to disable.
+agent_failure_retry_limit_seconds = 900
+
+build_checker = true
+echo_agent_output = true
+echo_evaluation_output = true
+
+forbidden_paths = [
+  "levels_public/**",
+  "levels_secret_even.tar.enc",
+  "evaluate.py",
+  "evaluate_full.py",
+  "coil_check/check.c",
+  "coil_check/Makefile",
+  "coil_check/check",
+]
+
+[agent]
+name = "gemini-cli-pro"
+backend = "gemini-cli"
+prompt_mode = "stdin"
+model = "pro"
+command = [
+  "{config_dir}/scripts/gemini-cli",
+  "--approval-mode",
+  "yolo",
+  "--skip-trust",
+  "--output-format",
+  "text",
+]
