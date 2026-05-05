@@ -126,7 +126,7 @@ The Gemini config pipes Puzzle Runner's prompt to:
 gemini --model pro --approval-mode yolo --skip-trust --output-format text
 ```
 
-The command goes through `scripts/gemini-cli`, which sources `nvm` first when available and prefers a Node 20+ Gemini install. The example uses the `pro` model alias; edit the model value and command in `[agent]` when desired.
+The command goes through `scripts/gemini-cli`, which sources `nvm` first when available and prefers a Node 20+ Gemini install. When Puzzle Runner pipes the prompt on stdin, the wrapper passes it to Gemini as `--prompt` so Gemini runs in headless mode instead of its interactive UI. The example uses the `pro` model alias; edit the model value and command in `[agent]` when desired.
 
 ## OpenRouter
 

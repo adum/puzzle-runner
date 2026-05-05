@@ -1053,9 +1053,13 @@ def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
 
 def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
     model = config.agent.model
-    if not model or config.agent.backend != "gemini-cli" or _command_has_option(command, "--model"):
+    if not model or not _is_gemini_backend(config) or _command_has_option(command, "--model"):
         return command
     return [*command, "--model", model]
+
+
+def _is_gemini_backend(config: RunnerConfig) -> bool:
+    return config.agent.backend == "gemini-cli" or config.agent.backend.startswith("gemini-")
 
 
 def _command_has_option(command: list[str], option: str) -> bool:

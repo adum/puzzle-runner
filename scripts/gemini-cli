@@ -3,6 +3,25 @@ set -euo pipefail
 
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 
+gemini_args=("$@")
+
+has_prompt_arg=false
+for arg in "${gemini_args[@]}"; do
+  if [[ "$arg" == "-p" || "$arg" == "--prompt" || "$arg" == --prompt=* ]]; then
+    has_prompt_arg=true
+    break
+  fi
+done
+
+if [[ ! -t 0 && "$has_prompt_arg" == false ]]; then
+  prompt="$(cat)"
+  gemini_args+=("--prompt" "$prompt")
+fi
+
+run_gemini() {
+  exec "$1" "${gemini_args[@]}"
+}
+
 if [[ -s "$NVM_DIR/nvm.sh" ]]; then
   # Puzzle Runner often starts agents from a non-interactive process where
   # nvm's Node is not on PATH yet.
@@ -13,14 +32,14 @@ fi
 
 node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 if [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 20 )) && command -v gemini >/dev/null 2>&1; then
-  exec gemini "$@"
+  run_gemini "$(command -v gemini)"
 fi
 
 for node_dir in "$NVM_DIR"/versions/node/v*; do
   candidate_major="$("$node_dir/bin/node" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
   if [[ "$candidate_major" =~ ^[0-9]+$ ]] && (( candidate_major >= 20 )) && [[ -x "$node_dir/bin/gemini" ]]; then
-    exec "$node_dir/bin/gemini" "$@"
+    run_gemini "$node_dir/bin/gemini"
   fi
 done
 
-exec gemini "$@"
+run_gemini gemini

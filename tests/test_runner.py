@@ -1,4 +1,5 @@
 import subprocess
+import dataclasses
 import tempfile
 import unittest
 from pathlib import Path
@@ -289,6 +290,18 @@ class RunnerTests(unittest.TestCase):
         command = _apply_agent_model(config, ["gemini", "--model", "flash"])
 
         self.assertEqual(command, ["gemini", "--model", "flash"])
+
+    def test_gemini_model_is_added_for_named_gemini_backend(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        config = dataclasses.replace(
+            config,
+            agent=dataclasses.replace(config.agent, backend="gemini-3.1-pro-preview"),
+        )
+
+        command = _apply_agent_model(config, ["gemini"])
+
+        self.assertEqual(command, ["gemini", "--model", "pro"])
 
     def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(
