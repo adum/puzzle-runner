@@ -1005,25 +1005,27 @@ def _agent_result_is_retryable(result: CommandResult) -> bool:
 
 
 def _agent_stream_format(config: RunnerConfig) -> str | None:
-    if config.agent.backend != "claude-code":
-        return None
-
     command = config.agent.command
-    for index, part in enumerate(command):
-        if part == "--output-format" and index + 1 < len(command) and command[index + 1] == "stream-json":
-            return "claude-stream-json"
-        if part == "--output-format=stream-json":
-            return "claude-stream-json"
+    if not _command_uses_stream_json(command):
+        return None
+    if config.agent.backend == "claude-code":
+        return "claude-stream-json"
+    if _is_gemini_backend(config):
+        return "gemini-stream-json"
     return None
 
 
 def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], bool] | None:
-    if _agent_stream_format(config) == "claude-stream-json":
-        return _is_terminal_claude_result_line
+    if _agent_stream_format(config) in {"claude-stream-json", "gemini-stream-json"}:
+        return _is_terminal_stream_result_line
     return None
 
 
 def _is_terminal_claude_result_line(line: str) -> bool:
+    return _is_terminal_stream_result_line(line)
+
+
+def _is_terminal_stream_result_line(line: str) -> bool:
     try:
         event = json.loads(line)
     except json.JSONDecodeError:
@@ -1032,14 +1034,29 @@ def _is_terminal_claude_result_line(line: str) -> bool:
 
 
 def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
-    if _agent_stream_format(config) != "claude-stream-json":
-        return False
-    return _claude_stdout_has_error_result(stdout_path)
+    agent_stream_format = _agent_stream_format(config)
+    if agent_stream_format == "claude-stream-json":
+        return _claude_stdout_has_error_result(stdout_path)
+    if agent_stream_format == "gemini-stream-json":
+        return _gemini_stdout_has_error_result(stdout_path)
+    return False
 
 
 def _claude_stdout_has_error_result(path: Path) -> bool:
     for event in _claude_stream_events(path):
         if event.get("type") == "result" and event.get("is_error") is True:
+            return True
+    return False
+
+
+def _gemini_stdout_has_error_result(path: Path) -> bool:
+    for event in _claude_stream_events(path):
+        if event.get("type") == "error":
+            return True
+        if event.get("type") != "result":
+            continue
+        status = event.get("status")
+        if isinstance(status, str) and status.lower() != "success":
             return True
     return False
 
@@ -1066,6 +1083,15 @@ def _command_has_option(command: list[str], option: str) -> bool:
     return any(part == option or part.startswith(f"{option}=") for part in command)
 
 
+def _command_uses_stream_json(command: list[str]) -> bool:
+    for index, part in enumerate(command):
+        if part == "--output-format" and index + 1 < len(command) and command[index + 1] == "stream-json":
+            return True
+        if part == "--output-format=stream-json":
+            return True
+    return False
+
+
 def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]:
     if attempt == 1:
         return round_dir / "agent.stdout.log", round_dir / "agent.stderr.log"
@@ -1076,6 +1102,8 @@ def _agent_attempt_log_paths(round_dir: Path, attempt: int) -> tuple[Path, Path]
 def count_agent_output_chars(log_dir: Path, *, agent_stream_format: str | None = None) -> int:
     if agent_stream_format == "claude-stream-json":
         return _count_claude_agent_text_chars(log_dir)
+    if agent_stream_format == "gemini-stream-json":
+        return _count_gemini_agent_text_chars(log_dir)
 
     total = 0
     seen: set[Path] = set()
@@ -1099,6 +1127,17 @@ def _count_claude_agent_text_chars(log_dir: Path) -> int:
             continue
         seen.add(path)
         total += _claude_stream_text_char_count(path)
+    return total
+
+
+def _count_gemini_agent_text_chars(log_dir: Path) -> int:
+    total = 0
+    seen: set[Path] = set()
+    for path in log_dir.glob("round-*/agent*.stdout.log"):
+        if path in seen:
+            continue
+        seen.add(path)
+        total += _gemini_stream_text_char_count(path)
     return total
 
 
@@ -1128,6 +1167,22 @@ def _claude_stream_text_char_count(path: Path) -> int:
     return delta_chars or assistant_chars or result_chars
 
 
+def _gemini_stream_text_char_count(path: Path) -> int:
+    delta_chars = 0
+    assistant_chars = 0
+
+    for event in _claude_stream_events(path):
+        if event.get("type") != "message" or event.get("role") != "assistant":
+            continue
+        text = _gemini_message_text(event)
+        if event.get("delta") is True:
+            delta_chars += len(text)
+        else:
+            assistant_chars += len(text)
+
+    return delta_chars or assistant_chars
+
+
 def _claude_stream_events(path: Path):
     try:
         with path.open("r", encoding="utf-8", errors="replace") as handle:
@@ -1143,6 +1198,19 @@ def _claude_stream_events(path: Path):
                     yield event
     except OSError:
         return
+
+
+def _gemini_message_text(message: dict) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+    return "".join(parts)
 
 
 def _assistant_message_text(message: dict) -> str:

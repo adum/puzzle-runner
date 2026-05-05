@@ -309,15 +309,17 @@ def render_status(
     if agent_output is not None:
         lines.append(_kv("Agent output", _agent_output_summary(agent_output), color, width))
         lines.append(_kv("Last output", _last_output_age(agent_output), color, width))
-    if _uses_claude_stream_json(status):
-        claude_stream = _claude_stream_summary(latest)
-        if claude_stream is not None:
-            lines.append(_kv("Claude stream", _claude_stream_overview(claude_stream), color, width))
-            if claude_stream.text_chars or claude_stream.text_preview:
-                lines.append(_kv("Claude text", _claude_text_summary(claude_stream), color, width))
-            usage = _claude_usage_summary(claude_stream)
+    agent_stream_format = _agent_stream_format(status)
+    if agent_stream_format is not None:
+        stream_summary = _agent_stream_summary(latest, agent_stream_format)
+        if stream_summary is not None:
+            stream_label = _agent_stream_label(agent_stream_format)
+            lines.append(_kv(f"{stream_label} stream", _claude_stream_overview(stream_summary), color, width))
+            if stream_summary.text_chars or stream_summary.text_preview:
+                lines.append(_kv(f"{stream_label} text", _claude_text_summary(stream_summary), color, width))
+            usage = _agent_usage_summary(stream_summary, agent_stream_format)
             if usage is not None:
-                lines.append(_kv("Claude usage", usage, color, width))
+                lines.append(_kv(f"{stream_label} usage", usage, color, width))
     openrouter_usage = _openrouter_usage_summary(status, latest)
     if openrouter_usage is not None:
         lines.append(_kv("OpenRouter usage", _openrouter_usage_text(openrouter_usage), color, width))
@@ -568,8 +570,8 @@ def _last_tested_line_in_file(path: Path) -> str | None:
 
     matches = list(TESTED_LEVEL_LINE_RE.finditer(text))
     if not matches:
-        claude_text = _claude_text_from_stream(text)
-        matches = list(TESTED_LEVEL_LINE_RE.finditer(claude_text))
+        stream_text = _agent_text_from_stream_json(text)
+        matches = list(TESTED_LEVEL_LINE_RE.finditer(stream_text))
     if not matches:
         return None
     return matches[-1].group(0).strip()
@@ -587,15 +589,26 @@ def _tail_text(path: Path, max_bytes: int) -> str | None:
     return data.decode("utf-8", errors="replace")
 
 
-def _uses_claude_stream_json(status: dict[str, Any]) -> bool:
-    if status.get("agent_stream_format") == "claude-stream-json":
-        return True
-    if status.get("backend") != "claude-code":
-        return False
+def _agent_stream_format(status: dict[str, Any]) -> str | None:
+    configured = status.get("agent_stream_format")
+    if configured in {"claude-stream-json", "gemini-stream-json"}:
+        return str(configured)
+
+    backend = status.get("backend")
     command = status.get("current_command")
     if not isinstance(command, list):
-        return False
-    return _command_uses_stream_json([str(part) for part in command])
+        return None
+    if not _command_uses_stream_json([str(part) for part in command]):
+        return None
+    if backend == "claude-code":
+        return "claude-stream-json"
+    if backend == "gemini-cli" or (isinstance(backend, str) and backend.startswith("gemini-")):
+        return "gemini-stream-json"
+    return None
+
+
+def _uses_claude_stream_json(status: dict[str, Any]) -> bool:
+    return _agent_stream_format(status) == "claude-stream-json"
 
 
 def _command_uses_stream_json(command: list[str]) -> bool:
@@ -605,6 +618,25 @@ def _command_uses_stream_json(command: list[str]) -> bool:
         if part == "--output-format=stream-json":
             return True
     return False
+
+
+def _agent_stream_summary(
+    latest: dict[str, Any],
+    agent_stream_format: str,
+) -> ClaudeStreamSummary | None:
+    if agent_stream_format == "claude-stream-json":
+        return _claude_stream_summary(latest)
+    if agent_stream_format == "gemini-stream-json":
+        return _gemini_stream_summary(latest)
+    return None
+
+
+def _agent_stream_label(agent_stream_format: str) -> str:
+    if agent_stream_format == "gemini-stream-json":
+        return "Gemini"
+    if agent_stream_format == "claude-stream-json":
+        return "Claude"
+    return "Agent"
 
 
 def _claude_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None:
@@ -678,6 +710,63 @@ def _claude_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None
     )
 
 
+def _gemini_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None:
+    path_value = latest.get("agent_stdout")
+    if not path_value:
+        return None
+    text = _tail_text(Path(str(path_value)), CLAUDE_STREAM_TAIL_BYTES)
+    if text is None:
+        return None
+
+    events = 0
+    text_parts: list[str] = []
+    assistant_fallback: str | None = None
+    latest_event = None
+    usage = None
+    result = None
+    is_error = None
+
+    for event in _claude_stream_events(text):
+        events += 1
+        latest_event = _gemini_event_description(event) or latest_event
+        event_type = event.get("type")
+
+        if event_type == "message" and event.get("role") == "assistant":
+            message_text = _gemini_message_text(event)
+            if event.get("delta") is True:
+                text_parts.append(message_text)
+            elif message_text:
+                assistant_fallback = message_text
+
+        elif event_type == "result":
+            usage = _latest_usage(usage, event.get("stats"))
+            status = event.get("status")
+            if isinstance(status, str):
+                result = status
+                is_error = status.lower() != "success"
+
+        elif event_type == "error":
+            result_text = event.get("message") or event.get("error")
+            if isinstance(result_text, str):
+                result = result_text
+            is_error = True
+
+    if events == 0:
+        return None
+
+    combined_text = "".join(text_parts) if text_parts else assistant_fallback or ""
+    return ClaudeStreamSummary(
+        events=events,
+        text_chars=len(combined_text),
+        text_preview=_text_preview(combined_text),
+        latest_event=latest_event,
+        usage=usage,
+        cost_usd=None,
+        result=result,
+        is_error=is_error,
+    )
+
+
 def _claude_stream_events(text: str) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for line in text.splitlines():
@@ -691,6 +780,11 @@ def _claude_stream_events(text: str) -> list[dict[str, Any]]:
         if isinstance(event, dict):
             events.append(event)
     return events
+
+
+def _agent_text_from_stream_json(text: str) -> str:
+    parts = [_claude_text_from_stream(text), _gemini_text_from_stream(text)]
+    return "\n".join(part for part in parts if part)
 
 
 def _claude_text_from_stream(text: str) -> str:
@@ -718,6 +812,20 @@ def _claude_text_from_stream(text: str) -> str:
     return "".join(parts) if parts else fallback or result or ""
 
 
+def _gemini_text_from_stream(text: str) -> str:
+    parts: list[str] = []
+    fallback: str | None = None
+    for event in _claude_stream_events(text):
+        if event.get("type") != "message" or event.get("role") != "assistant":
+            continue
+        message_text = _gemini_message_text(event)
+        if event.get("delta") is True:
+            parts.append(message_text)
+        elif message_text:
+            fallback = message_text
+    return "".join(parts) if parts else fallback or ""
+
+
 def _assistant_message_text(message: dict[str, Any]) -> str | None:
     content = message.get("content")
     if not isinstance(content, list):
@@ -727,6 +835,19 @@ def _assistant_message_text(message: dict[str, Any]) -> str | None:
         if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
             parts.append(block["text"])
     return "".join(parts) if parts else None
+
+
+def _gemini_message_text(message: dict[str, Any]) -> str:
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+    return "".join(parts)
 
 
 def _latest_usage(current: dict[str, Any] | None, candidate) -> dict[str, Any] | None:
@@ -772,6 +893,29 @@ def _claude_event_description(event: dict[str, Any]) -> str | None:
     return None
 
 
+def _gemini_event_description(event: dict[str, Any]) -> str | None:
+    event_type = event.get("type")
+    if event_type == "init":
+        return "init"
+    if event_type == "message":
+        role = event.get("role")
+        if role == "assistant" and event.get("delta") is True:
+            return "assistant delta"
+        if isinstance(role, str):
+            return f"{role} message"
+        return "message"
+    if event_type == "result":
+        status = event.get("status")
+        if isinstance(status, str):
+            return f"result {status}"
+        return "result"
+    if event_type == "error":
+        return "error"
+    if isinstance(event_type, str):
+        return event_type.replace("_", " ")
+    return None
+
+
 def _claude_stream_overview(summary: ClaudeStreamSummary) -> str:
     parts = [f"{summary.events:,} recent events"]
     if summary.latest_event:
@@ -793,6 +937,15 @@ def _claude_text_summary(summary: ClaudeStreamSummary) -> str:
     return f"{summary.text_chars:,} chars"
 
 
+def _agent_usage_summary(
+    summary: ClaudeStreamSummary,
+    agent_stream_format: str,
+) -> str | None:
+    if agent_stream_format == "gemini-stream-json":
+        return _gemini_usage_summary(summary)
+    return _claude_usage_summary(summary)
+
+
 def _claude_usage_summary(summary: ClaudeStreamSummary) -> str | None:
     usage = summary.usage or {}
     if not usage and summary.cost_usd is None:
@@ -810,6 +963,28 @@ def _claude_usage_summary(summary: ClaudeStreamSummary) -> str | None:
             parts.append(f"{label} {value:,}")
     if summary.cost_usd is not None:
         parts.append(f"cost ${summary.cost_usd:.4f}")
+    return ", ".join(parts) if parts else None
+
+
+def _gemini_usage_summary(summary: ClaudeStreamSummary) -> str | None:
+    usage = summary.usage or {}
+    if not usage:
+        return None
+
+    parts = []
+    for key, label in (
+        ("input_tokens", "in"),
+        ("output_tokens", "out"),
+        ("total_tokens", "total"),
+        ("cached", "cached"),
+        ("tool_calls", "tools"),
+    ):
+        value = usage.get(key)
+        if isinstance(value, int):
+            parts.append(f"{label} {value:,}")
+    duration_ms = usage.get("duration_ms")
+    if isinstance(duration_ms, int):
+        parts.append(f"time {_duration(duration_ms / 1000)}")
     return ", ".join(parts) if parts else None
 
 

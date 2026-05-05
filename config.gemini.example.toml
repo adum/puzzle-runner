@@ -55,15 +55,15 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "gemini-cli-pro"
+name = "gemini-3.1-pro-preview"
 backend = "gemini-cli"
 prompt_mode = "stdin"
-model = "pro"
+model = "gemini-3.1-pro-preview"
 command = [
   "{config_dir}/scripts/gemini-cli",
   "--approval-mode",
   "yolo",
   "--skip-trust",
   "--output-format",
-  "text",
+  "stream-json",
 ]

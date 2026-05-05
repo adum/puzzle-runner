@@ -169,6 +169,36 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Last tested", rendered)
         self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
 
+    def test_render_status_summarizes_gemini_stream_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stdout.write_text(
+                '{"type":"init","model":"gemini-3.1-pro-preview"}\n'
+                '{"type":"message","role":"assistant","content":"Level 79 (30x28): FAIL (No solution found) (58.03s)","delta":true}\n'
+                '{"type":"result","status":"success","stats":{"input_tokens":9513,'
+                '"output_tokens":1,"total_tokens":9607,"cached":0,"tool_calls":0,'
+                '"duration_ms":3283}}\n',
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "backend": "gemini-cli",
+                "agent_stream_format": "gemini-stream-json",
+                "latest": {"agent_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Gemini stream", rendered)
+        self.assertIn("3 recent events", rendered)
+        self.assertIn("latest result success", rendered)
+        self.assertIn("Gemini text", rendered)
+        self.assertIn("Gemini usage", rendered)
+        self.assertIn("in 9,513, out 1, total 9,607, cached 0, tools 0, time 3.3s", rendered)
+        self.assertIn("Last tested", rendered)
+        self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
+
     def test_render_status_summarizes_openrouter_usage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = Path(temp_dir)

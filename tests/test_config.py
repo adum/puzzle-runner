@@ -41,16 +41,16 @@ class ConfigTests(unittest.TestCase):
 
         config = load_config(str(config_path), run_id="test-run")
 
-        self.assertEqual(config.agent.name, "gemini-cli-pro")
+        self.assertEqual(config.agent.name, "gemini-3.1-pro-preview")
         self.assertEqual(config.agent.backend, "gemini-cli")
         self.assertEqual(config.agent.prompt_mode, "stdin")
-        self.assertEqual(config.agent.model, "pro")
+        self.assertEqual(config.agent.model, "gemini-3.1-pro-preview")
         self.assertIn("{config_dir}/scripts/gemini-cli", config.agent.command)
         self.assertIn("--approval-mode", config.agent.command)
         self.assertIn("yolo", config.agent.command)
         self.assertIn("--skip-trust", config.agent.command)
         self.assertIn("--output-format", config.agent.command)
-        self.assertIn("text", config.agent.command)
+        self.assertIn("stream-json", config.agent.command)
 
     def test_openrouter_example_config_loads(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"

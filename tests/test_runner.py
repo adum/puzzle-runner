@@ -129,6 +129,27 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(total, len("HelloBye"))
 
+    def test_count_agent_output_chars_uses_gemini_text_not_json_size(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir)
+            round_dir = log_dir / "round-001"
+            round_dir.mkdir()
+            (round_dir / "agent.stdout.log").write_text(
+                '{"type":"init","model":"gemini-3.1-pro-preview"}\n'
+                '{"type":"message","role":"assistant","content":"Hello","delta":true}\n'
+                '{"type":"result","status":"success","stats":{"total_tokens":12}}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "agent.attempt-002.stdout.log").write_text(
+                '{"type":"message","role":"assistant","content":"Bye","delta":true}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "agent.stderr.log").write_text("raw stderr ignored", encoding="utf-8")
+
+            total = count_agent_output_chars(log_dir, agent_stream_format="gemini-stream-json")
+
+        self.assertEqual(total, len("HelloBye"))
+
     def test_count_code_lines_added_counts_code_and_ignores_levels(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -281,7 +302,7 @@ class RunnerTests(unittest.TestCase):
         command = runner._agent_command(Path("/tmp/round"))
 
         self.assertIn("--model", command)
-        self.assertIn("pro", command)
+        self.assertIn("gemini-3.1-pro-preview", command)
 
     def test_gemini_model_is_not_duplicated(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
@@ -301,7 +322,7 @@ class RunnerTests(unittest.TestCase):
 
         command = _apply_agent_model(config, ["gemini"])
 
-        self.assertEqual(command, ["gemini", "--model", "pro"])
+        self.assertEqual(command, ["gemini", "--model", "gemini-3.1-pro-preview"])
 
     def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(
