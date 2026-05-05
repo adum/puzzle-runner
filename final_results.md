@@ -9,3 +9,4 @@
 | 20260502-153410-claude-code-sonnet | claude-code-sonnet | medium | 155 | 3 | 6 | stale_limit | 600s | 31h 13m | 78774 | 1606 |  |  |  |
 | 20260502-193349-grok-4-3 | grok 4.3 |  | 54 | 6 | 9 | stale_limit | 600s | 3h 28m | 1039832 | 490 | 360 | $3.516094 | 5896421 |
 | 20260503-103404-Qwen3-6-Max-Preview | Qwen3.6 Max Preview |  | 73 | 2 | 5 | stale_limit | 600s | 2h 7m | 690756 | 853 | 200 | $5.464090 | 4212948 |
+| 20260504-090806-claude-code-opus | claude-code-opus | max | 195 | 1 | 4 | stale_limit | 600s | 10h 58m | 14476 | 601 |  |  |  |
