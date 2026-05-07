@@ -15,3 +15,4 @@
 | 20260504-090806-claude-code-opus | claude-code-opus | max | 195 | 1 | 4 | stale_limit | 600s | 10h 58m | 14476 | 601 |  |  |  |
 | 20260504-191838-grok-4-3 | grok 4.3 |  | 47 | 1 | 4 | stale_limit | 600s | 1h 13m | 329475 | 309 | 151 | $1.584218 | 1944350 |
 | 20260505-082141-gemini-3-1-pro-preview | gemini 3.1 pro preview |  | 262 | 9 | 12 | stale_limit | 600s | 17h 0m | 1400 | 6466 |  |  |  |
+| 20260506-120335-gemini-2-5-flash | gemini 2.5 flash |  | 65 | 1 | 4 | stale_limit | 600s | 4h 18m | 12351 | 422 |  |  |  |
