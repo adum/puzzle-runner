@@ -199,6 +199,41 @@ class WatchTests(unittest.TestCase):
         self.assertIn("Last tested", rendered)
         self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
 
+    def test_render_status_summarizes_opencode_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stdout.write_text(
+                '{"type":"step_start","timestamp":1,"sessionID":"ses_1",'
+                '"part":{"type":"step-start"}}\n'
+                '{"type":"text","timestamp":2,"sessionID":"ses_1",'
+                '"part":{"type":"text","text":"Level 79 (30x28): FAIL (No solution found) (58.03s)"}}\n'
+                '{"type":"tool_use","timestamp":3,"sessionID":"ses_1",'
+                '"part":{"tool":"bash","state":{"status":"completed"}}}\n'
+                '{"type":"step_finish","timestamp":4,"sessionID":"ses_1",'
+                '"part":{"type":"step-finish","reason":"stop","cost":0.0123,'
+                '"tokens":{"input":100,"output":25,"reasoning":5,"total":130,'
+                '"cache":{"read":7,"write":3}}}}\n',
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "backend": "opencode",
+                "agent_stream_format": "opencode-json",
+                "latest": {"agent_stdout": str(stdout)},
+            }
+
+            rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("OpenCode stream", rendered)
+        self.assertIn("4 recent events", rendered)
+        self.assertIn("latest step finish stop", rendered)
+        self.assertIn("OpenCode text", rendered)
+        self.assertIn("OpenCode usage", rendered)
+        self.assertIn("in 100, out 25, reason 5, total 130, cache read 7, cache write 3, cost $0.0123", rendered)
+        self.assertIn("Last tested", rendered)
+        self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
+
     def test_render_status_summarizes_openrouter_usage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = Path(temp_dir)

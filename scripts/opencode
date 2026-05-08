@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+SELF_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s\n' "${BASH_SOURCE[0]}")"
+
+run_opencode() {
+  exec "$1" "${@:2}"
+}
+
+is_self() {
+  local candidate
+  candidate="$(readlink -f "$1" 2>/dev/null || realpath "$1" 2>/dev/null || printf '%s\n' "$1")"
+  [[ "$candidate" == "$SELF_PATH" ]]
+}
+
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  # Puzzle Runner often starts agents from a non-interactive process where
+  # nvm's Node-installed CLIs are not on PATH yet.
+  # shellcheck disable=SC1090
+  . "$NVM_DIR/nvm.sh"
+  nvm use --silent default >/dev/null 2>&1 || nvm use --silent node >/dev/null 2>&1 || true
+fi
+
+if command -v opencode >/dev/null 2>&1; then
+  candidate="$(command -v opencode)"
+  if ! is_self "$candidate"; then
+    run_opencode "$candidate" "$@"
+  fi
+fi
+
+for node_dir in "$NVM_DIR"/versions/node/v*; do
+  if [[ -x "$node_dir/bin/opencode" ]] && ! is_self "$node_dir/bin/opencode"; then
+    run_opencode "$node_dir/bin/opencode" "$@"
+  fi
+done
+
+run_opencode opencode "$@"

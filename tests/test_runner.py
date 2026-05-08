@@ -18,6 +18,7 @@ from puzzle_runner.runner import (
     _ensure_results_summary_header,
     _is_terminal_claude_result_line,
     _migrate_results_summary_effort_column,
+    _opencode_stdout_has_error_result,
     _results_summary_row,
     count_agent_output_chars,
     count_code_lines_added,
@@ -156,6 +157,27 @@ class RunnerTests(unittest.TestCase):
             (round_dir / "agent.stderr.log").write_text("raw stderr ignored", encoding="utf-8")
 
             total = count_agent_output_chars(log_dir, agent_stream_format="gemini-stream-json")
+
+        self.assertEqual(total, len("HelloBye"))
+
+    def test_count_agent_output_chars_uses_opencode_text_not_json_size(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir)
+            round_dir = log_dir / "round-001"
+            round_dir.mkdir()
+            (round_dir / "agent.stdout.log").write_text(
+                '{"type":"step_start","part":{"type":"step-start"}}\n'
+                '{"type":"text","part":{"type":"text","text":"Hello"}}\n'
+                '{"type":"tool_use","part":{"tool":"bash","state":{"status":"completed"}}}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "agent.attempt-002.stdout.log").write_text(
+                '{"type":"text","part":{"type":"text","text":"Bye"}}\n',
+                encoding="utf-8",
+            )
+            (round_dir / "agent.stderr.log").write_text("raw stderr ignored", encoding="utf-8")
+
+            total = count_agent_output_chars(log_dir, agent_stream_format="opencode-json")
 
         self.assertEqual(total, len("HelloBye"))
 
@@ -333,6 +355,34 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(command, ["gemini", "--model", "gemini-3.1-pro-preview"])
 
+    def test_opencode_model_and_effort_are_added_to_agent_command(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        runner = Runner(config)
+
+        command = runner._agent_command(Path("/tmp/round"))
+
+        self.assertIn("--model", command)
+        self.assertIn("openrouter/google/gemini-3-flash-preview", command)
+        self.assertIn("--variant", command)
+        self.assertIn("high", command)
+
+    def test_opencode_model_alias_is_not_duplicated(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        command = _apply_agent_model(config, ["opencode", "run", "-m", "openrouter/test"])
+
+        self.assertEqual(command, ["opencode", "run", "-m", "openrouter/test"])
+
+    def test_opencode_variant_is_not_duplicated(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        command = _apply_agent_effort(config, ["opencode", "run", "--variant", "max"])
+
+        self.assertEqual(command, ["opencode", "run", "--variant", "max"])
+
     def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(
             _is_terminal_claude_result_line(
@@ -357,6 +407,17 @@ class RunnerTests(unittest.TestCase):
             )
 
             self.assertTrue(_claude_stdout_has_error_result(stdout))
+
+    def test_opencode_error_event_is_detected_from_stdout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "agent.stdout.log"
+            stdout.write_text(
+                '{"type":"text","part":{"text":"working"}}\n'
+                '{"type":"error","error":{"message":"rate limit"}}\n',
+                encoding="utf-8",
+            )
+
+            self.assertTrue(_opencode_stdout_has_error_result(stdout))
 
     def test_codex_effort_is_read_from_command_config(self) -> None:
         self.assertEqual(_agent_effort_text(self.config), "xhigh")

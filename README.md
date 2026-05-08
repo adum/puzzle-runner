@@ -2,7 +2,7 @@
 
 Iterative benchmark orchestrator for AI coding agents.
 
-Backends: OpenAI Codex CLI, Claude Code, Gemini CLI, and OpenRouter API.
+Backends: OpenAI Codex CLI, Claude Code, Gemini CLI, OpenCode, and OpenRouter API.
 
 Requires Python 3.10 or newer.
 
@@ -45,8 +45,8 @@ Per-run logs include:
 
 Top-level final summaries append to `final_results.md`.
 
-For Claude stream JSON runs, `Agent Chars` counts assistant text content only,
-not the raw JSON event envelope.
+For stream JSON runs, `Agent Chars` counts assistant text content only, not the
+raw JSON event envelope.
 
 ## Live Status
 
@@ -127,6 +127,30 @@ gemini --model gemini-3.1-pro-preview --approval-mode yolo --skip-trust --output
 ```
 
 The command goes through `scripts/gemini-cli`, which sources `nvm` first when available and prefers a Node 20+ Gemini install. When Puzzle Runner pipes the prompt on stdin, the wrapper passes it to Gemini as `--prompt` so Gemini runs in headless mode instead of its interactive UI. Gemini agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value and command in `[agent]` when desired.
+
+## OpenCode
+
+Use the OpenCode config:
+
+```sh
+cp config.opencode.example.toml runner.opencode.toml
+export OPENROUTER_API_KEY=...
+PYTHONPATH=src python3 -m puzzle_runner --config runner.opencode.toml
+```
+
+Watch that run with:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner watch --config runner.opencode.toml
+```
+
+The OpenCode config pipes Puzzle Runner's prompt to:
+
+```sh
+opencode run --title <run-id> --format json --dangerously-skip-permissions --model openrouter/google/gemini-3-flash-preview --variant high
+```
+
+The command goes through `scripts/opencode`, which sources `nvm` first when available. OpenCode agent output is raw JSON events in the logs; use the watcher for a readable live view. Edit `model` and `effort` in `[agent]` when desired.
 
 ## OpenRouter
 

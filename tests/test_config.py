@@ -66,6 +66,25 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.agent.max_steps, 200)
         self.assertEqual(config.agent.command_timeout_seconds, 120)
 
+    def test_opencode_example_config_loads(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+
+        config = load_config(str(config_path), run_id="test-run")
+
+        self.assertEqual(config.agent.name, "opencode-openrouter-gemini-3-flash-preview")
+        self.assertEqual(config.agent.backend, "opencode")
+        self.assertEqual(config.agent.prompt_mode, "stdin")
+        self.assertEqual(config.agent.model, "openrouter/google/gemini-3-flash-preview")
+        self.assertEqual(config.agent.effort, "high")
+        self.assertFalse(config.echo_agent_output)
+        self.assertIn("{config_dir}/scripts/opencode", config.agent.command)
+        self.assertIn("run", config.agent.command)
+        self.assertIn("--title", config.agent.command)
+        self.assertIn("{run_id}", config.agent.command)
+        self.assertIn("--format", config.agent.command)
+        self.assertIn("json", config.agent.command)
+        self.assertIn("--dangerously-skip-permissions", config.agent.command)
+
 
 if __name__ == "__main__":
     unittest.main()

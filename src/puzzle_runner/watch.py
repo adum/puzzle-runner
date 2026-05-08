@@ -591,19 +591,26 @@ def _tail_text(path: Path, max_bytes: int) -> str | None:
 
 def _agent_stream_format(status: dict[str, Any]) -> str | None:
     configured = status.get("agent_stream_format")
-    if configured in {"claude-stream-json", "gemini-stream-json"}:
+    if configured in {"claude-stream-json", "gemini-stream-json", "opencode-json"}:
         return str(configured)
 
     backend = status.get("backend")
     command = status.get("current_command")
     if not isinstance(command, list):
         return None
-    if not _command_uses_stream_json([str(part) for part in command]):
-        return None
-    if backend == "claude-code":
+    command_text = [str(part) for part in command]
+    if backend == "claude-code" and _command_uses_stream_json(command_text):
         return "claude-stream-json"
-    if backend == "gemini-cli" or (isinstance(backend, str) and backend.startswith("gemini-")):
+    if (
+        (backend == "gemini-cli" or (isinstance(backend, str) and backend.startswith("gemini-")))
+        and _command_uses_stream_json(command_text)
+    ):
         return "gemini-stream-json"
+    if (
+        (backend == "opencode" or (isinstance(backend, str) and backend.startswith("opencode-")))
+        and _command_uses_opencode_json(command_text)
+    ):
+        return "opencode-json"
     return None
 
 
@@ -620,6 +627,15 @@ def _command_uses_stream_json(command: list[str]) -> bool:
     return False
 
 
+def _command_uses_opencode_json(command: list[str]) -> bool:
+    for index, part in enumerate(command):
+        if part == "--format" and index + 1 < len(command) and command[index + 1] == "json":
+            return True
+        if part == "--format=json":
+            return True
+    return False
+
+
 def _agent_stream_summary(
     latest: dict[str, Any],
     agent_stream_format: str,
@@ -628,10 +644,14 @@ def _agent_stream_summary(
         return _claude_stream_summary(latest)
     if agent_stream_format == "gemini-stream-json":
         return _gemini_stream_summary(latest)
+    if agent_stream_format == "opencode-json":
+        return _opencode_stream_summary(latest)
     return None
 
 
 def _agent_stream_label(agent_stream_format: str) -> str:
+    if agent_stream_format == "opencode-json":
+        return "OpenCode"
     if agent_stream_format == "gemini-stream-json":
         return "Gemini"
     if agent_stream_format == "claude-stream-json":
@@ -767,6 +787,59 @@ def _gemini_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None
     )
 
 
+def _opencode_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None:
+    path_value = latest.get("agent_stdout")
+    if not path_value:
+        return None
+    text = _tail_text(Path(str(path_value)), CLAUDE_STREAM_TAIL_BYTES)
+    if text is None:
+        return None
+
+    events = 0
+    text_parts: list[str] = []
+    latest_event = None
+    usage = None
+    cost_usd = None
+    result = None
+    is_error = None
+
+    for event in _claude_stream_events(text):
+        events += 1
+        latest_event = _opencode_event_description(event) or latest_event
+        event_type = event.get("type")
+
+        if event_type == "text":
+            text_parts.append(_opencode_event_text(event))
+        elif event_type == "step_finish":
+            part = event.get("part")
+            if isinstance(part, dict):
+                usage = _latest_usage(usage, part.get("tokens"))
+                cost = part.get("cost")
+                if isinstance(cost, (int, float)):
+                    cost_usd = float(cost)
+                reason = part.get("reason")
+                if isinstance(reason, str):
+                    result = reason
+        elif event_type == "error":
+            result = _opencode_error_text(event) or result
+            is_error = True
+
+    if events == 0:
+        return None
+
+    combined_text = "".join(text_parts)
+    return ClaudeStreamSummary(
+        events=events,
+        text_chars=len(combined_text),
+        text_preview=_text_preview(combined_text),
+        latest_event=latest_event,
+        usage=usage,
+        cost_usd=cost_usd,
+        result=result,
+        is_error=is_error,
+    )
+
+
 def _claude_stream_events(text: str) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for line in text.splitlines():
@@ -783,7 +856,11 @@ def _claude_stream_events(text: str) -> list[dict[str, Any]]:
 
 
 def _agent_text_from_stream_json(text: str) -> str:
-    parts = [_claude_text_from_stream(text), _gemini_text_from_stream(text)]
+    parts = [
+        _claude_text_from_stream(text),
+        _gemini_text_from_stream(text),
+        _opencode_text_from_stream(text),
+    ]
     return "\n".join(part for part in parts if part)
 
 
@@ -824,6 +901,36 @@ def _gemini_text_from_stream(text: str) -> str:
         elif message_text:
             fallback = message_text
     return "".join(parts) if parts else fallback or ""
+
+
+def _opencode_text_from_stream(text: str) -> str:
+    parts = [
+        _opencode_event_text(event)
+        for event in _claude_stream_events(text)
+        if event.get("type") == "text"
+    ]
+    return "\n".join(part for part in parts if part)
+
+
+def _opencode_event_text(event: dict[str, Any]) -> str:
+    part = event.get("part")
+    if isinstance(part, dict) and isinstance(part.get("text"), str):
+        return part["text"]
+    text = event.get("text")
+    if isinstance(text, str):
+        return text
+    return ""
+
+
+def _opencode_error_text(event: dict[str, Any]) -> str | None:
+    error = event.get("error")
+    if isinstance(error, str):
+        return error
+    if isinstance(error, dict):
+        message = error.get("message") or error.get("name") or error.get("type")
+        if isinstance(message, str):
+            return message
+    return None
 
 
 def _assistant_message_text(message: dict[str, Any]) -> str | None:
@@ -916,6 +1023,37 @@ def _gemini_event_description(event: dict[str, Any]) -> str | None:
     return None
 
 
+def _opencode_event_description(event: dict[str, Any]) -> str | None:
+    event_type = event.get("type")
+    if event_type == "text":
+        return "text"
+    if event_type == "reasoning":
+        return "reasoning"
+    if event_type == "step_start":
+        return "step start"
+    if event_type == "step_finish":
+        part = event.get("part")
+        reason = part.get("reason") if isinstance(part, dict) else None
+        if isinstance(reason, str) and reason:
+            return f"step finish {reason}"
+        return "step finish"
+    if event_type == "tool_use":
+        part = event.get("part")
+        if isinstance(part, dict):
+            tool = part.get("tool")
+            state = part.get("state")
+            status = state.get("status") if isinstance(state, dict) else None
+            details = [str(item) for item in (tool, status) if isinstance(item, str) and item]
+            if details:
+                return "tool " + " ".join(details)
+        return "tool use"
+    if event_type == "error":
+        return "error"
+    if isinstance(event_type, str):
+        return event_type.replace("_", " ")
+    return None
+
+
 def _claude_stream_overview(summary: ClaudeStreamSummary) -> str:
     parts = [f"{summary.events:,} recent events"]
     if summary.latest_event:
@@ -941,6 +1079,8 @@ def _agent_usage_summary(
     summary: ClaudeStreamSummary,
     agent_stream_format: str,
 ) -> str | None:
+    if agent_stream_format == "opencode-json":
+        return _opencode_usage_summary(summary)
     if agent_stream_format == "gemini-stream-json":
         return _gemini_usage_summary(summary)
     return _claude_usage_summary(summary)
@@ -985,6 +1125,34 @@ def _gemini_usage_summary(summary: ClaudeStreamSummary) -> str | None:
     duration_ms = usage.get("duration_ms")
     if isinstance(duration_ms, int):
         parts.append(f"time {_duration(duration_ms / 1000)}")
+    return ", ".join(parts) if parts else None
+
+
+def _opencode_usage_summary(summary: ClaudeStreamSummary) -> str | None:
+    usage = summary.usage or {}
+    if not usage and summary.cost_usd is None:
+        return None
+
+    parts = []
+    for key, label in (
+        ("input", "in"),
+        ("output", "out"),
+        ("reasoning", "reason"),
+        ("total", "total"),
+    ):
+        value = usage.get(key)
+        if isinstance(value, int):
+            parts.append(f"{label} {value:,}")
+
+    cache = usage.get("cache")
+    if isinstance(cache, dict):
+        for key, label in (("read", "cache read"), ("write", "cache write")):
+            value = cache.get(key)
+            if isinstance(value, int):
+                parts.append(f"{label} {value:,}")
+
+    if summary.cost_usd is not None:
+        parts.append(f"cost ${summary.cost_usd:.4f}")
     return ", ".join(parts) if parts else None
 
 

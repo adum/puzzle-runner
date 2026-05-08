@@ -1015,12 +1015,18 @@ def _agent_result_is_retryable(result: CommandResult) -> bool:
 
 def _agent_stream_format(config: RunnerConfig) -> str | None:
     command = config.agent.command
-    if not _command_uses_stream_json(command):
-        return None
     if config.agent.backend == "claude-code":
+        if not _command_uses_stream_json(command):
+            return None
         return "claude-stream-json"
     if _is_gemini_backend(config):
+        if not _command_uses_stream_json(command):
+            return None
         return "gemini-stream-json"
+    if _is_opencode_backend(config):
+        if not _command_uses_opencode_json(command):
+            return None
+        return "opencode-json"
     return None
 
 
@@ -1048,6 +1054,8 @@ def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
         return _claude_stdout_has_error_result(stdout_path)
     if agent_stream_format == "gemini-stream-json":
         return _gemini_stdout_has_error_result(stdout_path)
+    if agent_stream_format == "opencode-json":
+        return _opencode_stdout_has_error_result(stdout_path)
     return False
 
 
@@ -1070,26 +1078,54 @@ def _gemini_stdout_has_error_result(path: Path) -> bool:
     return False
 
 
+def _opencode_stdout_has_error_result(path: Path) -> bool:
+    return any(event.get("type") == "error" for event in _claude_stream_events(path))
+
+
 def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
     effort = config.agent.effort
-    if not effort or config.agent.backend != "claude-code" or _command_has_option(command, "--effort"):
+    if not effort:
         return command
-    return [*command, "--effort", effort]
+    if config.agent.backend == "claude-code":
+        if _command_has_option(command, "--effort"):
+            return command
+        return [*command, "--effort", effort]
+    if _is_opencode_backend(config):
+        if _command_has_option(command, "--variant"):
+            return command
+        return [*command, "--variant", effort]
+    return command
 
 
 def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
     model = config.agent.model
-    if not model or not _is_gemini_backend(config) or _command_has_option(command, "--model"):
+    if not model:
         return command
-    return [*command, "--model", model]
+    if _is_gemini_backend(config):
+        if _command_has_option(command, "--model"):
+            return command
+        return [*command, "--model", model]
+    if _is_opencode_backend(config):
+        if _command_has_any_option(command, {"--model", "-m"}):
+            return command
+        return [*command, "--model", model]
+    return command
 
 
 def _is_gemini_backend(config: RunnerConfig) -> bool:
     return config.agent.backend == "gemini-cli" or config.agent.backend.startswith("gemini-")
 
 
+def _is_opencode_backend(config: RunnerConfig) -> bool:
+    return config.agent.backend == "opencode" or config.agent.backend.startswith("opencode-")
+
+
 def _command_has_option(command: list[str], option: str) -> bool:
     return any(part == option or part.startswith(f"{option}=") for part in command)
+
+
+def _command_has_any_option(command: list[str], options: set[str]) -> bool:
+    return any(_command_has_option(command, option) for option in options)
 
 
 def _command_uses_stream_json(command: list[str]) -> bool:
@@ -1097,6 +1133,15 @@ def _command_uses_stream_json(command: list[str]) -> bool:
         if part == "--output-format" and index + 1 < len(command) and command[index + 1] == "stream-json":
             return True
         if part == "--output-format=stream-json":
+            return True
+    return False
+
+
+def _command_uses_opencode_json(command: list[str]) -> bool:
+    for index, part in enumerate(command):
+        if part == "--format" and index + 1 < len(command) and command[index + 1] == "json":
+            return True
+        if part == "--format=json":
             return True
     return False
 
@@ -1113,6 +1158,8 @@ def count_agent_output_chars(log_dir: Path, *, agent_stream_format: str | None =
         return _count_claude_agent_text_chars(log_dir)
     if agent_stream_format == "gemini-stream-json":
         return _count_gemini_agent_text_chars(log_dir)
+    if agent_stream_format == "opencode-json":
+        return _count_opencode_agent_text_chars(log_dir)
 
     total = 0
     seen: set[Path] = set()
@@ -1147,6 +1194,17 @@ def _count_gemini_agent_text_chars(log_dir: Path) -> int:
             continue
         seen.add(path)
         total += _gemini_stream_text_char_count(path)
+    return total
+
+
+def _count_opencode_agent_text_chars(log_dir: Path) -> int:
+    total = 0
+    seen: set[Path] = set()
+    for path in log_dir.glob("round-*/agent*.stdout.log"):
+        if path in seen:
+            continue
+        seen.add(path)
+        total += _opencode_stream_text_char_count(path)
     return total
 
 
@@ -1190,6 +1248,25 @@ def _gemini_stream_text_char_count(path: Path) -> int:
             assistant_chars += len(text)
 
     return delta_chars or assistant_chars
+
+
+def _opencode_stream_text_char_count(path: Path) -> int:
+    total = 0
+    for event in _claude_stream_events(path):
+        if event.get("type") != "text":
+            continue
+        total += len(_opencode_event_text(event))
+    return total
+
+
+def _opencode_event_text(event: dict) -> str:
+    part = event.get("part")
+    if isinstance(part, dict) and isinstance(part.get("text"), str):
+        return part["text"]
+    text = event.get("text")
+    if isinstance(text, str):
+        return text
+    return ""
 
 
 def _claude_stream_events(path: Path):
