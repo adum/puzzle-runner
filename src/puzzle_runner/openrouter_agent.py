@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from json import JSONDecoder
 from pathlib import Path
 from typing import Any, Callable
@@ -26,26 +27,33 @@ METADATA_TIMEOUT_SECONDS = 20
 HTTP_REFERER = "https://github.com/adum/puzzle-runner"
 APP_TITLE = "Puzzle Runner"
 OPENROUTER_MAX_TOKENS_MARKER = "Observation: OpenRouter response hit max_tokens/completion limit"
+TOOL_NAMES = {"shell", "read_file", "write_file", "finish"}
 
 
 SYSTEM_PROMPT = f"""You are an autonomous coding agent controlled by Puzzle Runner.
 
-You are working inside a benchmark workspace. You cannot directly see or edit files
-unless you use the JSON actions below.
+You are working inside a benchmark workspace. Use the provided tools to inspect,
+test, edit, and finish your work.
 
-Return exactly one JSON object each turn, with no markdown wrapper:
+Available tools:
+- shell: run a shell command in the workspace.
+- read_file: read a workspace file.
+- write_file: replace a workspace file with exact content.
+- finish: return control to Puzzle Runner when this agent call is complete.
 
+If tools are unavailable, return one or more JSON objects with no markdown wrapper:
 {{"action":"shell","command":"python3 evaluate.py --start 1 --timeout 10","timeout_seconds":120}}
 {{"action":"read_file","path":"prompts.txt","max_chars":20000}}
 {{"action":"write_file","path":"solver.py","content":"..."}}
 {{"action":"finish","message":"summary of what changed\\n{SENTINEL}"}}
 
 Rules:
-- Use shell/read_file/write_file actions to inspect, test, and edit the workspace.
+- Prefer tool calls over textual JSON actions.
+- You may return multiple tool calls when the actions are independent.
 - Do not inspect private level contents, decrypt private levels, or expose benchmark secrets.
 - Do not modify benchmark assets, level files, evaluator scripts, or checker source.
 - Do not run evaluate_full.py; Puzzle Runner owns full evaluation.
-- When you are done with this agent call, use the finish action.
+- When you are done with this agent call, use the finish tool.
 """
 
 
@@ -88,7 +96,7 @@ def run_openrouter_agent(
                     stderr_path,
                 )
 
-            messages: list[dict[str, str]] = [
+            messages: list[dict[str, Any]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ]
@@ -127,22 +135,59 @@ def run_openrouter_agent(
                     )
                 write_openrouter_usage_summary(round_dir)
 
+                assistant_message = _assistant_message_for_history(response)
                 assistant_text = _assistant_text(response)
-                messages.append({"role": "assistant", "content": assistant_text})
+                tool_calls = _assistant_tool_calls(response)
+                messages.append(assistant_message)
                 _write(
                     out_handle,
                     f"\n--- openrouter assistant step {step} ---\n{assistant_text}\n",
                     echo=echo,
                     echo_handle=sys.stdout,
                 )
+                if tool_calls:
+                    observations: list[dict[str, Any]] = []
+                    finish_message: str | None = None
+                    for index, tool_call in enumerate(tool_calls, start=1):
+                        remaining = _remaining_seconds(started, timeout_seconds)
+                        if remaining is not None and remaining <= 0:
+                            return _result(config, cwd, started, -9, True, "wall", stdout_path, stderr_path)
 
-                action = parse_action(assistant_text)
-                if action is None:
+                        tool_result = _execute_tool_call(config, cwd, tool_call, remaining)
+                        _write(
+                            out_handle,
+                            (
+                                f"\n--- openrouter tool call {step}.{index} "
+                                f"{tool_result.name} ---\n{tool_result.observation}\n"
+                            ),
+                            echo=echo,
+                            echo_handle=sys.stdout,
+                        )
+                        if tool_result.finish_message is not None:
+                            finish_message = tool_result.finish_message
+                            continue
+                        observations.append(tool_result.message)
+
+                    messages.extend(observations)
+                    if finish_message is not None:
+                        _write(
+                            out_handle,
+                            finish_message + "\n",
+                            echo=echo,
+                            echo_handle=sys.stdout,
+                        )
+                        return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
+                    continue
+
+                action_result = parse_action_response(assistant_text)
+                if not action_result.actions:
                     if _response_hit_completion_limit(response):
                         limit_event = _completion_limit_event(config, response, step)
                         if status_callback is not None:
                             status_callback(limit_event)
                         observation = _completion_limit_observation(limit_event)
+                    elif action_result.error is not None:
+                        observation = action_result.error
                     else:
                         observation = (
                             "Observation: response was not valid action JSON. "
@@ -152,17 +197,26 @@ def run_openrouter_agent(
                     _write(out_handle, observation + "\n", echo=echo, echo_handle=sys.stdout)
                     continue
 
-                action_name = str(action.get("action", "")).strip().lower()
-                if action_name == "finish":
-                    message = str(action.get("message") or "")
-                    if SENTINEL not in message:
-                        message = f"{message.rstrip()}\n{SENTINEL}".strip()
-                    _write(out_handle, message + "\n", echo=echo, echo_handle=sys.stdout)
-                    return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
+                observations = []
+                finish_message: str | None = None
+                for action in action_result.actions:
+                    action_name = str(action.get("action", "")).strip().lower()
+                    if action_name == "finish":
+                        finish_message = _finish_message(action.get("message"))
+                        continue
 
-                observation = _execute_action(config, cwd, action, remaining)
-                messages.append({"role": "user", "content": observation})
-                _write(out_handle, observation + "\n", echo=echo, echo_handle=sys.stdout)
+                    remaining = _remaining_seconds(started, timeout_seconds)
+                    if remaining is not None and remaining <= 0:
+                        return _result(config, cwd, started, -9, True, "wall", stdout_path, stderr_path)
+
+                    observation = _execute_action(config, cwd, action, remaining)
+                    observations.append(observation)
+                    _write(out_handle, observation + "\n", echo=echo, echo_handle=sys.stdout)
+
+                messages.append({"role": "user", "content": "\n\n".join(observations)})
+                if finish_message is not None:
+                    _write(out_handle, finish_message + "\n", echo=echo, echo_handle=sys.stdout)
+                    return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
 
             _write(
                 out_handle,
@@ -173,27 +227,57 @@ def run_openrouter_agent(
             return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
 
 
-def parse_action(text: str) -> dict[str, Any] | None:
-    candidates = [text.strip()]
-    if "```" in text:
-        parts = text.split("```")
-        candidates.extend(part.removeprefix("json").strip() for part in parts[1::2])
+@dataclass(frozen=True)
+class ActionParseResult:
+    actions: list[dict[str, Any]]
+    error: str | None = None
 
+    @property
+    def action(self) -> dict[str, Any] | None:
+        return self.actions[0] if len(self.actions) == 1 else None
+
+
+@dataclass(frozen=True)
+class ToolCallResult:
+    name: str
+    observation: str
+    message: dict[str, Any]
+    finish_message: str | None = None
+
+
+def _tool_result_message(tool_call_id: str | None, name: str, observation: str) -> dict[str, Any]:
+    if tool_call_id:
+        return {
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+            "name": name,
+            "content": observation,
+        }
+    return {"role": "user", "content": observation}
+
+
+def parse_action(text: str) -> dict[str, Any] | None:
+    return parse_action_response(text).action
+
+
+def parse_action_response(text: str) -> ActionParseResult:
     decoder = JSONDecoder()
-    for candidate in candidates:
-        parsed = _parse_json_object(candidate, decoder)
-        if parsed is not None:
-            return parsed
+    actions = _find_action_json_objects(text, decoder)
+    return ActionParseResult(actions)
+
+
+def _find_action_json_objects(text: str, decoder: JSONDecoder) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
     for index, char in enumerate(text):
         if char != "{":
             continue
-        parsed = _parse_json_object(text[index:], decoder)
+        parsed = _parse_json_object_prefix(text[index:], decoder)
         if parsed is not None:
-            return parsed
-    return None
+            actions.append(parsed)
+    return actions
 
 
-def _parse_json_object(text: str, decoder: JSONDecoder) -> dict[str, Any] | None:
+def _parse_json_object_prefix(text: str, decoder: JSONDecoder) -> dict[str, Any] | None:
     try:
         parsed, _ = decoder.raw_decode(text.strip())
     except json.JSONDecodeError:
@@ -201,14 +285,122 @@ def _parse_json_object(text: str, decoder: JSONDecoder) -> dict[str, Any] | None
     return parsed if isinstance(parsed, dict) and isinstance(parsed.get("action"), str) else None
 
 
-def _request_payload(config: RunnerConfig, messages: list[dict[str, str]]) -> dict[str, Any]:
+def _request_payload(config: RunnerConfig, messages: list[dict[str, Any]]) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": config.agent.model,
         "messages": messages,
+        "tools": _openrouter_tools(),
+        "tool_choice": "auto",
+        "parallel_tool_calls": True,
+        "usage": {"include": True},
+        "prompt_cache_key": config.run_id,
     }
+    reasoning_effort = _openrouter_reasoning_effort(config)
+    if reasoning_effort is not None:
+        payload["reasoning"] = {"effort": reasoning_effort}
     if config.agent.max_tokens is not None:
         payload["max_tokens"] = config.agent.max_tokens
     return payload
+
+
+def _openrouter_reasoning_effort(config: RunnerConfig) -> str | None:
+    if config.agent.effort:
+        return config.agent.effort
+    model = config.agent.model or ""
+    if "gemini-3" in model:
+        return "high"
+    return None
+
+
+def _openrouter_tools() -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "shell",
+                "description": "Run a shell command in the benchmark workspace.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "Shell command to run from the workspace root.",
+                        },
+                        "timeout_seconds": {
+                            "type": "integer",
+                            "description": "Optional per-command timeout in seconds.",
+                            "minimum": 1,
+                        },
+                    },
+                    "required": ["command"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read a text file from the benchmark workspace.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Workspace-relative path to read.",
+                        },
+                        "max_chars": {
+                            "type": "integer",
+                            "description": "Maximum characters to return.",
+                            "minimum": 1,
+                        },
+                    },
+                    "required": ["path"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "write_file",
+                "description": "Replace a text file in the benchmark workspace.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Workspace-relative path to write.",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Complete file contents.",
+                        },
+                    },
+                    "required": ["path", "content"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "finish",
+                "description": "Return control to Puzzle Runner for full evaluation.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Short summary of the work completed.",
+                        },
+                    },
+                    "required": ["message"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+    ]
 
 
 def _send_chat_completion(
@@ -228,6 +420,7 @@ def _send_chat_completion(
             "Content-Type": "application/json",
             "HTTP-Referer": HTTP_REFERER,
             "X-Title": APP_TITLE,
+            "x-session-affinity": config.run_id,
         },
         method="POST",
     )
@@ -375,16 +568,59 @@ def _send_generation_metadata(
     return parsed
 
 
-def _assistant_text(response: dict[str, Any]) -> str:
+def _assistant_message(response: dict[str, Any]) -> dict[str, Any]:
     choices = response.get("choices")
     if not isinstance(choices, list) or not choices:
-        return ""
+        return {}
     choice = choices[0]
     if not isinstance(choice, dict):
-        return ""
+        return {}
     message = choice.get("message")
-    if not isinstance(message, dict):
-        return ""
+    return message if isinstance(message, dict) else {}
+
+
+def _assistant_message_for_history(response: dict[str, Any]) -> dict[str, Any]:
+    message = _assistant_message(response)
+    history: dict[str, Any] = {"role": "assistant", "content": message.get("content")}
+    tool_calls = message.get("tool_calls")
+    if isinstance(tool_calls, list):
+        history["tool_calls"] = [
+            _tool_call_for_history(tool_call)
+            for tool_call in tool_calls
+            if isinstance(tool_call, dict)
+        ]
+    return history
+
+
+def _tool_call_for_history(tool_call: dict[str, Any]) -> dict[str, Any]:
+    history: dict[str, Any] = {"type": tool_call.get("type") or "function"}
+    if isinstance(tool_call.get("id"), str):
+        history["id"] = tool_call["id"]
+    function = tool_call.get("function")
+    if isinstance(function, dict):
+        arguments = function.get("arguments")
+        if isinstance(arguments, str):
+            arguments_text = arguments
+        elif arguments is None:
+            arguments_text = "{}"
+        else:
+            arguments_text = json.dumps(arguments)
+        history["function"] = {
+            "name": function.get("name") if isinstance(function.get("name"), str) else "",
+            "arguments": arguments_text,
+        }
+    return history
+
+
+def _assistant_tool_calls(response: dict[str, Any]) -> list[dict[str, Any]]:
+    tool_calls = _assistant_message(response).get("tool_calls")
+    if not isinstance(tool_calls, list):
+        return []
+    return [tool_call for tool_call in tool_calls if isinstance(tool_call, dict)]
+
+
+def _assistant_text(response: dict[str, Any]) -> str:
+    message = _assistant_message(response)
     content = message.get("content")
     if isinstance(content, str):
         return content
@@ -392,6 +628,89 @@ def _assistant_text(response: dict[str, Any]) -> str:
         parts = [item.get("text") for item in content if isinstance(item, dict)]
         return "".join(part for part in parts if isinstance(part, str))
     return ""
+
+
+def _execute_tool_call(
+    config: RunnerConfig,
+    workspace: Path,
+    tool_call: dict[str, Any],
+    remaining_seconds: float | None,
+) -> ToolCallResult:
+    tool_call_id = tool_call.get("id") if isinstance(tool_call.get("id"), str) else None
+    function = tool_call.get("function")
+    if not isinstance(function, dict):
+        observation = "Observation: tool call error: missing function payload"
+        return ToolCallResult(
+            name="invalid",
+            observation=observation,
+            message=_tool_result_message(tool_call_id, "invalid", observation),
+        )
+
+    raw_name = function.get("name")
+    name = _canonical_tool_name(raw_name)
+    if name is None:
+        observation = (
+            "Observation: unknown tool. Use shell, read_file, write_file, or finish."
+        )
+        display_name = str(raw_name or "invalid")
+        return ToolCallResult(
+            name=display_name,
+            observation=observation,
+            message=_tool_result_message(tool_call_id, display_name, observation),
+        )
+
+    arguments = _tool_arguments(function.get("arguments"))
+    if arguments is None:
+        observation = f"Observation: tool call error: {name} arguments were not valid JSON"
+        return ToolCallResult(
+            name=name,
+            observation=observation,
+            message=_tool_result_message(tool_call_id, name, observation),
+        )
+
+    if name == "finish":
+        message = _finish_message(arguments.get("message"))
+        return ToolCallResult(
+            name=name,
+            observation="Observation: finish requested",
+            message=_tool_result_message(tool_call_id, name, "Observation: finish requested"),
+            finish_message=message,
+        )
+
+    observation = _execute_action(config, workspace, {"action": name, **arguments}, remaining_seconds)
+    return ToolCallResult(
+        name=name,
+        observation=observation,
+        message=_tool_result_message(tool_call_id, name, observation),
+    )
+
+
+def _canonical_tool_name(value: Any) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    normalized = value.strip().replace("-", "_").lower()
+    return normalized if normalized in TOOL_NAMES else None
+
+
+def _tool_arguments(value: Any) -> dict[str, Any] | None:
+    if value is None or value == "":
+        return {}
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _finish_message(value: Any) -> str:
+    message = str(value or "")
+    if SENTINEL not in message:
+        return f"{message.rstrip()}\n{SENTINEL}".strip()
+    return message
 
 
 def _response_hit_completion_limit(response: dict[str, Any]) -> bool:

@@ -43,10 +43,13 @@ forbidden_paths = [
 name = "openrouter-laguna-xs-2-free"
 backend = "openrouter"
 model = "poolside/laguna-xs.2:free"
+# Optional. Sent as OpenRouter reasoning.effort. If omitted, Gemini 3 models default to high.
+# effort = "high"
 api_key_env = "OPENROUTER_API_KEY"
 api_base_url = "https://openrouter.ai/api/v1"
 # Puzzle Runner uses chat response ids to fetch /generation metadata for cost,
 # provider, latency, and native token accounting when OpenRouter makes it available.
+# OpenRouter calls use native tool calls for shell/read_file/write_file/finish.
 max_tokens = 16384
 max_steps = 40
 command_timeout_seconds = 120
