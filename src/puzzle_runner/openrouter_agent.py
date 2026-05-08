@@ -23,23 +23,27 @@ from .prompts import SENTINEL
 MAX_OBSERVATION_CHARS = 60_000
 DEFAULT_READ_CHARS = 20_000
 AGENT_CONFIG_ERROR_RETURN_CODE = 2
+AGENT_MAX_STEPS_RETURN_CODE = 3
 METADATA_TIMEOUT_SECONDS = 20
 HTTP_REFERER = "https://github.com/adum/puzzle-runner"
 APP_TITLE = "Puzzle Runner"
 OPENROUTER_MAX_TOKENS_MARKER = "Observation: OpenRouter response hit max_tokens/completion limit"
-TOOL_NAMES = {"shell", "read_file", "write_file", "finish"}
+TOOL_NAMES = {"shell", "read_file", "write_file"}
+MAX_STEPS_REMINDER = """This is your final allowed OpenRouter tool-call step.
+Use tools only if one final action is necessary, and leave the solver in the best
+known working state. If no more tool use is needed, respond normally with a short
+summary and PUZZLE_RUNNER_DONE on its own line."""
 
 
 SYSTEM_PROMPT = f"""You are an autonomous coding agent controlled by Puzzle Runner.
 
 You are working inside a benchmark workspace. Use the provided tools to inspect,
-test, edit, and finish your work.
+test, and edit your work.
 
 Available tools:
 - shell: run a shell command in the workspace.
 - read_file: read a workspace file.
 - write_file: replace a workspace file with exact content.
-- finish: return control to Puzzle Runner when this agent call is complete.
 
 If tools are unavailable, return one or more JSON objects with no markdown wrapper:
 {{"action":"shell","command":"python3 evaluate.py --start 1 --timeout 10","timeout_seconds":120}}
@@ -53,7 +57,8 @@ Rules:
 - Do not inspect private level contents, decrypt private levels, or expose benchmark secrets.
 - Do not modify benchmark assets, level files, evaluator scripts, or checker source.
 - Do not run evaluate_full.py; Puzzle Runner owns full evaluation.
-- When you are done with this agent call, use the finish tool.
+- When you are done with this agent call, stop using tools and respond normally
+  with a short summary and {SENTINEL} on its own line.
 """
 
 
@@ -106,7 +111,12 @@ def run_openrouter_agent(
                 if remaining is not None and remaining <= 0:
                     return _result(config, cwd, started, -9, True, "wall", stdout_path, stderr_path)
 
-                request_payload = _request_payload(config, messages)
+                request_messages = (
+                    [*messages, {"role": "user", "content": MAX_STEPS_REMINDER}]
+                    if step == config.agent.max_steps
+                    else messages
+                )
+                request_payload = _request_payload(config, request_messages)
                 _write_json(round_dir / f"openrouter-request-{step:03d}.json", request_payload)
 
                 try:
@@ -147,7 +157,6 @@ def run_openrouter_agent(
                 )
                 if tool_calls:
                     observations: list[dict[str, Any]] = []
-                    finish_message: str | None = None
                     for index, tool_call in enumerate(tool_calls, start=1):
                         remaining = _remaining_seconds(started, timeout_seconds)
                         if remaining is not None and remaining <= 0:
@@ -163,20 +172,9 @@ def run_openrouter_agent(
                             echo=echo,
                             echo_handle=sys.stdout,
                         )
-                        if tool_result.finish_message is not None:
-                            finish_message = tool_result.finish_message
-                            continue
                         observations.append(tool_result.message)
 
                     messages.extend(observations)
-                    if finish_message is not None:
-                        _write(
-                            out_handle,
-                            finish_message + "\n",
-                            echo=echo,
-                            echo_handle=sys.stdout,
-                        )
-                        return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
                     continue
 
                 action_result = parse_action_response(assistant_text)
@@ -189,10 +187,9 @@ def run_openrouter_agent(
                     elif action_result.error is not None:
                         observation = action_result.error
                     else:
-                        observation = (
-                            "Observation: response was not valid action JSON. "
-                            "Return exactly one JSON object with action shell, read_file, write_file, or finish."
-                        )
+                        message = _finish_message(assistant_text)
+                        _write(out_handle, message + "\n", echo=echo, echo_handle=sys.stdout)
+                        return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
                     messages.append({"role": "user", "content": observation})
                     _write(out_handle, observation + "\n", echo=echo, echo_handle=sys.stdout)
                     continue
@@ -220,11 +217,21 @@ def run_openrouter_agent(
 
             _write(
                 out_handle,
-                f"Observation: max_steps={config.agent.max_steps} reached.\n{SENTINEL}\n",
+                f"Observation: openrouter max_steps={config.agent.max_steps} reached before "
+                "the model ended the turn without tool calls.\n",
                 echo=echo,
                 echo_handle=sys.stdout,
             )
-            return _result(config, cwd, started, 0, False, None, stdout_path, stderr_path)
+            return _result(
+                config,
+                cwd,
+                started,
+                AGENT_MAX_STEPS_RETURN_CODE,
+                False,
+                "max_steps",
+                stdout_path,
+                stderr_path,
+            )
 
 
 @dataclass(frozen=True)
@@ -242,7 +249,6 @@ class ToolCallResult:
     name: str
     observation: str
     message: dict[str, Any]
-    finish_message: str | None = None
 
 
 def _tool_result_message(tool_call_id: str | None, name: str, observation: str) -> dict[str, Any]:
@@ -378,24 +384,6 @@ def _openrouter_tools() -> list[dict[str, Any]]:
                         },
                     },
                     "required": ["path", "content"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "finish",
-                "description": "Return control to Puzzle Runner for full evaluation.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Short summary of the work completed.",
-                        },
-                    },
-                    "required": ["message"],
                     "additionalProperties": False,
                 },
             },
@@ -650,7 +638,8 @@ def _execute_tool_call(
     name = _canonical_tool_name(raw_name)
     if name is None:
         observation = (
-            "Observation: unknown tool. Use shell, read_file, write_file, or finish."
+            "Observation: unknown tool. Use shell, read_file, or write_file. "
+            "To finish, stop calling tools and respond normally."
         )
         display_name = str(raw_name or "invalid")
         return ToolCallResult(
@@ -666,15 +655,6 @@ def _execute_tool_call(
             name=name,
             observation=observation,
             message=_tool_result_message(tool_call_id, name, observation),
-        )
-
-    if name == "finish":
-        message = _finish_message(arguments.get("message"))
-        return ToolCallResult(
-            name=name,
-            observation="Observation: finish requested",
-            message=_tool_result_message(tool_call_id, name, "Observation: finish requested"),
-            finish_message=message,
         )
 
     observation = _execute_action(config, workspace, {"action": name, **arguments}, remaining_seconds)
@@ -757,9 +737,9 @@ def _completion_limit_observation(event: dict[str, Any]) -> str:
     if reasoning_tokens is not None:
         details.append(f"reasoning_tokens={reasoning_tokens}")
     return (
-        f"{OPENROUTER_MAX_TOKENS_MARKER} before returning a valid action JSON "
-        f"({', '.join(details)}). Return exactly one JSON object with action "
-        "shell, read_file, write_file, or finish."
+        f"{OPENROUTER_MAX_TOKENS_MARKER} before ending the turn or returning tool calls "
+        f"({', '.join(details)}). Use the available tools if you still need to act; "
+        f"otherwise respond normally with {SENTINEL}."
     )
 
 

@@ -63,7 +63,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.agent.model, "poolside/laguna-xs.2:free")
         self.assertEqual(config.agent.api_key_env, "OPENROUTER_API_KEY")
         self.assertEqual(config.agent.max_tokens, 16384)
-        self.assertEqual(config.agent.max_steps, 40)
+        self.assertEqual(config.agent.max_steps, 200)
         self.assertEqual(config.agent.command_timeout_seconds, 120)
 
 

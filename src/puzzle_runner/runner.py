@@ -15,7 +15,11 @@ from typing import Callable
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
 from .guard import ForbiddenGuard, GuardFinding
-from .openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE, run_openrouter_agent
+from .openrouter_agent import (
+    AGENT_CONFIG_ERROR_RETURN_CODE,
+    AGENT_MAX_STEPS_RETURN_CODE,
+    run_openrouter_agent,
+)
 from .openrouter_usage import openrouter_usage_to_dict, summarize_openrouter_usage
 from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
@@ -254,7 +258,11 @@ class Runner:
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
             if agent_result.returncode != 0:
-                stop_reason = "agent_failed"
+                stop_reason = (
+                    "agent_max_steps"
+                    if agent_result.returncode == AGENT_MAX_STEPS_RETURN_CODE
+                    else "agent_failed"
+                )
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
 
@@ -1000,6 +1008,7 @@ def _agent_result_is_retryable(result: CommandResult) -> bool:
     return (
         result.returncode != 0
         and result.returncode != AGENT_CONFIG_ERROR_RETURN_CODE
+        and result.returncode != AGENT_MAX_STEPS_RETURN_CODE
         and not result.timed_out
     )
 
@@ -1557,6 +1566,13 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             "Agent process exited nonzero. Puzzle Runner retried eligible failures "
             f"for up to agent_failure_retry_limit_seconds="
             f"{config.agent_failure_retry_limit_seconds}s."
+        )
+    if stop_reason == "agent_max_steps":
+        return (
+            "OpenRouter agent reached "
+            f"agent.max_steps={config.agent.max_steps} tool-call steps without ending "
+            "the turn with a normal assistant response. Puzzle Runner stopped before "
+            "running evaluation on an arbitrary intermediate workspace state."
         )
     if stop_reason == "evaluation_timeout":
         return (

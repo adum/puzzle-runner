@@ -49,7 +49,9 @@ api_key_env = "OPENROUTER_API_KEY"
 api_base_url = "https://openrouter.ai/api/v1"
 # Puzzle Runner uses chat response ids to fetch /generation metadata for cost,
 # provider, latency, and native token accounting when OpenRouter makes it available.
-# OpenRouter calls use native tool calls for shell/read_file/write_file/finish.
+# OpenRouter calls use native tool calls for shell/read_file/write_file.
 max_tokens = 16384
-max_steps = 40
+# Maximum model/tool-call loop steps in one agent turn. If this is reached,
+# Puzzle Runner stops before evaluating an arbitrary intermediate workspace.
+max_steps = 200
 command_timeout_seconds = 120

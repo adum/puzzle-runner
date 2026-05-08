@@ -9,6 +9,7 @@ from unittest import mock
 from puzzle_runner.config import load_config
 from puzzle_runner.openrouter_agent import (
     AGENT_CONFIG_ERROR_RETURN_CODE,
+    AGENT_MAX_STEPS_RETURN_CODE,
     OPENROUTER_MAX_TOKENS_MARKER,
     parse_action,
     parse_action_response,
@@ -223,20 +224,8 @@ class OpenRouterAgentTests(unittest.TestCase):
                         "provider": "TestProvider",
                         "choices": [
                             {
-                                "finish_reason": "tool_calls",
-                                "message": {
-                                    "content": None,
-                                    "tool_calls": [
-                                        {
-                                            "id": "call_1",
-                                            "type": "function",
-                                            "function": {
-                                                "name": "finish",
-                                                "arguments": '{"message":"done"}',
-                                            },
-                                        }
-                                    ],
-                                },
+                                "finish_reason": "stop",
+                                "message": {"role": "assistant", "content": "done"},
                             }
                         ],
                     }
@@ -275,7 +264,7 @@ class OpenRouterAgentTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         payload = captured_payloads[0]
         tool_names = [tool["function"]["name"] for tool in payload["tools"]]
-        self.assertEqual(tool_names, ["shell", "read_file", "write_file", "finish"])
+        self.assertEqual(tool_names, ["shell", "read_file", "write_file"])
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertEqual(payload["usage"], {"include": True})
         self.assertEqual(payload["prompt_cache_key"], "test-run")
@@ -425,21 +414,8 @@ class OpenRouterAgentTests(unittest.TestCase):
             "provider": "TestProvider",
             "choices": [
                 {
-                    "finish_reason": "tool_calls",
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": "call_3",
-                                "type": "function",
-                                "function": {
-                                    "name": "finish",
-                                    "arguments": '{"message":"done"}',
-                                },
-                            }
-                        ],
-                    },
+                    "finish_reason": "stop",
+                    "message": {"role": "assistant", "content": "done"},
                 }
             ],
             "usage": {"prompt_tokens": 12, "completion_tokens": 5, "total_tokens": 17},
@@ -474,6 +450,150 @@ class OpenRouterAgentTests(unittest.TestCase):
         self.assertIn("--- openrouter tool call 1.1 write_file ---", stdout_text)
         self.assertIn("--- openrouter tool call 1.2 write_file ---", stdout_text)
         self.assertIn("PUZZLE_RUNNER_DONE", stdout_text)
+
+    def test_no_tool_response_completes_turn(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        api_key_env = "PUZZLE_RUNNER_TEST_OPENROUTER_API_KEY"
+        config = dataclasses.replace(
+            config,
+            agent=dataclasses.replace(config.agent, api_key_env=api_key_env),
+        )
+
+        class JsonResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def read(self) -> bytes:
+                import json
+
+                return json.dumps(
+                    {
+                        "id": "gen-done",
+                        "provider": "TestProvider",
+                        "choices": [
+                            {
+                                "finish_reason": "stop",
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "The solver is ready.",
+                                },
+                            }
+                        ],
+                        "usage": {"prompt_tokens": 12, "completion_tokens": 5, "total_tokens": 17},
+                    }
+                ).encode("utf-8")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "stdout.log"
+            stderr = root / "stderr.log"
+
+            with mock.patch.dict(os.environ, {api_key_env: "test-key"}), mock.patch(
+                "puzzle_runner.openrouter_agent.urllib.request.urlopen",
+                return_value=JsonResponse(),
+            ):
+                result = run_openrouter_agent(
+                    config,
+                    cwd=root,
+                    prompt="hello",
+                    round_dir=root,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                    timeout_seconds=10,
+                    echo=False,
+                )
+            stdout_text = stdout.read_text(encoding="utf-8")
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("The solver is ready.", stdout_text)
+        self.assertIn("PUZZLE_RUNNER_DONE", stdout_text)
+
+    def test_max_steps_returns_dedicated_failure(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        api_key_env = "PUZZLE_RUNNER_TEST_OPENROUTER_API_KEY"
+        config = dataclasses.replace(
+            config,
+            agent=dataclasses.replace(
+                config.agent,
+                api_key_env=api_key_env,
+                max_steps=2,
+            ),
+        )
+
+        class JsonResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            def read(self) -> bytes:
+                import json
+
+                return json.dumps(
+                    {
+                        "id": "gen-tool",
+                        "provider": "TestProvider",
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {
+                                    "role": "assistant",
+                                    "content": None,
+                                    "tool_calls": [
+                                        {
+                                            "id": "call_1",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "write_file",
+                                                "arguments": '{"path":"solver.py","content":"ok"}',
+                                            },
+                                        }
+                                    ],
+                                },
+                            }
+                        ],
+                    }
+                ).encode("utf-8")
+
+        captured_payloads: list[dict] = []
+
+        def fake_urlopen(request, timeout=None):
+            import json
+
+            captured_payloads.append(json.loads(request.data.decode("utf-8")))
+            return JsonResponse()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "stdout.log"
+            stderr = root / "stderr.log"
+
+            with mock.patch.dict(os.environ, {api_key_env: "test-key"}), mock.patch(
+                "puzzle_runner.openrouter_agent.urllib.request.urlopen",
+                side_effect=fake_urlopen,
+            ):
+                result = run_openrouter_agent(
+                    config,
+                    cwd=root,
+                    prompt="hello",
+                    round_dir=root,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                    timeout_seconds=10,
+                    echo=False,
+                )
+            stdout_text = stdout.read_text(encoding="utf-8")
+
+        self.assertEqual(result.returncode, AGENT_MAX_STEPS_RETURN_CODE)
+        self.assertEqual(result.timeout_reason, "max_steps")
+        self.assertIn("openrouter max_steps=2 reached", stdout_text)
+        self.assertIn("final allowed OpenRouter tool-call step", captured_payloads[1]["messages"][-1]["content"])
 
 
 if __name__ == "__main__":

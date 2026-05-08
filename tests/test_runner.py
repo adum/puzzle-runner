@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from puzzle_runner.config import load_config
-from puzzle_runner.openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE
+from puzzle_runner.openrouter_agent import AGENT_CONFIG_ERROR_RETURN_CODE, AGENT_MAX_STEPS_RETURN_CODE
 from puzzle_runner.process import CommandResult
 from puzzle_runner.runner import (
     FinalResult,
@@ -50,6 +50,15 @@ class RunnerTests(unittest.TestCase):
         detail = explain_stop_reason("stale_limit", self.config, {})
 
         self.assertIn("stale_limit=3", detail)
+
+    def test_explain_agent_max_steps_names_parameter(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        detail = explain_stop_reason("agent_max_steps", config, {})
+
+        self.assertIn("agent.max_steps=200", detail)
+        self.assertIn("before running evaluation", detail)
 
     def test_explain_forbidden_edit_names_path_reason_and_pattern(self) -> None:
         detail = explain_stop_reason(
@@ -360,6 +369,20 @@ class RunnerTests(unittest.TestCase):
             elapsed_seconds=0.1,
             timed_out=False,
             timeout_reason=None,
+            stdout_path=Path("/tmp/stdout.log"),
+            stderr_path=Path("/tmp/stderr.log"),
+        )
+
+        self.assertFalse(_agent_result_is_retryable(result))
+
+    def test_agent_max_steps_is_not_retryable(self) -> None:
+        result = CommandResult(
+            argv=["openrouter-api"],
+            cwd=Path("/tmp"),
+            returncode=AGENT_MAX_STEPS_RETURN_CODE,
+            elapsed_seconds=0.1,
+            timed_out=False,
+            timeout_reason="max_steps",
             stdout_path=Path("/tmp/stdout.log"),
             stderr_path=Path("/tmp/stderr.log"),
         )
