@@ -58,6 +58,8 @@ def run_streamed(
     idle_timeout_seconds: int | None = None,
     env: dict[str, str] | None = None,
     stdout_completion_predicate: Callable[[str], bool] | None = None,
+    stdout_line_callback: Callable[[str], None] | None = None,
+    stderr_line_callback: Callable[[str], None] | None = None,
 ) -> CommandResult:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,12 +102,16 @@ def run_streamed(
             stdout_thread = threading.Thread(
                 target=_copy_stream,
                 args=(process.stdout, out_handle, sys.stdout, echo, activity),
-                kwargs={"completion_predicate": stdout_completion_predicate},
+                kwargs={
+                    "completion_predicate": stdout_completion_predicate,
+                    "line_callback": stdout_line_callback,
+                },
                 daemon=True,
             )
             stderr_thread = threading.Thread(
                 target=_copy_stream,
                 args=(process.stderr, err_handle, sys.stderr, echo, activity),
+                kwargs={"line_callback": stderr_line_callback},
                 daemon=True,
             )
             stdout_thread.start()
@@ -152,6 +158,7 @@ def _copy_stream(
     activity: _OutputActivity,
     *,
     completion_predicate: Callable[[str], bool] | None = None,
+    line_callback: Callable[[str], None] | None = None,
 ) -> None:
     if source is None:
         return
@@ -164,17 +171,31 @@ def _copy_stream(
             if echo:
                 echo_handle.write(chunk)
                 echo_handle.flush()
-            if completion_predicate is not None:
+            if completion_predicate is not None or line_callback is not None:
                 line_parts.append(chunk)
                 if chunk == "\n":
                     line = "".join(line_parts)
                     line_parts = []
-                    if completion_predicate(line):
-                        activity.mark_stdout_completed()
-        if line_parts and completion_predicate is not None and completion_predicate("".join(line_parts)):
-            activity.mark_stdout_completed()
+                    _handle_stream_line(line, activity, completion_predicate, line_callback)
+        if line_parts:
+            _handle_stream_line("".join(line_parts), activity, completion_predicate, line_callback)
     finally:
         source.close()
+
+
+def _handle_stream_line(
+    line: str,
+    activity: _OutputActivity,
+    completion_predicate: Callable[[str], bool] | None,
+    line_callback: Callable[[str], None] | None,
+) -> None:
+    if line_callback is not None:
+        try:
+            line_callback(line)
+        except Exception:
+            pass
+    if completion_predicate is not None and completion_predicate(line):
+        activity.mark_stdout_completed()
 
 
 def _wait_for_process(

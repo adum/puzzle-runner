@@ -61,6 +61,7 @@ class RunnerConfig:
     agent_failure_retry_limit_seconds: int
     build_checker: bool
     echo_agent_output: bool
+    echo_agent_progress: bool
     echo_evaluation_output: bool
     forbidden_paths: list[str]
     agent: AgentConfig
@@ -112,6 +113,7 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
         agent_failure_retry_limit_seconds=_non_negative_int(raw, "agent_failure_retry_limit_seconds", 900),
         build_checker=bool(raw.get("build_checker", True)),
         echo_agent_output=bool(raw.get("echo_agent_output", True)),
+        echo_agent_progress=bool(raw.get("echo_agent_progress", True)),
         echo_evaluation_output=bool(raw.get("echo_evaluation_output", True)),
         forbidden_paths=_str_list(raw.get("forbidden_paths", []), "forbidden_paths"),
         agent=AgentConfig(

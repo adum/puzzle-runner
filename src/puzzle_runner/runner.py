@@ -658,6 +658,7 @@ exec python3 ./coil_solver.py
                     echo=self.config.echo_agent_output,
                     idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
                     stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
+                    stdout_line_callback=_agent_stdout_line_callback(self.config),
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             agent_returned_error = _agent_returned_error(self.config, stdout_path)
@@ -1170,6 +1171,22 @@ def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], 
     return None
 
 
+def _agent_stdout_line_callback(config: RunnerConfig) -> Callable[[str], None] | None:
+    if not config.echo_agent_progress or config.echo_agent_output:
+        return None
+    if _agent_stream_format(config) != "opencode-json":
+        return None
+
+    state = {"step": 0}
+
+    def print_progress(line: str) -> None:
+        progress = _opencode_progress_line(line, state)
+        if progress:
+            print(progress, flush=True)
+
+    return print_progress
+
+
 def _is_terminal_claude_result_line(line: str) -> bool:
     return _is_terminal_stream_result_line(line)
 
@@ -1233,6 +1250,123 @@ def _gemini_stdout_has_error_result(path: Path) -> bool:
 
 def _opencode_stdout_has_error_result(path: Path) -> bool:
     return any(event.get("type") == "error" for event in _claude_stream_events(path))
+
+
+def _opencode_progress_line(line: str, state: dict) -> str | None:
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(event, dict):
+        return None
+
+    event_type = event.get("type")
+    if event_type == "step_start":
+        state["step"] = int(state.get("step") or 0) + 1
+        return f"--- OpenCode step {state['step']} ---"
+    if event_type == "text":
+        text = _compact_progress_text(_opencode_event_text(event), 260)
+        return f"OpenCode: {text}" if text else None
+    if event_type == "tool_use":
+        summary = _opencode_tool_progress(event)
+        return f"OpenCode tool: {summary}" if summary else None
+    if event_type == "step_finish":
+        return _opencode_step_finish_progress(event)
+    if event_type == "error":
+        message = _compact_progress_text(_opencode_error_message(event), 260)
+        return f"OpenCode error: {message}" if message else "OpenCode error"
+    return None
+
+
+def _opencode_tool_progress(event: dict) -> str | None:
+    part = event.get("part")
+    if not isinstance(part, dict):
+        return None
+
+    tool = str(part.get("tool") or "tool")
+    state = part.get("state")
+    status = None
+    detail = None
+    exit_code = None
+    if isinstance(state, dict):
+        status_value = state.get("status")
+        status = str(status_value) if isinstance(status_value, str) and status_value else None
+        detail = _opencode_tool_detail(state)
+        metadata = state.get("metadata")
+        if isinstance(metadata, dict) and isinstance(metadata.get("exit"), int):
+            exit_code = metadata["exit"]
+
+    parts = [tool]
+    if status:
+        parts.append(status)
+    if exit_code is not None and exit_code != 0:
+        parts.append(f"exit {exit_code}")
+    if detail:
+        parts.append(f"- {detail}")
+    return " ".join(parts)
+
+
+def _opencode_tool_detail(state: dict) -> str | None:
+    title = state.get("title")
+    if isinstance(title, str) and title.strip():
+        return _compact_progress_text(title, 160)
+
+    tool_input = state.get("input")
+    if not isinstance(tool_input, dict):
+        return None
+
+    for key in ("description", "filePath", "path", "command"):
+        value = tool_input.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if key in {"filePath", "path"}:
+            value = value.replace("\\", "/").rstrip("/").split("/")[-1] or value
+        return _compact_progress_text(value, 160)
+    return None
+
+
+def _opencode_step_finish_progress(event: dict) -> str:
+    part = event.get("part")
+    if not isinstance(part, dict):
+        return "OpenCode step finished"
+
+    details = []
+    reason = part.get("reason")
+    if isinstance(reason, str) and reason:
+        details.append(reason)
+    tokens = part.get("tokens")
+    if isinstance(tokens, dict):
+        total = tokens.get("total")
+        if isinstance(total, int):
+            details.append(f"tokens {total:,}")
+        reasoning = tokens.get("reasoning")
+        if isinstance(reasoning, int) and reasoning > 0:
+            details.append(f"reasoning {reasoning:,}")
+    cost = part.get("cost")
+    if isinstance(cost, (int, float)):
+        details.append(f"cost ${float(cost):.4f}")
+    if not details:
+        return "OpenCode step finished"
+    return "OpenCode step finished: " + ", ".join(details)
+
+
+def _opencode_error_message(event: dict) -> str:
+    error = event.get("error")
+    if isinstance(error, str):
+        return error
+    if isinstance(error, dict):
+        for key in ("message", "name", "type"):
+            value = error.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return ""
+
+
+def _compact_progress_text(text: str, limit: int) -> str:
+    compacted = " ".join(text.split())
+    if len(compacted) <= limit:
+        return compacted
+    return compacted[: max(limit - 3, 0)].rstrip() + "..."
 
 
 def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:

@@ -20,6 +20,7 @@ from puzzle_runner.runner import (
     _is_terminal_claude_result_line,
     _migrate_results_summary_effort_column,
     _opencode_stdout_has_error_result,
+    _opencode_progress_line,
     _results_summary_row,
     count_agent_output_chars,
     count_code_lines_added,
@@ -425,6 +426,37 @@ class RunnerTests(unittest.TestCase):
             )
 
             self.assertTrue(_opencode_stdout_has_error_result(stdout))
+
+    def test_opencode_progress_line_summarizes_human_readable_events(self) -> None:
+        state: dict = {}
+
+        self.assertEqual(
+            _opencode_progress_line('{"type":"step_start"}\n', state),
+            "--- OpenCode step 1 ---",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"text","part":{"type":"text","text":"Working on it"}}\n',
+                state,
+            ),
+            "OpenCode: Working on it",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"tool_use","part":{"tool":"bash","state":{"status":"completed",'
+                '"input":{"description":"Run tests"},"metadata":{"exit":0}}}}\n',
+                state,
+            ),
+            "OpenCode tool: bash completed - Run tests",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"step_finish","part":{"reason":"tool-calls",'
+                '"tokens":{"total":1234,"reasoning":56},"cost":0.0123}}\n',
+                state,
+            ),
+            "OpenCode step finished: tool-calls, tokens 1,234, reasoning 56, cost $0.0123",
+        )
 
     def test_agent_model_not_found_is_detected_from_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

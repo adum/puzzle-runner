@@ -78,6 +78,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.agent.model, "openrouter/google/gemini-3-flash-preview")
         self.assertEqual(config.agent.effort, "high")
         self.assertFalse(config.echo_agent_output)
+        self.assertTrue(config.echo_agent_progress)
         self.assertIn("{config_dir}/scripts/opencode", config.agent.command)
         self.assertIn("run", config.agent.command)
         self.assertIn("--title", config.agent.command)

@@ -75,6 +75,28 @@ class ProcessTests(unittest.TestCase):
             self.assertLess(result.elapsed_seconds, 4)
             self.assertEqual(stdout.read_text(encoding="utf-8").strip(), "DONE")
 
+    def test_run_streamed_calls_stdout_line_callback_when_echo_is_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            stdout = temp_path / "stdout.log"
+            stderr = temp_path / "stderr.log"
+            lines: list[str] = []
+
+            result = run_streamed(
+                ["python3", "-c", "print('one'); print('two')"],
+                cwd=temp_path,
+                stdin_text=None,
+                timeout_seconds=10,
+                stdout_path=stdout,
+                stderr_path=stderr,
+                echo=False,
+                stdout_line_callback=lines.append,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(lines, ["one\n", "two\n"])
+            self.assertEqual(stdout.read_text(encoding="utf-8"), "one\ntwo\n")
+
     def test_agent_retry_attempt_paths_keep_first_attempt_compatible(self) -> None:
         root = Path("/tmp/round")
 

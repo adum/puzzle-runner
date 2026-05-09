@@ -34,9 +34,10 @@ agent_idle_timeout_seconds = 1800
 agent_failure_retry_limit_seconds = 900
 
 build_checker = true
-# OpenCode writes raw JSON events to the agent stdout log. Keep runner terminal
-# output quiet and use `puzzle-runner watch` for a readable live view.
+# OpenCode writes raw JSON events to the agent stdout log. Keep raw terminal
+# output quiet, but print compact human-readable progress lines.
 echo_agent_output = false
+echo_agent_progress = true
 echo_evaluation_output = true
 
 forbidden_paths = [
