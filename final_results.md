@@ -9,3 +9,4 @@
 | 20260505-082141-gemini-3-1-pro-preview | gemini 3.1 pro preview |  | 262 | 9 | 12 | stale_limit | 600s | 17h 0m | 1400 | 6466 |  |  |  |
 | 20260506-120335-gemini-2-5-flash | gemini 2.5 flash |  | 65 | 1 | 4 | stale_limit | 600s | 4h 18m | 12351 | 422 |  |  |  |
 | 20260506-184031-gemini-3-flash-preview | gemini 3 flash preview |  | 262 | 5 | 7 | agent_idle_timeout | 600s | 8h 36m | 11121 | 447 |  |  |  |
+| 20260508-163024-opencode-openrouter-gemini-3-flash-preview | opencode-openrouter-gemini-3-flash-preview | high | 176 | 2 | 5 | stale_limit | 600s | 4h 31m | 2465 | 556 |  |  |  |
