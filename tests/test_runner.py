@@ -16,6 +16,7 @@ from puzzle_runner.runner import (
     _apply_agent_model,
     _claude_stdout_has_error_result,
     _ensure_results_summary_header,
+    _agent_model_not_found_error,
     _is_terminal_claude_result_line,
     _migrate_results_summary_effort_column,
     _opencode_stdout_has_error_result,
@@ -46,6 +47,12 @@ class RunnerTests(unittest.TestCase):
         detail = explain_stop_reason("agent_idle_timeout", self.config, {})
 
         self.assertIn("agent_idle_timeout_seconds=1800s", detail)
+
+    def test_explain_agent_model_not_found_says_evaluation_was_skipped(self) -> None:
+        detail = explain_stop_reason("agent_model_not_found", self.config, {})
+
+        self.assertIn("model-not-found", detail)
+        self.assertIn("without running evaluation", detail)
 
     def test_explain_stale_limit_names_parameter(self) -> None:
         detail = explain_stop_reason("stale_limit", self.config, {})
@@ -418,6 +425,203 @@ class RunnerTests(unittest.TestCase):
             )
 
             self.assertTrue(_opencode_stdout_has_error_result(stdout))
+
+    def test_agent_model_not_found_is_detected_from_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text(
+                '{"type":"error","error":{"data":{"message":"Model not found: x-ai/grok-4.3."}}}\n',
+                encoding="utf-8",
+            )
+            stderr.write_text("ProviderModelNotFoundError\n", encoding="utf-8")
+
+            self.assertTrue(_agent_model_not_found_error(stdout, stderr))
+
+    def test_model_not_found_stops_before_evaluation(self) -> None:
+        class ModelNotFoundRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text(
+                    '{"type":"error","error":{"data":{"message":"Model not found: x-ai/grok-4.3."}}}\n',
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                self._update_status(
+                    latest={"agent_stdout": stdout, "agent_stderr": stderr},
+                    last_agent_model_not_found=True,
+                )
+                return CommandResult(
+                    argv=["opencode", "run"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                raise AssertionError("evaluation should not run after model-not-found")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = ModelNotFoundRunner(config).run()
+
+        self.assertEqual(final.stop_reason, "agent_model_not_found")
+        self.assertEqual(final.best_score, 0)
+
+    def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
+        class NoChangeRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\nexec python3 ./coil_solver.py\n",
+                    encoding="utf-8",
+                )
+                (self.workspace / "coil_solver.py").write_text(
+                    "print('default')\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text("PUZZLE_RUNNER_DONE\n", encoding="utf-8")
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["agent"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                raise AssertionError("unchanged default solver should use shortcut")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = NoChangeRunner(config).run()
+            stdout = (
+                final.log_dir / "round-001" / "evaluation.stdout.log"
+            ).read_text(encoding="utf-8")
+            result_json = (
+                final.log_dir / "round-001" / "evaluation_result.json"
+            ).read_text(encoding="utf-8")
+
+        self.assertEqual(final.best_score, 47)
+        self.assertEqual(final.best_round, 1)
+        self.assertIn("skipped evaluate_full.py", stdout)
+        self.assertIn("evaluation-shortcut", result_json)
+
+    def test_default_solver_shortcut_is_disabled_after_solver_override(self) -> None:
+        class SolverOverrideRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\n"
+                    "if [ -f ./solver.py ]; then exec python3 ./solver.py; fi\n"
+                    "exec python3 ./coil_solver.py\n",
+                    encoding="utf-8",
+                )
+                (self.workspace / "coil_solver.py").write_text(
+                    "print('default')\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text("PUZZLE_RUNNER_DONE\n", encoding="utf-8")
+                stderr.write_text("", encoding="utf-8")
+                (self.workspace / "solver.py").write_text("print('override')\n", encoding="utf-8")
+                return CommandResult(
+                    argv=["agent"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                stdout = round_dir / "evaluation.stdout.log"
+                stderr = round_dir / "evaluation.stderr.log"
+                stdout.write_text(
+                    "Level 99 (baseline): PASS (0.00s)\n"
+                    "Level 100 (baseline): FAIL - test stop (0.00s)\n",
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["python3", "evaluate_full.py"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = SolverOverrideRunner(config).run()
+
+        self.assertEqual(final.best_score, 99)
 
     def test_codex_effort_is_read_from_command_config(self) -> None:
         self.assertEqual(_agent_effort_text(self.config), "xhigh")

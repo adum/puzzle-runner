@@ -305,6 +305,8 @@ def render_status(
         evaluation_progress = _evaluation_progress(latest)
         if evaluation_progress is not None:
             lines.append(_kv("Evaluating", evaluation_progress, color, width))
+    if status.get("default_solver_evaluation_shortcut") is True:
+        lines.append(_kv("Eval shortcut", "default solver baseline => 47", color, width))
     agent_output = _agent_output_stats(latest, status, phase)
     if agent_output is not None:
         lines.append(_kv("Agent output", _agent_output_summary(agent_output), color, width))

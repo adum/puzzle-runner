@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
 import re
@@ -28,6 +29,10 @@ from .prompts import ScoreFeedback, compose_prompt
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
 CODEX_REASONING_EFFORT_RE = re.compile(
     r"(?:^|\s)model_reasoning_effort\s*=\s*[\"']?([^\"'\s]+)"
+)
+MODEL_NOT_FOUND_ERROR_RE = re.compile(
+    r"\bmodel\s+not\s+found\b|(?:Provider)?ModelNotFoundError|\bmodel_not_found\b",
+    re.IGNORECASE,
 )
 RESULTS_SUMMARY_HEADER = (
     "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
@@ -109,6 +114,9 @@ CODE_FILENAMES = {
     "makefile",
 }
 MAX_UNTRACKED_CODE_LINE_COUNT_BYTES = 2_000_000
+MAX_AGENT_ERROR_SCAN_BYTES = 2_000_000
+DEFAULT_SOLVER_FULL_EVAL_SCORE = 47
+DEFAULT_SOLVER_FULL_EVAL_FIRST_FAIL = 48
 SCRIPT_LINE_ENDING_SUFFIXES = {
     ".bash",
     ".fish",
@@ -155,6 +163,7 @@ class Runner:
         self.status_md_path = config.status_dir / "status.md"
         self._generated_full_eval_password: str | None = None
         self._run_started_monotonic: float | None = None
+        self._default_solver_baseline: dict[str, str | None] | None = None
         self._status: dict = {}
 
     def run(self) -> FinalResult:
@@ -179,6 +188,10 @@ class Runner:
             self._download_full_levels()
         self._update_status(phase="ensuring_solver_wrapper")
         self._ensure_solver_wrapper()
+        self._default_solver_baseline = _default_solver_signature(
+            self.workspace,
+            self.config.solver_wrapper,
+        )
 
         if self.config.build_checker:
             self._update_status(phase="building_checker")
@@ -257,6 +270,10 @@ class Runner:
                 )
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
+            if self._status.get("last_agent_model_not_found"):
+                stop_reason = "agent_model_not_found"
+                self._update_status(phase="stopping", stop_reason=stop_reason)
+                break
             if agent_result.returncode != 0:
                 stop_reason = (
                     "agent_max_steps"
@@ -280,8 +297,18 @@ class Runner:
                 )
                 break
 
-            self._update_status(phase="evaluation_running")
-            eval_result = self._run_evaluation(round_dir)
+            if self._can_shortcut_default_solver_evaluation():
+                self._update_status(
+                    phase="evaluation_shortcut",
+                    default_solver_evaluation_shortcut=True,
+                )
+                eval_result = self._write_default_solver_evaluation_result(round_dir)
+            else:
+                self._update_status(
+                    phase="evaluation_running",
+                    default_solver_evaluation_shortcut=False,
+                )
+                eval_result = self._run_evaluation(round_dir)
             self._write_round_command(round_dir, "evaluation_result.json", eval_result)
             self._update_status(
                 phase="evaluation_parsing",
@@ -634,6 +661,7 @@ exec python3 ./coil_solver.py
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             agent_returned_error = _agent_returned_error(self.config, stdout_path)
+            agent_model_not_found = _agent_model_not_found_error(stdout_path, stderr_path)
             if agent_returned_error:
                 agent_error_count = int(self._status.get("agent_error_count") or 0) + 1
                 self._event(
@@ -647,7 +675,14 @@ exec python3 ./coil_solver.py
             self._update_status(
                 agent_error_count=agent_error_count,
                 last_agent_returned_error=agent_returned_error,
+                last_agent_model_not_found=agent_model_not_found,
             )
+            if agent_model_not_found:
+                self._event(
+                    "agent_model_not_found",
+                    round=round_number,
+                    attempt=attempt,
+                )
             self._event(
                 "agent_attempt_finished",
                 round=round_number,
@@ -657,6 +692,9 @@ exec python3 ./coil_solver.py
                 timeout_reason=result.timeout_reason,
                 elapsed_seconds=result.elapsed_seconds,
             )
+
+            if agent_model_not_found:
+                return result
 
             if not _agent_result_is_retryable(result):
                 return result
@@ -748,6 +786,61 @@ exec python3 ./coil_solver.py
             stdout_path=round_dir / "evaluation.stdout.log",
             stderr_path=round_dir / "evaluation.stderr.log",
             echo=self.config.echo_evaluation_output,
+        )
+
+    def _can_shortcut_default_solver_evaluation(self) -> bool:
+        if self._default_solver_baseline is None:
+            return False
+        return self._default_solver_baseline == _default_solver_signature(
+            self.workspace,
+            self.config.solver_wrapper,
+        )
+
+    def _write_default_solver_evaluation_result(self, round_dir: Path) -> CommandResult:
+        stdout_path = round_dir / "evaluation.stdout.log"
+        stderr_path = round_dir / "evaluation.stderr.log"
+        stdout_path.parent.mkdir(parents=True, exist_ok=True)
+        stdout_path.write_text(
+            "\n".join(
+                [
+                    "Puzzle Runner skipped evaluate_full.py because the configured "
+                    "solver wrapper still resolves to the unchanged default Coilbench solver.",
+                    (
+                        f"Level {DEFAULT_SOLVER_FULL_EVAL_SCORE} (baseline): "
+                        "PASS (0.00s)"
+                    ),
+                    (
+                        f"Level {DEFAULT_SOLVER_FULL_EVAL_FIRST_FAIL} (baseline): "
+                        "FAIL - unchanged default solver baseline (0.00s)"
+                    ),
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        stderr_path.write_text("", encoding="utf-8")
+        argv = [
+            "puzzle-runner",
+            "evaluation-shortcut",
+            "--score",
+            str(DEFAULT_SOLVER_FULL_EVAL_SCORE),
+        ]
+        self._update_status(current_command=argv)
+        self._event(
+            "evaluation_shortcut_used",
+            score=DEFAULT_SOLVER_FULL_EVAL_SCORE,
+            first_failing_level=DEFAULT_SOLVER_FULL_EVAL_FIRST_FAIL,
+            reason="unchanged_default_solver",
+        )
+        return CommandResult(
+            argv=argv,
+            cwd=self.workspace,
+            returncode=0,
+            elapsed_seconds=0.0,
+            timed_out=False,
+            timeout_reason=None,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
         )
 
     def _get_full_eval_password(self) -> str:
@@ -894,6 +987,7 @@ Code lines added: {final.code_lines_added}
                 "last_improved": None,
                 "agent_attempt": None,
                 "agent_error_count": 0,
+                "last_agent_model_not_found": False,
                 "openrouter_max_tokens_count": 0,
                 "last_openrouter_max_tokens_step": None,
                 "last_openrouter_max_tokens_max_tokens": None,
@@ -960,6 +1054,46 @@ def _guard_findings_payload(findings: list[GuardFinding]) -> list[dict]:
 
 def _is_git_workspace(workspace: Path) -> bool:
     return (workspace / ".git").exists()
+
+
+def _default_solver_signature(
+    workspace: Path,
+    solver_wrapper: str,
+) -> dict[str, str | None] | None:
+    wrapper_rel = _normalize_git_path(solver_wrapper)
+    wrapper_path = workspace / wrapper_rel
+    default_solver_path = workspace / "coil_solver.py"
+
+    if not wrapper_path.is_file() or not default_solver_path.is_file():
+        return None
+    if (workspace / "solver").exists() or (workspace / "solver.py").exists():
+        return None
+
+    try:
+        wrapper_text = wrapper_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    if "coil_solver.py" not in wrapper_text:
+        return None
+
+    try:
+        return {
+            wrapper_rel: _file_signature(wrapper_path),
+            "coil_solver.py": _file_signature(default_solver_path),
+            "solver": None,
+            "solver.py": None,
+        }
+    except OSError:
+        return None
+
+
+def _file_signature(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    executable_bits = path.stat().st_mode & 0o111
+    return f"{digest.hexdigest()}:{executable_bits:o}"
 
 
 def normalize_script_line_endings(workspace: Path) -> list[str]:
@@ -1057,6 +1191,25 @@ def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
     if agent_stream_format == "opencode-json":
         return _opencode_stdout_has_error_result(stdout_path)
     return False
+
+
+def _agent_model_not_found_error(stdout_path: Path, stderr_path: Path) -> bool:
+    return any(
+        MODEL_NOT_FOUND_ERROR_RE.search(text)
+        for text in (_tail_file_text(stdout_path), _tail_file_text(stderr_path))
+        if text
+    )
+
+
+def _tail_file_text(path: Path, max_bytes: int = MAX_AGENT_ERROR_SCAN_BYTES) -> str:
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(size - max_bytes, 0), os.SEEK_SET)
+            return handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
 
 
 def _claude_stdout_has_error_result(path: Path) -> bool:
@@ -1644,6 +1797,11 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             f"for up to agent_failure_retry_limit_seconds="
             f"{config.agent_failure_retry_limit_seconds}s."
         )
+    if stop_reason == "agent_model_not_found":
+        return (
+            "Agent reported a model-not-found error. Puzzle Runner stopped "
+            "immediately without running evaluation."
+        )
     if stop_reason == "agent_max_steps":
         return (
             "OpenRouter agent reached "
@@ -1727,6 +1885,7 @@ def _status_markdown(status: dict) -> str:
         f"- Scores: `{_score_history_text(status)}`",
         f"- Last Improved: `{status.get('last_improved')}`",
         f"- Agent Errors: `{status.get('agent_error_count')}`",
+        f"- Agent Model Not Found: `{status.get('last_agent_model_not_found')}`",
     ]
     if status.get("backend") == "openrouter":
         lines.append(
