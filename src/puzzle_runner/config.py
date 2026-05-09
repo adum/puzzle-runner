@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -75,7 +76,14 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
     base_dir = config_path.parent
     agent_raw = _table(raw, "agent")
     agent_backend = _str(agent_raw, "backend", "codex")
-    resolved_run_id = run_id or raw.get("run_id") or _default_run_id(agent_raw.get("name", "run"))
+    agent_command = _agent_command(agent_raw, agent_backend)
+    agent_model = _agent_model(agent_raw, agent_backend)
+    agent_name = _optional_str(agent_raw, "name") or _default_agent_name(
+        agent_backend,
+        agent_model,
+        agent_command,
+    )
+    resolved_run_id = run_id or raw.get("run_id") or _default_run_id(agent_name)
     log_root = _path(base_dir, raw, "log_root")
     status_dir = _optional_path(base_dir, raw, "status_dir") or (log_root.parent / "current").resolve()
 
@@ -107,12 +115,12 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
         echo_evaluation_output=bool(raw.get("echo_evaluation_output", True)),
         forbidden_paths=_str_list(raw.get("forbidden_paths", []), "forbidden_paths"),
         agent=AgentConfig(
-            name=_str(agent_raw, "name", "codex-5.3-spark"),
+            name=agent_name,
             backend=agent_backend,
-            command=_agent_command(agent_raw, agent_backend),
+            command=agent_command,
             prompt_mode=_literal(agent_raw.get("prompt_mode", "stdin"), {"stdin", "arg"}, "agent.prompt_mode"),
             effort=_optional_str(agent_raw, "effort"),
-            model=_agent_model(agent_raw, agent_backend),
+            model=agent_model,
             api_key_env=_str(agent_raw, "api_key_env", "OPENROUTER_API_KEY"),
             api_base_url=_str(agent_raw, "api_base_url", "https://openrouter.ai/api/v1"),
             max_tokens=_optional_positive_int(agent_raw, "max_tokens"),
@@ -126,6 +134,49 @@ def _default_run_id(agent_name: str) -> str:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     safe_name = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in agent_name)
     return f"{stamp}-{safe_name}"
+
+
+def _default_agent_name(backend: str, model: str | None, command: list[str]) -> str:
+    model_name = model or _model_from_command(command)
+    if model_name:
+        return _name_from_model(backend, model_name)
+    return _name_part(backend) or "agent"
+
+
+def _model_from_command(command: list[str]) -> str | None:
+    for index, part in enumerate(command):
+        if part in {"--model", "-m"} and index + 1 < len(command):
+            return command[index + 1]
+        for option in ("--model=", "-m="):
+            if part.startswith(option):
+                return part[len(option) :]
+    return None
+
+
+def _name_from_model(backend: str, model: str) -> str:
+    model_part = _name_part(model)
+    backend_part = _name_part(_agent_name_backend_prefix(backend))
+    if not model_part:
+        return backend_part or "agent"
+    if not backend_part:
+        return model_part
+    if model_part == backend_part or model_part.startswith(f"{backend_part}-"):
+        return model_part
+    return f"{backend_part}-{model_part}"
+
+
+def _agent_name_backend_prefix(backend: str) -> str:
+    if backend == "openrouter":
+        return "openrouter"
+    if backend == "opencode" or backend.startswith("opencode-"):
+        return "opencode"
+    return ""
+
+
+def _name_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
+    cleaned = re.sub(r"-{2,}", "-", cleaned)
+    return cleaned.strip("-._")
 
 
 def _load_toml(path: Path) -> dict[str, Any]:

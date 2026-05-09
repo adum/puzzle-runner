@@ -40,7 +40,9 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "openrouter-laguna-xs-2-free"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
 backend = "openrouter"
 model = "poolside/laguna-xs.2:free"
 # Optional. Sent as OpenRouter reasoning.effort. If omitted, Gemini 3 models default to high.

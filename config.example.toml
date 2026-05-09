@@ -56,7 +56,9 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "codex-5.3"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
 backend = "codex"
 prompt_mode = "stdin"
 command = [

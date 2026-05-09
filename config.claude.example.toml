@@ -57,7 +57,9 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "claude-code-sonnet"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
 backend = "claude-code"
 prompt_mode = "stdin"
 effort = "xhigh"

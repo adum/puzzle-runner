@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,7 +11,7 @@ class ConfigTests(unittest.TestCase):
 
         config = load_config(str(config_path), run_id="test-run")
 
-        self.assertEqual(config.agent.name, "codex-5.3")
+        self.assertEqual(config.agent.name, "gpt-5.3-codex")
         self.assertIn("model_reasoning_effort=\"xhigh\"", config.agent.command)
         self.assertIn("gpt-5.3-codex", config.agent.command)
         self.assertEqual(config.agent_failure_retry_limit_seconds, 900)
@@ -20,7 +21,7 @@ class ConfigTests(unittest.TestCase):
 
         config = load_config(str(config_path), run_id="test-run")
 
-        self.assertEqual(config.agent.name, "claude-code-sonnet")
+        self.assertEqual(config.agent.name, "claude-sonnet-4-6")
         self.assertEqual(config.agent.backend, "claude-code")
         self.assertEqual(config.agent.prompt_mode, "stdin")
         self.assertEqual(config.agent.effort, "xhigh")
@@ -57,7 +58,7 @@ class ConfigTests(unittest.TestCase):
 
         config = load_config(str(config_path), run_id="test-run")
 
-        self.assertEqual(config.agent.name, "openrouter-laguna-xs-2-free")
+        self.assertEqual(config.agent.name, "openrouter-poolside-laguna-xs.2-free")
         self.assertEqual(config.agent.backend, "openrouter")
         self.assertEqual(config.agent.command, [])
         self.assertEqual(config.agent.model, "poolside/laguna-xs.2:free")
@@ -71,7 +72,7 @@ class ConfigTests(unittest.TestCase):
 
         config = load_config(str(config_path), run_id="test-run")
 
-        self.assertEqual(config.agent.name, "opencode-openrouter-gemini-3-flash-preview")
+        self.assertEqual(config.agent.name, "opencode-openrouter-google-gemini-3-flash-preview")
         self.assertEqual(config.agent.backend, "opencode")
         self.assertEqual(config.agent.prompt_mode, "stdin")
         self.assertEqual(config.agent.model, "openrouter/google/gemini-3-flash-preview")
@@ -84,6 +85,30 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("--format", config.agent.command)
         self.assertIn("json", config.agent.command)
         self.assertIn("--dangerously-skip-permissions", config.agent.command)
+
+    def test_explicit_agent_name_overrides_model_default(self) -> None:
+        source_path = Path(__file__).resolve().parents[1] / "config.example.toml"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "runner.toml"
+            text = source_path.read_text(encoding="utf-8")
+            config_path.write_text(
+                text.replace("[agent]\n", '[agent]\nname = "custom-codex"\n', 1),
+                encoding="utf-8",
+            )
+
+            config = load_config(str(config_path), run_id="test-run")
+
+        self.assertEqual(config.agent.name, "custom-codex")
+
+    def test_default_run_id_uses_derived_agent_name(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+
+        config = load_config(str(config_path))
+
+        self.assertRegex(
+            config.run_id,
+            r"^\d{8}-\d{6}-opencode-openrouter-google-gemini-3-flash-preview$",
+        )
 
 
 if __name__ == "__main__":

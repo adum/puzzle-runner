@@ -50,7 +50,9 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "opencode-openrouter-gemini-3-flash-preview"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
 backend = "opencode"
 prompt_mode = "stdin"
 model = "openrouter/google/gemini-3-flash-preview"

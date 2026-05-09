@@ -55,7 +55,9 @@ forbidden_paths = [
 ]
 
 [agent]
-name = "gemini-3.1-pro-preview"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
 backend = "gemini-cli"
 prompt_mode = "stdin"
 model = "gemini-3.1-pro-preview"
