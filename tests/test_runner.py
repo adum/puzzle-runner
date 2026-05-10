@@ -460,10 +460,52 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(
             _opencode_progress_line(
                 '{"type":"tool_use","part":{"tool":"bash","state":{"status":"completed",'
-                '"input":{"description":"Run tests"},"metadata":{"exit":0}}}}\n',
+                '"input":{"description":"Run tests","command":"pytest -q"},'
+                '"metadata":{"exit":0,"output":"2 passed\\n"},'
+                '"time":{"start":1000,"end":1250}}}}\n',
                 state,
             ),
-            "OpenCode tool: bash completed - Run tests",
+            "OpenCode tool: bash completed (250ms, exit 0) - Run tests; "
+            "cmd: pytest -q; output 1 line, 9 chars: 2 passed",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"tool_use","part":{"tool":"read","state":{"status":"completed",'
+                '"input":{"filePath":"/tmp/run/levels_public/79"},'
+                '"metadata":{"preview":"x=30&y=28&board=...","truncated":false},'
+                '"time":{"start":1000,"end":1012}}}}\n',
+                state,
+            ),
+            "OpenCode tool: read completed (12ms) - levels_public/79; preview 1 line, 19 chars",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"tool_use","part":{"tool":"read","state":{"status":"error",'
+                '"input":{"filePath":"/tmp/run/AGENTS.md"},'
+                '"error":"File not found: /tmp/run/AGENTS.md",'
+                '"time":{"start":1000,"end":1008}}}}\n',
+                state,
+            ),
+            "OpenCode tool: read error (8ms) - AGENTS.md; error: File not found: /tmp/run/AGENTS.md",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"tool_use","part":{"tool":"write","state":{"status":"completed",'
+                '"input":{"filePath":"/tmp/run/solver.py","content":"print(1)\\nprint(2)\\n"},'
+                '"time":{"start":1000,"end":2100}}}}\n',
+                state,
+            ),
+            "OpenCode tool: write completed (1.10s) - solver.py; 2 lines, 18 chars",
+        )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"tool_use","part":{"tool":"todowrite","state":{"status":"completed",'
+                '"input":{"todos":[{"content":"Check levels","status":"in_progress"},'
+                '{"content":"Write solver","status":"pending"}]},'
+                '"title":"2 todos","time":{"start":1000,"end":1004}}}}\n',
+                state,
+            ),
+            "OpenCode tool: todowrite completed (4ms); 2 todos; in_progress 1, pending 1; active: Check levels",
         )
         self.assertEqual(
             _opencode_progress_line(

@@ -1474,6 +1474,8 @@ def _opencode_tool_progress(event: dict) -> str | None:
         status_value = state.get("status")
         status = str(status_value) if isinstance(status_value, str) and status_value else None
         detail = _opencode_tool_detail(state)
+        if tool.lower() == "todowrite" and detail and detail.endswith(" todos"):
+            detail = None
         metadata = state.get("metadata")
         if isinstance(metadata, dict) and isinstance(metadata.get("exit"), int):
             exit_code = metadata["exit"]
@@ -1481,11 +1483,21 @@ def _opencode_tool_progress(event: dict) -> str | None:
     parts = [tool]
     if status:
         parts.append(status)
-    if exit_code is not None and exit_code != 0:
-        parts.append(f"exit {exit_code}")
+    facts = []
+    duration = _opencode_tool_duration(state) if isinstance(state, dict) else None
+    if duration:
+        facts.append(duration)
+    if exit_code is not None:
+        facts.append(f"exit {exit_code}")
+    if facts:
+        parts.append(f"({', '.join(facts)})")
     if detail:
         parts.append(f"- {detail}")
-    return " ".join(parts)
+    extra = _opencode_tool_extra(tool, state) if isinstance(state, dict) else None
+    summary = " ".join(parts)
+    if extra:
+        summary += f"; {extra}"
+    return _compact_progress_text(summary, 420)
 
 
 def _opencode_tool_detail(state: dict) -> str | None:
@@ -1502,9 +1514,146 @@ def _opencode_tool_detail(state: dict) -> str | None:
         if not isinstance(value, str) or not value.strip():
             continue
         if key in {"filePath", "path"}:
-            value = value.replace("\\", "/").rstrip("/").split("/")[-1] or value
+            value = _opencode_display_path(value)
         return _compact_progress_text(value, 160)
     return None
+
+
+def _opencode_tool_duration(state: dict) -> str | None:
+    timing = state.get("time")
+    if not isinstance(timing, dict):
+        return None
+    start = timing.get("start")
+    end = timing.get("end")
+    if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+        return None
+    elapsed = max((end - start) / 1000.0, 0)
+    if elapsed < 1:
+        return f"{elapsed * 1000:.0f}ms"
+    if elapsed < 10:
+        return f"{elapsed:.2f}s"
+    return f"{elapsed:.1f}s"
+
+
+def _opencode_tool_extra(tool: str, state: dict) -> str | None:
+    tool_input = state.get("input")
+    if not isinstance(tool_input, dict):
+        tool_input = {}
+    metadata = state.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    tool_name = tool.lower()
+    extras: list[str] = []
+    error = _opencode_tool_error(state)
+    if error:
+        extras.append(f"error: {error}")
+    if tool_name == "bash":
+        command = tool_input.get("command")
+        description = tool_input.get("description")
+        if isinstance(command, str) and command.strip() and command.strip() != str(description or "").strip():
+            extras.append(f"cmd: {_compact_progress_text(command, 160)}")
+        output = metadata.get("output")
+        if not isinstance(output, str):
+            output = state.get("output")
+        if isinstance(output, str) and output.strip():
+            extras.append(_opencode_output_preview(output))
+    elif tool_name == "read":
+        preview = metadata.get("preview")
+        if isinstance(preview, str) and preview:
+            extras.append(f"preview {_line_char_summary(preview)}")
+        if metadata.get("truncated") is True:
+            extras.append("truncated")
+    elif tool_name in {"write", "edit", "patch"}:
+        changed = _opencode_changed_text_summary(tool_input)
+        if changed:
+            extras.append(changed)
+    elif tool_name == "todowrite":
+        todo_summary = _opencode_todo_summary(tool_input, metadata)
+        if todo_summary:
+            extras.append(todo_summary)
+    else:
+        output = metadata.get("output")
+        if not isinstance(output, str):
+            output = state.get("output")
+        if isinstance(output, str) and output.strip():
+            extras.append(_opencode_output_preview(output))
+
+    return "; ".join(extras) if extras else None
+
+
+def _opencode_tool_error(state: dict) -> str | None:
+    error = state.get("error")
+    if isinstance(error, str) and error.strip():
+        return _compact_progress_text(error, 180)
+    if isinstance(error, dict):
+        for key in ("message", "name", "type"):
+            value = error.get(key)
+            if isinstance(value, str) and value.strip():
+                return _compact_progress_text(value, 180)
+    return None
+
+
+def _opencode_changed_text_summary(tool_input: dict) -> str | None:
+    candidates = []
+    for key in ("content", "newString", "new_string", "patch"):
+        value = tool_input.get(key)
+        if isinstance(value, str) and value:
+            candidates.append(value)
+    if not candidates:
+        return None
+    text = max(candidates, key=len)
+    return _line_char_summary(text)
+
+
+def _opencode_todo_summary(tool_input: dict, metadata: dict) -> str | None:
+    todos = metadata.get("todos")
+    if not isinstance(todos, list):
+        todos = tool_input.get("todos")
+    if not isinstance(todos, list) or not todos:
+        return None
+
+    counts: dict[str, int] = {}
+    active = None
+    for item in todos:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "unknown")
+        counts[status] = counts.get(status, 0) + 1
+        if active is None and status == "in_progress":
+            content = item.get("content")
+            if isinstance(content, str) and content.strip():
+                active = _compact_progress_text(content, 80)
+    parts = [f"{len(todos)} todos"]
+    if counts:
+        parts.append(", ".join(f"{key} {value}" for key, value in sorted(counts.items())))
+    if active:
+        parts.append(f"active: {active}")
+    return "; ".join(parts)
+
+
+def _opencode_output_preview(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    preview = " | ".join(lines[:2]) if lines else text.strip()
+    return f"output {_line_char_summary(text)}: {_compact_progress_text(preview, 180)}"
+
+
+def _line_char_summary(text: str) -> str:
+    line_count = len(text.splitlines()) or 1
+    line_word = "line" if line_count == 1 else "lines"
+    char_word = "char" if len(text) == 1 else "chars"
+    return f"{line_count:,} {line_word}, {len(text):,} {char_word}"
+
+
+def _opencode_display_path(value: str) -> str:
+    normalized = value.replace("\\", "/").rstrip("/")
+    parts = [part for part in normalized.split("/") if part]
+    if not parts:
+        return value
+    for marker in ("levels_public", "levels_secret_even", "coil_check", "src", "tests", "scripts"):
+        if marker in parts:
+            return "/".join(parts[parts.index(marker) :])
+    return parts[-1]
 
 
 def _opencode_step_finish_progress(event: dict) -> str:
