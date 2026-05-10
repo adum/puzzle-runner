@@ -22,6 +22,7 @@ from puzzle_runner.runner import (
     _migrate_results_summary_effort_column,
     _opencode_stdout_has_error_result,
     _opencode_progress_line,
+    _opencode_auth_problem_from_listing,
     _results_summary_row,
     count_agent_output_chars,
     count_code_lines_added,
@@ -60,6 +61,15 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("model-not-found", detail)
         self.assertIn("openrouter/moonshotai/kimi-k2.6", detail)
         self.assertIn("without running evaluation", detail)
+
+    def test_explain_agent_auth_missing_uses_problem_detail(self) -> None:
+        detail = explain_stop_reason(
+            "agent_auth_missing",
+            self.config,
+            {"agent_auth_problem": {"detail": "OpenCode has no OpenRouter credential."}},
+        )
+
+        self.assertEqual(detail, "OpenCode has no OpenRouter credential.")
 
     def test_explain_stale_limit_names_parameter(self) -> None:
         detail = explain_stop_reason("stale_limit", self.config, {})
@@ -472,6 +482,33 @@ class RunnerTests(unittest.TestCase):
             "OpenCode error: Model not found: openrouter/moonshotai/kimi-k2.6.",
         )
 
+    def test_opencode_auth_problem_detects_missing_openrouter_credentials(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        problem = _opencode_auth_problem_from_listing(
+            config,
+            "openrouter",
+            "Credentials ~/.local/share/opencode/auth.json\n0 credentials\n",
+            {},
+        )
+
+        self.assertIsNotNone(problem)
+        assert problem is not None
+        self.assertEqual(problem["provider"], "openrouter")
+        self.assertIn("OPENROUTER_API_KEY", problem["detail"])
+
+    def test_opencode_auth_problem_accepts_env_or_auth_list_credentials(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        self.assertIsNone(
+            _opencode_auth_problem_from_listing(config, "openrouter", "0 credentials\n", {"OPENROUTER_API_KEY": "x"})
+        )
+        self.assertIsNone(
+            _opencode_auth_problem_from_listing(config, "openrouter", "OpenRouter api\n1 credential\n", {})
+        )
+
     def test_agent_model_not_found_is_detected_from_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -559,6 +596,45 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(final.stop_reason, "agent_model_not_found")
         self.assertEqual(final.best_score, 0)
+
+    def test_auth_preflight_problem_stops_before_agent(self) -> None:
+        class AuthMissingRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _agent_auth_preflight_problem(self) -> dict | None:
+                return {
+                    "provider": "openrouter",
+                    "model": "openrouter/test-model",
+                    "env_var": "OPENROUTER_API_KEY",
+                    "detail": "OpenCode has no OpenRouter credential.",
+                }
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                raise AssertionError("agent should not run when auth preflight fails")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = AuthMissingRunner(config).run()
+
+        self.assertEqual(final.stop_reason, "agent_auth_missing")
+        self.assertEqual(final.total_rounds, 0)
+        self.assertIn("OpenRouter credential", final.stop_detail)
 
     def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
         class NoChangeRunner(Runner):

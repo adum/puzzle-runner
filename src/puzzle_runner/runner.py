@@ -203,9 +203,6 @@ class Runner:
             self._update_status(phase="building_checker")
             self._build_checker()
 
-        self._update_status(phase="starting_rounds")
-        guard = ForbiddenGuard(self.workspace, self.config.forbidden_paths)
-
         best_score = -1
         best_round: int | None = None
         stale_count = 0
@@ -217,7 +214,23 @@ class Runner:
 
         self._event("run_started", workspace=str(self.workspace), log_dir=str(self.log_dir))
 
-        for round_number in range(1, self.config.max_rounds + 1):
+        self._update_status(phase="starting_rounds")
+        auth_problem = self._agent_auth_preflight_problem()
+        if auth_problem is not None:
+            stop_reason = "agent_auth_missing"
+            round_range = range(1, 1)
+            self._update_status(
+                phase="stopping",
+                stop_reason=stop_reason,
+                agent_auth_problem=auth_problem,
+            )
+            self._event("agent_auth_missing", **auth_problem)
+        else:
+            round_range = range(1, self.config.max_rounds + 1)
+
+        guard = ForbiddenGuard(self.workspace, self.config.forbidden_paths)
+
+        for round_number in round_range:
             completed_rounds = round_number
             round_dir = self.log_dir / f"round-{round_number:03d}"
             round_dir.mkdir(parents=True, exist_ok=True)
@@ -391,7 +404,10 @@ class Runner:
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
         else:
-            completed_rounds = self.config.max_rounds
+            if stop_reason != "max_rounds":
+                completed_rounds = 0
+            else:
+                completed_rounds = self.config.max_rounds
 
         if best_score < 0:
             best_score = 0
@@ -607,6 +623,52 @@ exec python3 ./coil_solver.py
         )
         if result.returncode != 0 or result.timed_out:
             raise RunnerError(f"setup command failed: {' '.join(argv)}")
+
+    def _agent_auth_preflight_problem(self) -> dict | None:
+        provider = _opencode_required_auth_provider(self.config)
+        if provider is None:
+            return None
+
+        setup_dir = self.log_dir / "setup"
+        stdout_path = setup_dir / f"{provider}-auth-list.stdout.log"
+        stderr_path = setup_dir / f"{provider}-auth-list.stderr.log"
+        command = self._opencode_auth_list_command()
+        self._update_status(
+            phase=f"auth_check:{provider}",
+            current_command=command,
+            latest={
+                "auth_stdout": stdout_path,
+                "auth_stderr": stderr_path,
+            },
+        )
+        result = run_streamed(
+            command,
+            cwd=self.workspace,
+            stdin_text=None,
+            timeout_seconds=30,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            echo=False,
+        )
+        self._write_round_command(setup_dir, f"{provider}-auth-list.json", result)
+        listing = ""
+        for path in (stdout_path, stderr_path):
+            try:
+                listing += path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+
+        problem = _opencode_auth_problem_from_listing(self.config, provider, listing, os.environ)
+        if problem is not None:
+            problem["auth_check_returncode"] = result.returncode
+            problem["auth_check_stdout"] = stdout_path
+            problem["auth_check_stderr"] = stderr_path
+        return problem
+
+    def _opencode_auth_list_command(self) -> list[str]:
+        command = self._render_command(self.config.agent.command, self.log_dir)
+        executable = command[0] if command else "opencode"
+        return [executable, "auth", "list"]
 
     def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
         command = self._agent_command(round_dir)
@@ -1483,6 +1545,50 @@ def _is_opencode_backend(config: RunnerConfig) -> bool:
     return config.agent.backend == "opencode" or config.agent.backend.startswith("opencode-")
 
 
+def _opencode_required_auth_provider(config: RunnerConfig) -> str | None:
+    if not _is_opencode_backend(config):
+        return None
+    model = config.agent.model
+    if not model or "/" not in model:
+        return None
+    provider, _model = model.split("/", 1)
+    if provider == "openrouter":
+        return provider
+    return None
+
+
+def _opencode_auth_problem_from_listing(
+    config: RunnerConfig,
+    provider: str,
+    listing: str,
+    environ,
+) -> dict | None:
+    if provider != "openrouter":
+        return None
+
+    env_var = config.agent.api_key_env or "OPENROUTER_API_KEY"
+    if environ.get(env_var) or environ.get("OPENROUTER_API_KEY"):
+        return None
+
+    normalized = _strip_ansi(listing).lower()
+    if "openrouter" in normalized or "openrouter_api_key" in normalized:
+        return None
+
+    return {
+        "provider": "openrouter",
+        "model": config.agent.model,
+        "env_var": "OPENROUTER_API_KEY",
+        "detail": (
+            "OpenCode has no OpenRouter credential and OPENROUTER_API_KEY is not set. "
+            "Run `opencode auth login --provider openrouter` or set OPENROUTER_API_KEY."
+        ),
+    }
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;?]*[ -/]*[@-~]", "", text)
+
+
 def _command_has_option(command: list[str], option: str) -> bool:
     return any(part == option or part.startswith(f"{option}=") for part in command)
 
@@ -2014,6 +2120,13 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             f"Agent reported a model-not-found error{model_text}. "
             "Puzzle Runner stopped immediately without running evaluation."
         )
+    if stop_reason == "agent_auth_missing":
+        problem = status.get("agent_auth_problem")
+        if isinstance(problem, dict):
+            detail = problem.get("detail")
+            if isinstance(detail, str) and detail:
+                return detail
+        return "Agent provider credentials are missing."
     if stop_reason == "agent_max_steps":
         return (
             "OpenRouter agent reached "
@@ -2113,6 +2226,9 @@ def _status_markdown(status: dict) -> str:
     )
     if status.get("stop_detail"):
         lines.append(f"- Stop Detail: `{status.get('stop_detail')}`")
+    auth_problem = status.get("agent_auth_problem")
+    if isinstance(auth_problem, dict) and auth_problem.get("detail"):
+        lines.append(f"- Agent Auth Problem: `{auth_problem.get('detail')}`")
     guard_summary = _guard_findings_summary(status.get("guard_findings"))
     if guard_summary:
         lines.append(f"- Forbidden Changes: `{guard_summary}`")
