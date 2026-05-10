@@ -8,6 +8,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -170,6 +171,8 @@ class Runner:
         self._generated_full_eval_password: str | None = None
         self._run_started_monotonic: float | None = None
         self._default_solver_baseline: dict[str, str | None] | None = None
+        self._last_agent_output_status_monotonic = 0.0
+        self._status_lock = threading.Lock()
         self._status: dict = {}
 
     def run(self) -> FinalResult:
@@ -726,7 +729,8 @@ exec python3 ./coil_solver.py
                     echo=self.config.echo_agent_output,
                     idle_timeout_seconds=self.config.agent_idle_timeout_seconds,
                     stdout_completion_predicate=_agent_stdout_completion_predicate(self.config),
-                    stdout_line_callback=_agent_stdout_line_callback(self.config),
+                    stdout_line_callback=self._agent_stdout_line_callback(stdout_path, stderr_path),
+                    stderr_line_callback=self._agent_output_status_callback(stdout_path, stderr_path),
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             agent_returned_error = _agent_returned_error(self.config, stdout_path)
@@ -801,6 +805,38 @@ exec python3 ./coil_solver.py
             time.sleep(sleep_seconds)
             attempt += 1
             retry_delay *= 2
+
+    def _agent_stdout_line_callback(
+        self,
+        stdout_path: Path,
+        stderr_path: Path,
+    ) -> Callable[[str], None] | None:
+        progress_callback = _agent_stdout_line_callback(self.config)
+        output_callback = self._agent_output_status_callback(stdout_path, stderr_path)
+
+        def callback(line: str) -> None:
+            output_callback(line)
+            if progress_callback is not None:
+                progress_callback(line)
+
+        return callback
+
+    def _agent_output_status_callback(
+        self,
+        stdout_path: Path,
+        stderr_path: Path,
+    ) -> Callable[[str], None]:
+        def callback(_line: str) -> None:
+            now = time.monotonic()
+            if now - self._last_agent_output_status_monotonic < 1.0:
+                return
+            self._last_agent_output_status_monotonic = now
+            self._update_status(
+                agent_output_chars_live=_agent_output_file_size(stdout_path, stderr_path),
+                agent_last_output_at=_utc_now(),
+            )
+
+        return callback
 
     def _openrouter_status_callback(
         self,
@@ -1029,77 +1065,80 @@ Code lines added: {final.code_lines_added}
             handle.write(json.dumps(_jsonable(payload), sort_keys=True) + "\n")
 
     def _update_status(self, **updates) -> None:
-        now = _utc_now()
-        if not self._status:
-            self._status = {
-                "run_id": self.config.run_id,
-                "active": True,
-                "phase": "initializing",
-                "agent": self.config.agent.name,
-                "backend": self.config.agent.backend,
-                "agent_effort": self.config.agent.effort,
-                "agent_stream_format": _agent_stream_format(self.config),
-                "benchmark_repo_url": self.config.benchmark_repo_url,
-                "benchmark_ref": self.config.benchmark_ref,
-                "benchmark_path": self.config.benchmark_path,
-                "workspace": self.workspace,
-                "log_dir": self.log_dir,
-                "events_log": self.events_path,
-                "results_path": self.config.results_path,
-                "status_json": self.status_json_path,
-                "status_md": self.status_md_path,
-                "started_at": now,
-                "phase_started_at": now,
-                "current_round": 0,
-                "max_rounds": self.config.max_rounds,
-                "best_score": 0,
-                "best_round": None,
-                "last_score": None,
-                "score_history": [],
-                "last_improved": None,
-                "agent_attempt": None,
-                "agent_error_count": 0,
-                "last_agent_model_not_found": False,
-                "last_agent_model_not_found_model": None,
-                "openrouter_max_tokens_count": 0,
-                "last_openrouter_max_tokens_step": None,
-                "last_openrouter_max_tokens_max_tokens": None,
-                "last_openrouter_max_tokens_completion_tokens": None,
-                "last_openrouter_max_tokens_reasoning_tokens": None,
-                "agent_retry_count": 0,
-                "agent_retry_delay_seconds": None,
-                "agent_retry_remaining_seconds": None,
-                "stale_count": 0,
-                "stale_limit": self.config.stale_limit,
-                "stop_reason": None,
-                "latest": {},
-            }
+        with self._status_lock:
+            now = _utc_now()
+            if not self._status:
+                self._status = {
+                    "run_id": self.config.run_id,
+                    "active": True,
+                    "phase": "initializing",
+                    "agent": self.config.agent.name,
+                    "backend": self.config.agent.backend,
+                    "agent_effort": self.config.agent.effort,
+                    "agent_stream_format": _agent_stream_format(self.config),
+                    "benchmark_repo_url": self.config.benchmark_repo_url,
+                    "benchmark_ref": self.config.benchmark_ref,
+                    "benchmark_path": self.config.benchmark_path,
+                    "workspace": self.workspace,
+                    "log_dir": self.log_dir,
+                    "events_log": self.events_path,
+                    "results_path": self.config.results_path,
+                    "status_json": self.status_json_path,
+                    "status_md": self.status_md_path,
+                    "started_at": now,
+                    "phase_started_at": now,
+                    "current_round": 0,
+                    "max_rounds": self.config.max_rounds,
+                    "best_score": 0,
+                    "best_round": None,
+                    "last_score": None,
+                    "score_history": [],
+                    "last_improved": None,
+                    "agent_attempt": None,
+                    "agent_error_count": 0,
+                    "last_agent_model_not_found": False,
+                    "last_agent_model_not_found_model": None,
+                    "agent_output_chars_live": 0,
+                    "agent_last_output_at": None,
+                    "openrouter_max_tokens_count": 0,
+                    "last_openrouter_max_tokens_step": None,
+                    "last_openrouter_max_tokens_max_tokens": None,
+                    "last_openrouter_max_tokens_completion_tokens": None,
+                    "last_openrouter_max_tokens_reasoning_tokens": None,
+                    "agent_retry_count": 0,
+                    "agent_retry_delay_seconds": None,
+                    "agent_retry_remaining_seconds": None,
+                    "stale_count": 0,
+                    "stale_limit": self.config.stale_limit,
+                    "stop_reason": None,
+                    "latest": {},
+                }
 
-        if "phase" in updates and updates["phase"] != self._status.get("phase"):
-            updates.setdefault("phase_started_at", now)
-            if updates["phase"] == "agent_running":
-                updates.setdefault("agent_started_at", now)
-            elif updates["phase"] == "agent_finished":
-                updates.setdefault("last_agent_finished_at", now)
+            if "phase" in updates and updates["phase"] != self._status.get("phase"):
+                updates.setdefault("phase_started_at", now)
+                if updates["phase"] == "agent_running":
+                    updates.setdefault("agent_started_at", now)
+                elif updates["phase"] == "agent_finished":
+                    updates.setdefault("last_agent_finished_at", now)
 
-        for key, value in updates.items():
-            if key == "latest":
-                latest = dict(self._status.get("latest") or {})
-                latest.update(value)
-                self._status["latest"] = latest
-            else:
-                self._status[key] = value
+            for key, value in updates.items():
+                if key == "latest":
+                    latest = dict(self._status.get("latest") or {})
+                    latest.update(value)
+                    self._status["latest"] = latest
+                else:
+                    self._status[key] = value
 
-        stale_count = int(self._status.get("stale_count") or 0)
-        remaining = max(self.config.stale_limit - stale_count, 0)
-        self._status["remaining_no_progress_tries"] = remaining
-        self._status["updated_at"] = now
-        if self._run_started_monotonic is not None:
-            self._status["elapsed_seconds"] = round(time.monotonic() - self._run_started_monotonic, 2)
+            stale_count = int(self._status.get("stale_count") or 0)
+            remaining = max(self.config.stale_limit - stale_count, 0)
+            self._status["remaining_no_progress_tries"] = remaining
+            self._status["updated_at"] = now
+            if self._run_started_monotonic is not None:
+                self._status["elapsed_seconds"] = round(time.monotonic() - self._run_started_monotonic, 2)
 
-        payload = _jsonable(self._status)
-        self._write_json_atomic(self.status_json_path, payload)
-        self._write_text_atomic(self.status_md_path, _status_markdown(payload))
+            payload = _jsonable(self._status)
+            self._write_json_atomic(self.status_json_path, payload)
+            self._write_text_atomic(self.status_md_path, _status_markdown(payload))
 
     def _write_json_atomic(self, path: Path, data) -> None:
         self._write_text_atomic(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
@@ -1123,6 +1162,16 @@ def _jsonable(value):
 
 def _guard_findings_payload(findings: list[GuardFinding]) -> list[dict]:
     return [_jsonable(dataclasses.asdict(finding)) for finding in findings]
+
+
+def _agent_output_file_size(stdout_path: Path, stderr_path: Path) -> int:
+    total = 0
+    for path in (stdout_path, stderr_path):
+        try:
+            total += path.stat().st_size
+        except OSError:
+            continue
+    return total
 
 
 def _is_git_workspace(workspace: Path) -> bool:

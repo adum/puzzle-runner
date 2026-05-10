@@ -112,6 +112,45 @@ class WatchTests(unittest.TestCase):
         self.assertIn("/min", rendered)
         self.assertIn("Last output", rendered)
 
+    def test_render_status_uses_live_agent_output_status_when_newer(self) -> None:
+        agent_started_at = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat(
+            timespec="seconds"
+        ).replace("+00:00", "Z")
+        agent_last_output_at = (datetime.now(timezone.utc) - timedelta(seconds=3)).isoformat(
+            timespec="seconds"
+        ).replace("+00:00", "Z")
+        status = {
+            "active": True,
+            "phase": "agent_running",
+            "agent_started_at": agent_started_at,
+            "agent_output_chars_live": 22749,
+            "agent_last_output_at": agent_last_output_at,
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Agent output", rendered)
+        self.assertIn("22,749 chars", rendered)
+        self.assertIn("Last output", rendered)
+
+    def test_render_status_active_elapsed_uses_started_at(self) -> None:
+        started_at = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat(
+            timespec="seconds"
+        ).replace("+00:00", "Z")
+        status = {
+            "active": True,
+            "phase": "agent_running",
+            "started_at": started_at,
+            "elapsed_seconds": 1,
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Elapsed", rendered)
+        self.assertIn("2m", rendered)
+
     def test_render_status_includes_last_tested_puzzle_from_agent_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stderr = Path(temp_dir) / "agent.stderr.log"

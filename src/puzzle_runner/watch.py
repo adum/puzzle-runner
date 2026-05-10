@@ -284,7 +284,7 @@ def render_status(
         _kv("Phase", phase, color, width),
         _kv("Round", f"{current_round}/{max_rounds}", color, width),
         _kv("Updated", status.get("updated_at"), color, width),
-        _kv("Elapsed", _duration(status.get("elapsed_seconds")), color, width),
+        _kv("Elapsed", _elapsed(status), color, width),
         _kv("Phase time", phase_elapsed, color, width),
     ]
     if status.get("agent_effort") is not None:
@@ -429,6 +429,15 @@ def _duration(value) -> str:
     return f"{hours}h {minutes}m"
 
 
+def _elapsed(status: dict[str, Any]) -> str:
+    if status.get("active") is True:
+        started = _parse_timestamp(status.get("started_at"))
+        if started is not None:
+            elapsed = max((datetime.now(timezone.utc) - started).total_seconds(), 0)
+            return _duration(elapsed)
+    return _duration(status.get("elapsed_seconds"))
+
+
 def _duration_since(value) -> str:
     instant = _parse_timestamp(value)
     if instant is None:
@@ -451,7 +460,7 @@ def _agent_output_stats(
 ) -> AgentOutputStats | None:
     paths = [latest.get("agent_stdout"), latest.get("agent_stderr")]
     if not any(paths):
-        return None
+        return _live_agent_output_stats(status, phase)
 
     total = 0
     last_output_at: datetime | None = None
@@ -470,13 +479,37 @@ def _agent_output_stats(
         except OSError:
             continue
     if not saw_file:
-        return None
+        return _live_agent_output_stats(status, phase)
+
+    live_chars = _int(status.get("agent_output_chars_live"))
+    if live_chars > total:
+        total = live_chars
+    live_output_at = _parse_timestamp(status.get("agent_last_output_at"))
+    if live_output_at is not None and (
+        last_output_at is None or live_output_at > last_output_at
+    ):
+        last_output_at = live_output_at
 
     elapsed = _agent_output_elapsed_seconds(status, phase)
     chars_per_minute = None
     if elapsed is not None and elapsed > 0:
         chars_per_minute = total / elapsed * 60
     return AgentOutputStats(total, last_output_at, chars_per_minute)
+
+
+def _live_agent_output_stats(
+    status: dict[str, Any],
+    phase: str,
+) -> AgentOutputStats | None:
+    live_chars = _int(status.get("agent_output_chars_live"))
+    live_output_at = _parse_timestamp(status.get("agent_last_output_at"))
+    if live_chars <= 0 and live_output_at is None:
+        return None
+    elapsed = _agent_output_elapsed_seconds(status, phase)
+    chars_per_minute = None
+    if elapsed is not None and elapsed > 0:
+        chars_per_minute = live_chars / elapsed * 60
+    return AgentOutputStats(live_chars, live_output_at, chars_per_minute)
 
 
 def _agent_output_elapsed_seconds(status: dict[str, Any], phase: str) -> float | None:
