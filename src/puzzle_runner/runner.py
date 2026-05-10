@@ -34,6 +34,12 @@ MODEL_NOT_FOUND_ERROR_RE = re.compile(
     r"\bmodel\s+not\s+found\b|(?:Provider)?ModelNotFoundError|\bmodel_not_found\b",
     re.IGNORECASE,
 )
+MODEL_NOT_FOUND_MESSAGE_RE = re.compile(
+    r"\bmodel\s+not\s+found\s*:\s*([^\s\"']+)",
+    re.IGNORECASE,
+)
+PROVIDER_MODEL_ID_RE = re.compile(r'\bmodelID:\s*"([^"]+)"')
+PROVIDER_ID_RE = re.compile(r'\bproviderID:\s*"([^"]+)"')
 RESULTS_SUMMARY_HEADER = (
     "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
     "Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | "
@@ -662,7 +668,8 @@ exec python3 ./coil_solver.py
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
             agent_returned_error = _agent_returned_error(self.config, stdout_path)
-            agent_model_not_found = _agent_model_not_found_error(stdout_path, stderr_path)
+            agent_model_not_found_model = _agent_model_not_found_detail(stdout_path, stderr_path)
+            agent_model_not_found = agent_model_not_found_model is not None
             if agent_returned_error:
                 agent_error_count = int(self._status.get("agent_error_count") or 0) + 1
                 self._event(
@@ -677,12 +684,14 @@ exec python3 ./coil_solver.py
                 agent_error_count=agent_error_count,
                 last_agent_returned_error=agent_returned_error,
                 last_agent_model_not_found=agent_model_not_found,
+                last_agent_model_not_found_model=agent_model_not_found_model,
             )
             if agent_model_not_found:
                 self._event(
                     "agent_model_not_found",
                     round=round_number,
                     attempt=attempt,
+                    model=agent_model_not_found_model,
                 )
             self._event(
                 "agent_attempt_finished",
@@ -989,6 +998,7 @@ Code lines added: {final.code_lines_added}
                 "agent_attempt": None,
                 "agent_error_count": 0,
                 "last_agent_model_not_found": False,
+                "last_agent_model_not_found_model": None,
                 "openrouter_max_tokens_count": 0,
                 "last_openrouter_max_tokens_step": None,
                 "last_openrouter_max_tokens_max_tokens": None,
@@ -1211,11 +1221,72 @@ def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
 
 
 def _agent_model_not_found_error(stdout_path: Path, stderr_path: Path) -> bool:
-    return any(
-        MODEL_NOT_FOUND_ERROR_RE.search(text)
-        for text in (_tail_file_text(stdout_path), _tail_file_text(stderr_path))
-        if text
-    )
+    return _agent_model_not_found_detail(stdout_path, stderr_path) is not None
+
+
+def _agent_model_not_found_detail(stdout_path: Path, stderr_path: Path) -> str | None:
+    saw_model_not_found = False
+    for text in (_tail_file_text(stdout_path), _tail_file_text(stderr_path)):
+        if not text:
+            continue
+        detail = _model_not_found_detail_from_text(text)
+        if detail:
+            return detail
+        if MODEL_NOT_FOUND_ERROR_RE.search(text):
+            saw_model_not_found = True
+    return "unknown" if saw_model_not_found else None
+
+
+def _model_not_found_detail_from_text(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        detail = _model_not_found_detail_from_json_line(stripped)
+        if detail:
+            return detail
+
+    message_match = MODEL_NOT_FOUND_MESSAGE_RE.search(text)
+    if message_match:
+        return _clean_model_not_found_model(message_match.group(1))
+
+    model_match = PROVIDER_MODEL_ID_RE.search(text)
+    if not model_match:
+        return None
+
+    model = model_match.group(1)
+    provider_match = PROVIDER_ID_RE.search(text)
+    if provider_match:
+        provider = provider_match.group(1)
+        if provider and not model.startswith(f"{provider}/"):
+            return f"{provider}/{model}"
+    return model
+
+
+def _model_not_found_detail_from_json_line(line: str) -> str | None:
+    if not line.startswith("{"):
+        return None
+    try:
+        payload = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    message = _opencode_error_message(payload)
+    if not message:
+        return None
+    message_match = MODEL_NOT_FOUND_MESSAGE_RE.search(message)
+    if message_match:
+        return _clean_model_not_found_model(message_match.group(1))
+    if MODEL_NOT_FOUND_ERROR_RE.search(message):
+        return "unknown"
+    return None
+
+
+def _clean_model_not_found_model(value: str) -> str:
+    return value.strip().strip("`'\"").rstrip(".,;:")
 
 
 def _tail_file_text(path: Path, max_bytes: int = MAX_AGENT_ERROR_SCAN_BYTES) -> str:
@@ -1355,6 +1426,11 @@ def _opencode_error_message(event: dict) -> str:
     if isinstance(error, str):
         return error
     if isinstance(error, dict):
+        data = error.get("data")
+        if isinstance(data, dict):
+            value = data.get("message")
+            if isinstance(value, str) and value:
+                return value
         for key in ("message", "name", "type"):
             value = error.get(key)
             if isinstance(value, str) and value:
@@ -1932,9 +2008,11 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             f"{config.agent_failure_retry_limit_seconds}s."
         )
     if stop_reason == "agent_model_not_found":
+        model = status.get("last_agent_model_not_found_model") or config.agent.model
+        model_text = f" for {model}" if isinstance(model, str) and model else ""
         return (
-            "Agent reported a model-not-found error. Puzzle Runner stopped "
-            "immediately without running evaluation."
+            f"Agent reported a model-not-found error{model_text}. "
+            "Puzzle Runner stopped immediately without running evaluation."
         )
     if stop_reason == "agent_max_steps":
         return (
@@ -2020,6 +2098,7 @@ def _status_markdown(status: dict) -> str:
         f"- Last Improved: `{status.get('last_improved')}`",
         f"- Agent Errors: `{status.get('agent_error_count')}`",
         f"- Agent Model Not Found: `{status.get('last_agent_model_not_found')}`",
+        f"- Agent Model Not Found Model: `{status.get('last_agent_model_not_found_model')}`",
     ]
     if status.get("backend") == "openrouter":
         lines.append(

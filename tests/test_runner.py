@@ -17,6 +17,7 @@ from puzzle_runner.runner import (
     _claude_stdout_has_error_result,
     _ensure_results_summary_header,
     _agent_model_not_found_error,
+    _agent_model_not_found_detail,
     _is_terminal_claude_result_line,
     _migrate_results_summary_effort_column,
     _opencode_stdout_has_error_result,
@@ -50,9 +51,14 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("agent_idle_timeout_seconds=1800s", detail)
 
     def test_explain_agent_model_not_found_says_evaluation_was_skipped(self) -> None:
-        detail = explain_stop_reason("agent_model_not_found", self.config, {})
+        detail = explain_stop_reason(
+            "agent_model_not_found",
+            self.config,
+            {"last_agent_model_not_found_model": "openrouter/moonshotai/kimi-k2.6"},
+        )
 
         self.assertIn("model-not-found", detail)
+        self.assertIn("openrouter/moonshotai/kimi-k2.6", detail)
         self.assertIn("without running evaluation", detail)
 
     def test_explain_stale_limit_names_parameter(self) -> None:
@@ -457,6 +463,14 @@ class RunnerTests(unittest.TestCase):
             ),
             "OpenCode step finished: tool-calls, tokens 1,234, reasoning 56, cost $0.0123",
         )
+        self.assertEqual(
+            _opencode_progress_line(
+                '{"type":"error","error":{"name":"UnknownError","data":{'
+                '"message":"Model not found: openrouter/moonshotai/kimi-k2.6."}}}\n',
+                state,
+            ),
+            "OpenCode error: Model not found: openrouter/moonshotai/kimi-k2.6.",
+        )
 
     def test_agent_model_not_found_is_detected_from_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -470,6 +484,28 @@ class RunnerTests(unittest.TestCase):
             stderr.write_text("ProviderModelNotFoundError\n", encoding="utf-8")
 
             self.assertTrue(_agent_model_not_found_error(stdout, stderr))
+            self.assertEqual(_agent_model_not_found_detail(stdout, stderr), "x-ai/grok-4.3")
+
+    def test_agent_model_not_found_model_is_detected_from_provider_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text("", encoding="utf-8")
+            stderr.write_text(
+                'ProviderModelNotFoundError\n'
+                ' data: {\n'
+                '  providerID: "openrouter",\n'
+                '  modelID: "moonshotai/kimi-k2.6",\n'
+                '  suggestions: [],\n'
+                '}\n',
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                _agent_model_not_found_detail(stdout, stderr),
+                "openrouter/moonshotai/kimi-k2.6",
+            )
 
     def test_model_not_found_stops_before_evaluation(self) -> None:
         class ModelNotFoundRunner(Runner):
