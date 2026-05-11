@@ -23,6 +23,7 @@ from puzzle_runner.runner import (
     _opencode_stdout_has_error_result,
     _opencode_progress_line,
     _opencode_auth_problem_from_listing,
+    _openrouter_usage_for_result,
     _results_summary_row,
     count_agent_output_chars,
     count_code_lines_added,
@@ -312,6 +313,29 @@ class RunnerTests(unittest.TestCase):
         row = _results_summary_row(final, config)
 
         self.assertIn("| 4 | $0.012346 | 1234 |", row)
+
+    def test_opencode_openrouter_usage_is_included_for_results(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir)
+            round_dir = log_dir / "round-001"
+            round_dir.mkdir()
+            (round_dir / "agent.stdout.log").write_text(
+                '{"type":"step_finish","part":{"reason":"stop","cost":0.25,'
+                '"tokens":{"total":123,"input":100,"output":7,"reasoning":3,'
+                '"cache":{"read":13,"write":0}}}}\n',
+                encoding="utf-8",
+            )
+            config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+            config = load_config(str(config_path), run_id="test-run")
+
+            usage = _openrouter_usage_for_result(config, log_dir)
+
+        self.assertIsNotNone(usage)
+        assert usage is not None
+        self.assertEqual(usage["calls"], 1)
+        self.assertEqual(usage["total_tokens"], 123)
+        self.assertEqual(usage["native_reasoning_tokens"], 3)
+        self.assertAlmostEqual(usage["cost_usd"], 0.25)
 
     def test_results_summary_migration_preserves_trailing_newline(self) -> None:
         old_table = (

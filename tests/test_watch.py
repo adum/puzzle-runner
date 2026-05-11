@@ -307,6 +307,28 @@ class WatchTests(unittest.TestCase):
         self.assertIn("reason 7", rendered)
         self.assertIn("Infermatic", rendered)
 
+    def test_render_status_summarizes_final_opencode_openrouter_usage(self) -> None:
+        status = {
+            "backend": "opencode",
+            "openrouter_usage": {
+                "calls": 2,
+                "cost_usd": 0.25,
+                "prompt_tokens": 10,
+                "completion_tokens": 3,
+                "total_tokens": 18,
+            },
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("OpenRouter usage", rendered)
+        self.assertIn("2 calls", rendered)
+        self.assertIn("$0.250000", rendered)
+        self.assertIn("in 10", rendered)
+        self.assertIn("out 3", rendered)
+        self.assertIn("total 18", rendered)
+
     def test_render_status_includes_evaluation_level_progress(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "evaluation.stdout.log"

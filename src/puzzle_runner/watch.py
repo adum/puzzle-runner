@@ -1195,18 +1195,15 @@ def _openrouter_usage_summary(
     status: dict[str, Any],
     latest: dict[str, Any],
 ) -> OpenRouterUsageSummary | None:
-    if status.get("backend") != "openrouter":
-        return None
-
-    log_dir_value = status.get("log_dir")
-    if log_dir_value:
-        summary = summarize_openrouter_usage(Path(str(log_dir_value)))
-        if summary.calls:
-            return summary
-
     status_usage = status.get("openrouter_usage")
     if isinstance(status_usage, dict):
         summary = openrouter_usage_from_dict(status_usage)
+        if summary.calls:
+            return summary
+
+    log_dir_value = status.get("log_dir")
+    if status.get("backend") == "openrouter" and log_dir_value:
+        summary = summarize_openrouter_usage(Path(str(log_dir_value)))
         if summary.calls:
             return summary
 
@@ -1226,6 +1223,8 @@ def _openrouter_usage_text(summary: OpenRouterUsageSummary) -> str:
     if summary.prompt_tokens or summary.completion_tokens:
         parts.append(f"in {summary.prompt_tokens:,}")
         parts.append(f"out {summary.completion_tokens:,}")
+        if summary.total_tokens and summary.total_tokens != summary.prompt_tokens + summary.completion_tokens:
+            parts.append(f"total {summary.total_tokens:,}")
     elif summary.total_tokens:
         parts.append(f"tokens {summary.total_tokens:,}")
     if summary.native_reasoning_tokens:

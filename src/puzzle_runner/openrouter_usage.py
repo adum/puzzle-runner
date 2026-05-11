@@ -77,6 +77,50 @@ def summarize_openrouter_usage(root: Path) -> OpenRouterUsageSummary:
     return summary
 
 
+def summarize_opencode_openrouter_usage(
+    root: Path,
+    *,
+    model: str | None = None,
+) -> OpenRouterUsageSummary:
+    summary = OpenRouterUsageSummary()
+    stdout_paths = _matching_paths(root, "agent.stdout.log")
+    stdout_paths.extend(_matching_paths(root, "agent.attempt-*.stdout.log"))
+
+    for stdout_path in sorted(set(stdout_paths)):
+        for event in _json_line_objects(stdout_path):
+            if event.get("type") != "step_finish":
+                continue
+
+            part = event.get("part")
+            if not isinstance(part, dict):
+                continue
+
+            tokens = part.get("tokens")
+            cost = _float(part.get("cost"))
+            if cost is None and not isinstance(tokens, dict):
+                continue
+
+            summary.calls += 1
+            if cost is not None:
+                summary.cost_usd += cost
+            if isinstance(tokens, dict):
+                _add_opencode_token_usage(summary, tokens)
+
+            reason = part.get("reason")
+            if isinstance(reason, str):
+                summary.last_finish_reason = reason
+
+    if summary.calls == 0:
+        summary.last_provider = None
+    else:
+        summary.last_provider = "OpenRouter via OpenCode"
+        summary.providers[summary.last_provider] = summary.calls
+        if model:
+            summary.models[model] = summary.calls
+            summary.last_model = model
+    return summary
+
+
 def load_openrouter_usage_summary(path: Path) -> OpenRouterUsageSummary | None:
     data = _read_json_object(path)
     if data is None:
@@ -159,6 +203,26 @@ def _read_json_object(path: Path) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _json_line_objects(path: Path) -> list[dict[str, Any]]:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+
+    events: list[dict[str, Any]] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            continue
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            events.append(parsed)
+    return events
+
+
 def _generation_data(path: Path) -> dict[str, Any] | None:
     parsed = _read_json_object(path)
     if parsed is None:
@@ -238,6 +302,31 @@ def _add_response_usage(summary: OpenRouterUsageSummary, response: dict[str, Any
     )
 
 
+def _add_opencode_token_usage(summary: OpenRouterUsageSummary, tokens: dict[str, Any]) -> None:
+    input_tokens = _non_negative_int(tokens.get("input"))
+    output_tokens = _non_negative_int(tokens.get("output"))
+    total_tokens = _non_negative_int(tokens.get("total"))
+    reasoning_tokens = _non_negative_int(tokens.get("reasoning"))
+
+    cache_tokens = 0
+    cache = tokens.get("cache")
+    if isinstance(cache, dict):
+        cache_tokens += _non_negative_int(cache.get("read")) or 0
+        cache_tokens += _non_negative_int(cache.get("write")) or 0
+
+    summary.prompt_tokens += input_tokens or 0
+    summary.completion_tokens += output_tokens or 0
+    if total_tokens is not None:
+        summary.total_tokens += total_tokens
+    else:
+        summary.total_tokens += (input_tokens or 0) + (output_tokens or 0) + (reasoning_tokens or 0) + cache_tokens
+
+    summary.native_prompt_tokens += input_tokens or 0
+    summary.native_completion_tokens += output_tokens or 0
+    summary.native_reasoning_tokens += reasoning_tokens or 0
+    summary.native_cached_tokens += cache_tokens
+
+
 def _add_generation_metadata(
     summary: OpenRouterUsageSummary,
     data: dict[str, Any],
@@ -308,6 +397,13 @@ def _int(value) -> int | None:
     if isinstance(value, float) and value.is_integer():
         return int(value)
     return None
+
+
+def _non_negative_int(value) -> int | None:
+    parsed = _int(value)
+    if parsed is None or parsed < 0:
+        return None
+    return parsed
 
 
 def _float(value) -> float | None:

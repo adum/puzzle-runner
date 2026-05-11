@@ -22,7 +22,11 @@ from .openrouter_agent import (
     AGENT_MAX_STEPS_RETURN_CODE,
     run_openrouter_agent,
 )
-from .openrouter_usage import openrouter_usage_to_dict, summarize_openrouter_usage
+from .openrouter_usage import (
+    openrouter_usage_to_dict,
+    summarize_opencode_openrouter_usage,
+    summarize_openrouter_usage,
+)
 from .process import CommandResult, run_streamed
 from .prompts import ScoreFeedback, compose_prompt
 
@@ -2222,12 +2226,33 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
 
 
 def _openrouter_usage_for_result(config: RunnerConfig, log_dir: Path) -> dict | None:
-    if config.agent.backend != "openrouter":
+    if config.agent.backend == "openrouter":
+        summary = summarize_openrouter_usage(log_dir)
+    elif _agent_uses_opencode_openrouter(config):
+        summary = summarize_opencode_openrouter_usage(log_dir, model=config.agent.model)
+    else:
         return None
-    summary = summarize_openrouter_usage(log_dir)
+
     if summary.calls == 0:
         return None
     return openrouter_usage_to_dict(summary)
+
+
+def _agent_uses_opencode_openrouter(config: RunnerConfig) -> bool:
+    backend = config.agent.backend
+    if backend != "opencode" and not backend.startswith("opencode-"):
+        return False
+
+    candidates = []
+    if config.agent.model:
+        candidates.append(config.agent.model)
+    candidates.extend(config.agent.command)
+    return any(
+        candidate.startswith("openrouter/")
+        or candidate.startswith("--model=openrouter/")
+        or candidate.startswith("-m=openrouter/")
+        for candidate in candidates
+    )
 
 
 def _openrouter_final_result_text(usage: dict) -> str:
