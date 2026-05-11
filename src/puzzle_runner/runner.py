@@ -195,6 +195,27 @@ class Runner:
             stale_count=0,
             stop_reason=None,
         )
+        self._event("run_started", workspace=str(self.workspace), log_dir=str(self.log_dir))
+
+        model_problem = self._opencode_model_preflight_problem()
+        if model_problem is not None:
+            stop_reason = "agent_model_not_found"
+            self._update_status(
+                phase="stopping",
+                stop_reason=stop_reason,
+                agent_model_preflight_problem=model_problem,
+                last_agent_model_not_found=True,
+                last_agent_model_not_found_model=model_problem.get("model"),
+            )
+            self._event("agent_model_not_found", **model_problem)
+            return self._finish_run(
+                started=started,
+                best_score=0,
+                best_round=None,
+                completed_rounds=0,
+                stop_reason=stop_reason,
+            )
+
         self._prepare_workspace()
         self._normalize_workspace_line_endings()
         if self.config.download_full_levels:
@@ -218,8 +239,6 @@ class Runner:
         score_history: list[int] = []
         stop_reason = "max_rounds"
         completed_rounds = 0
-
-        self._event("run_started", workspace=str(self.workspace), log_dir=str(self.log_dir))
 
         self._update_status(phase="starting_rounds")
         auth_problem = self._agent_auth_preflight_problem()
@@ -416,6 +435,23 @@ class Runner:
             else:
                 completed_rounds = self.config.max_rounds
 
+        return self._finish_run(
+            started=started,
+            best_score=best_score,
+            best_round=best_round,
+            completed_rounds=completed_rounds,
+            stop_reason=stop_reason,
+        )
+
+    def _finish_run(
+        self,
+        *,
+        started: float,
+        best_score: int,
+        best_round: int | None,
+        completed_rounds: int,
+        stop_reason: str,
+    ) -> FinalResult:
         if best_score < 0:
             best_score = 0
 
@@ -630,6 +666,68 @@ exec python3 ./coil_solver.py
         )
         if result.returncode != 0 or result.timed_out:
             raise RunnerError(f"setup command failed: {' '.join(argv)}")
+
+    def _opencode_model_preflight_problem(self) -> dict | None:
+        if not _is_opencode_backend(self.config):
+            return None
+
+        model = self.config.agent.model
+        if not model:
+            return None
+
+        provider = model.split("/", 1)[0] if "/" in model else None
+        setup_dir = self.log_dir / "setup"
+        suffix = _safe_log_name(provider or "all")
+        stdout_path = setup_dir / f"opencode-models-{suffix}.stdout.log"
+        stderr_path = setup_dir / f"opencode-models-{suffix}.stderr.log"
+        command = self._opencode_models_command(provider)
+        self._update_status(
+            phase=f"model_check:{provider or 'all'}",
+            current_command=command,
+            latest={
+                "model_check_stdout": stdout_path,
+                "model_check_stderr": stderr_path,
+            },
+        )
+        result = run_streamed(
+            command,
+            cwd=self.config.config_path.parent,
+            stdin_text=None,
+            timeout_seconds=self.config.agent.command_timeout_seconds,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            echo=False,
+        )
+        self._write_round_command(setup_dir, f"opencode-models-{suffix}.json", result)
+
+        listing = ""
+        for path in (stdout_path, stderr_path):
+            try:
+                listing += path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+
+        problem = _opencode_model_problem_from_listing(
+            self.config,
+            provider=provider,
+            listing=listing,
+            returncode=result.returncode,
+            timed_out=result.timed_out,
+        )
+        if problem is not None:
+            problem["model_check_returncode"] = result.returncode
+            problem["model_check_timed_out"] = result.timed_out
+            problem["model_check_stdout"] = stdout_path
+            problem["model_check_stderr"] = stderr_path
+            problem["model_check_command"] = command
+        return problem
+
+    def _opencode_models_command(self, provider: str | None) -> list[str]:
+        command = self._render_command(self.config.agent.command, self.log_dir)
+        executable = command[0] if command else "opencode"
+        if provider:
+            return [executable, "models", provider]
+        return [executable, "models"]
 
     def _agent_auth_preflight_problem(self) -> dict | None:
         provider = _opencode_required_auth_provider(self.config)
@@ -1759,6 +1857,49 @@ def _opencode_required_auth_provider(config: RunnerConfig) -> str | None:
     return None
 
 
+def _opencode_model_problem_from_listing(
+    config: RunnerConfig,
+    *,
+    provider: str | None,
+    listing: str,
+    returncode: int,
+    timed_out: bool,
+) -> dict | None:
+    model = config.agent.model
+    if not model:
+        return None
+
+    command_text = f"opencode models {provider}" if provider else "opencode models"
+    if timed_out:
+        detail = (
+            f"OpenCode model preflight timed out while running `{command_text}`. "
+            "Puzzle Runner stopped before benchmark download/setup."
+        )
+    elif returncode != 0:
+        detail = (
+            f"OpenCode model preflight failed while running `{command_text}` "
+            f"(exit {returncode}). Puzzle Runner stopped before benchmark download/setup."
+        )
+    else:
+        normalized_lines = {
+            line.strip()
+            for line in _strip_ansi(listing).splitlines()
+            if line.strip()
+        }
+        if model in normalized_lines:
+            return None
+        detail = (
+            f"OpenCode models did not list configured model `{model}` from `{command_text}`. "
+            "Puzzle Runner stopped before benchmark download/setup."
+        )
+
+    return {
+        "provider": provider,
+        "model": model,
+        "detail": detail,
+    }
+
+
 def _opencode_auth_problem_from_listing(
     config: RunnerConfig,
     provider: str,
@@ -1785,6 +1926,12 @@ def _opencode_auth_problem_from_listing(
             "Run `opencode auth login --provider openrouter` or set OPENROUTER_API_KEY."
         ),
     }
+
+
+def _safe_log_name(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
+    cleaned = re.sub(r"-{2,}", "-", cleaned)
+    return cleaned.strip("-_.") or "value"
 
 
 def _strip_ansi(text: str) -> str:
@@ -2337,6 +2484,11 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             f"{config.agent_failure_retry_limit_seconds}s."
         )
     if stop_reason == "agent_model_not_found":
+        problem = status.get("agent_model_preflight_problem")
+        if isinstance(problem, dict):
+            detail = problem.get("detail")
+            if isinstance(detail, str) and detail:
+                return detail
         model = status.get("last_agent_model_not_found_model") or config.agent.model
         model_text = f" for {model}" if isinstance(model, str) and model else ""
         return (

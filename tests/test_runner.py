@@ -23,6 +23,7 @@ from puzzle_runner.runner import (
     _opencode_stdout_has_error_result,
     _opencode_progress_line,
     _opencode_auth_problem_from_listing,
+    _opencode_model_problem_from_listing,
     _openrouter_usage_for_result,
     _results_summary_row,
     count_agent_output_chars,
@@ -575,6 +576,38 @@ class RunnerTests(unittest.TestCase):
             _opencode_auth_problem_from_listing(config, "openrouter", "OpenRouter api\n1 credential\n", {})
         )
 
+    def test_opencode_model_preflight_accepts_listed_model(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        problem = _opencode_model_problem_from_listing(
+            config,
+            provider="openrouter",
+            listing="openrouter/google/gemini-3-flash-preview\nopenrouter/x-ai/grok-4.3\n",
+            returncode=0,
+            timed_out=False,
+        )
+
+        self.assertIsNone(problem)
+
+    def test_opencode_model_preflight_reports_missing_model(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        problem = _opencode_model_problem_from_listing(
+            config,
+            provider="openrouter",
+            listing="openrouter/x-ai/grok-4.3\n",
+            returncode=0,
+            timed_out=False,
+        )
+
+        self.assertIsNotNone(problem)
+        assert problem is not None
+        self.assertEqual(problem["model"], "openrouter/google/gemini-3-flash-preview")
+        self.assertIn("did not list configured model", problem["detail"])
+        self.assertIn("before benchmark download/setup", problem["detail"])
+
     def test_agent_model_not_found_is_detected_from_logs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -701,6 +734,42 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(final.stop_reason, "agent_auth_missing")
         self.assertEqual(final.total_rounds, 0)
         self.assertIn("OpenRouter credential", final.stop_detail)
+
+    def test_opencode_model_preflight_stops_before_workspace_setup(self) -> None:
+        class MissingModelRunner(Runner):
+            def _opencode_model_preflight_problem(self) -> dict | None:
+                return {
+                    "provider": "openrouter",
+                    "model": "openrouter/test-missing",
+                    "detail": "OpenCode models did not list configured model `openrouter/test-missing`.",
+                }
+
+            def _prepare_workspace(self) -> None:
+                raise AssertionError("workspace should not be prepared when model preflight fails")
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                raise AssertionError("agent should not run when model preflight fails")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+            opencode_config = load_config(str(config_path), run_id="test-run")
+            config = dataclasses.replace(
+                opencode_config,
+                download_full_levels=False,
+                build_checker=False,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = MissingModelRunner(config).run()
+
+        self.assertEqual(final.stop_reason, "agent_model_not_found")
+        self.assertEqual(final.total_rounds, 0)
+        self.assertEqual(final.best_score, 0)
+        self.assertIn("did not list configured model", final.stop_detail)
+        self.assertFalse(final.workspace.exists())
 
     def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
         class NoChangeRunner(Runner):
