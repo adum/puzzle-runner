@@ -2,7 +2,6 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
 | 20260501-122827-codex-5-5 | codex-5.5 | xhigh | 192 | 2 | 5 | stale_limit | 600s | 9h 10m | 8015306 | 1088 |  |  |  |
-| 20260501-163725-claude-code-sonnet | claude-code-sonnet | xhigh | 0 |  | 1 | agent_idle_timeout | 600s | 4h 54m | 12715 | 529 |  |  |  |
 | 20260502-094850-claude-code-sonnet | claude-code-sonnet | low | 63 | 1 | 2 | forbidden_edit_detected | 600s | 5h 4m | 66803 | 423 |  |  |  |
 | 20260502-153410-claude-code-sonnet | claude-code-sonnet | medium | 155 | 3 | 6 | stale_limit | 600s | 31h 13m | 78774 | 1606 |  |  |  |
 | 20260504-090806-claude-code-opus | claude-code-opus | max | 195 | 1 | 4 | stale_limit | 600s | 10h 58m | 14476 | 601 |  |  |  |
