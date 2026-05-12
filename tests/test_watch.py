@@ -249,8 +249,12 @@ class WatchTests(unittest.TestCase):
                 '{"type":"tool_use","timestamp":3,"sessionID":"ses_1",'
                 '"part":{"tool":"bash","state":{"status":"completed"}}}\n'
                 '{"type":"step_finish","timestamp":4,"sessionID":"ses_1",'
-                '"part":{"type":"step-finish","reason":"stop","cost":0.0123,'
+                '"part":{"type":"step-finish","reason":"tool-calls","cost":0.0123,'
                 '"tokens":{"input":100,"output":25,"reasoning":5,"total":130,'
+                '"cache":{"read":7,"write":3}}}}\n'
+                '{"type":"step_finish","timestamp":5,"sessionID":"ses_1",'
+                '"part":{"type":"step-finish","reason":"stop","cost":0.0027,'
+                '"tokens":{"input":5,"output":1,"reasoning":2,"total":8,'
                 '"cache":{"read":7,"write":3}}}}\n',
                 encoding="utf-8",
             )
@@ -265,11 +269,11 @@ class WatchTests(unittest.TestCase):
             rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
 
         self.assertIn("OpenCode stream", rendered)
-        self.assertIn("4 recent events", rendered)
+        self.assertIn("5 recent events", rendered)
         self.assertIn("latest step finish stop", rendered)
         self.assertIn("OpenCode text", rendered)
         self.assertIn("OpenCode usage", rendered)
-        self.assertIn("in 100, out 25, reason 5, total 130, cache read 7, cache write 3, cost $0.0123", rendered)
+        self.assertIn("in 105, out 26, reason 7, total 138, cache read 14, cache write 6, cost $0.0150", rendered)
         self.assertIn("Last tested", rendered)
         self.assertIn("Level 79 (30x28): FAIL (No solution found) (58.03s)", rendered)
 

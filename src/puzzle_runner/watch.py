@@ -313,7 +313,7 @@ def render_status(
         lines.append(_kv("Last output", _last_output_age(agent_output), color, width))
     agent_stream_format = _agent_stream_format(status)
     if agent_stream_format is not None:
-        stream_summary = _agent_stream_summary(latest, agent_stream_format)
+        stream_summary = _agent_stream_summary(latest, status, agent_stream_format)
         if stream_summary is not None:
             stream_label = _agent_stream_label(agent_stream_format)
             lines.append(_kv(f"{stream_label} stream", _claude_stream_overview(stream_summary), color, width))
@@ -673,6 +673,7 @@ def _command_uses_opencode_json(command: list[str]) -> bool:
 
 def _agent_stream_summary(
     latest: dict[str, Any],
+    status: dict[str, Any],
     agent_stream_format: str,
 ) -> ClaudeStreamSummary | None:
     if agent_stream_format == "claude-stream-json":
@@ -680,7 +681,7 @@ def _agent_stream_summary(
     if agent_stream_format == "gemini-stream-json":
         return _gemini_stream_summary(latest)
     if agent_stream_format == "opencode-json":
-        return _opencode_stream_summary(latest)
+        return _opencode_stream_summary(latest, status)
     return None
 
 
@@ -822,7 +823,10 @@ def _gemini_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None
     )
 
 
-def _opencode_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | None:
+def _opencode_stream_summary(
+    latest: dict[str, Any],
+    status: dict[str, Any],
+) -> ClaudeStreamSummary | None:
     path_value = latest.get("agent_stdout")
     if not path_value:
         return None
@@ -862,6 +866,12 @@ def _opencode_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | No
     if events == 0:
         return None
 
+    cumulative_usage, cumulative_cost = _opencode_cumulative_usage(status, latest)
+    if cumulative_usage:
+        usage = cumulative_usage
+    if cumulative_cost is not None:
+        cost_usd = cumulative_cost
+
     combined_text = "".join(text_parts)
     return ClaudeStreamSummary(
         events=events,
@@ -873,6 +883,98 @@ def _opencode_stream_summary(latest: dict[str, Any]) -> ClaudeStreamSummary | No
         result=result,
         is_error=is_error,
     )
+
+
+def _opencode_cumulative_usage(
+    status: dict[str, Any],
+    latest: dict[str, Any],
+) -> tuple[dict[str, Any] | None, float | None]:
+    totals = {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "total": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+    }
+    cost = 0.0
+    saw_usage = False
+    saw_cost = False
+
+    for path in _opencode_stdout_paths(status, latest):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for event in _claude_stream_events(text):
+            if event.get("type") != "step_finish":
+                continue
+            part = event.get("part")
+            if not isinstance(part, dict):
+                continue
+
+            event_cost = part.get("cost")
+            if isinstance(event_cost, (int, float)):
+                cost += float(event_cost)
+                saw_cost = True
+
+            tokens = part.get("tokens")
+            if not isinstance(tokens, dict):
+                continue
+            saw_usage = _add_opencode_usage_totals(totals, tokens) or saw_usage
+
+    if not saw_usage and not saw_cost:
+        return None, None
+
+    usage = None
+    if saw_usage:
+        usage = {
+            "input": totals["input"],
+            "output": totals["output"],
+            "reasoning": totals["reasoning"],
+            "total": totals["total"],
+            "cache": {
+                "read": totals["cache_read"],
+                "write": totals["cache_write"],
+            },
+        }
+    return usage, cost if saw_cost else None
+
+
+def _opencode_stdout_paths(status: dict[str, Any], latest: dict[str, Any]) -> list[Path]:
+    paths: list[Path] = []
+    log_dir_value = status.get("log_dir")
+    if log_dir_value:
+        log_dir = Path(str(log_dir_value))
+        paths.extend(log_dir.glob("round-*/agent.stdout.log"))
+        paths.extend(log_dir.glob("round-*/agent.attempt-*.stdout.log"))
+
+    latest_stdout = latest.get("agent_stdout")
+    if latest_stdout:
+        paths.append(Path(str(latest_stdout)))
+
+    unique: dict[str, Path] = {}
+    for path in paths:
+        unique[str(path)] = path
+    return sorted(unique.values())
+
+
+def _add_opencode_usage_totals(totals: dict[str, int], tokens: dict[str, Any]) -> bool:
+    saw_usage = False
+    for key in ("input", "output", "reasoning", "total"):
+        value = tokens.get(key)
+        if isinstance(value, int) and value >= 0:
+            totals[key] += value
+            saw_usage = True
+
+    cache = tokens.get("cache")
+    if isinstance(cache, dict):
+        for key, total_key in (("read", "cache_read"), ("write", "cache_write")):
+            value = cache.get(key)
+            if isinstance(value, int) and value >= 0:
+                totals[total_key] += value
+                saw_usage = True
+    return saw_usage
 
 
 def _claude_stream_events(text: str) -> list[dict[str, Any]]:

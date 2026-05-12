@@ -491,7 +491,8 @@ class Runner:
             final_result=self.log_dir / "final_result.md",
         )
         self._write_final_result(final)
-        self._append_results_summary(final)
+        if _should_append_results_summary(final):
+            self._append_results_summary(final)
         self._event("run_finished", **_jsonable(dataclasses.asdict(final)))
         return final
 
@@ -2370,6 +2371,10 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
         _openrouter_int_cell(usage, "total_tokens"),
     ]
     return "| " + " | ".join(_escape_table_cell(value) for value in row) + " |\n"
+
+
+def _should_append_results_summary(final: FinalResult) -> bool:
+    return final.stop_reason != "agent_model_not_found"
 
 
 def _openrouter_usage_for_result(config: RunnerConfig, log_dir: Path) -> dict | None:

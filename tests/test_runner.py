@@ -692,9 +692,12 @@ class RunnerTests(unittest.TestCase):
                 results_path=root / "final_results.md",
             )
             final = ModelNotFoundRunner(config).run()
+            final_result_exists = (final.log_dir / "final_result.md").exists()
 
-        self.assertEqual(final.stop_reason, "agent_model_not_found")
-        self.assertEqual(final.best_score, 0)
+            self.assertEqual(final.stop_reason, "agent_model_not_found")
+            self.assertEqual(final.best_score, 0)
+            self.assertFalse(config.results_path.exists())
+            self.assertTrue(final_result_exists)
 
     def test_auth_preflight_problem_stops_before_agent(self) -> None:
         class AuthMissingRunner(Runner):
@@ -765,11 +768,13 @@ class RunnerTests(unittest.TestCase):
             )
             final = MissingModelRunner(config).run()
 
-        self.assertEqual(final.stop_reason, "agent_model_not_found")
-        self.assertEqual(final.total_rounds, 0)
-        self.assertEqual(final.best_score, 0)
-        self.assertIn("did not list configured model", final.stop_detail)
-        self.assertFalse(final.workspace.exists())
+            self.assertEqual(final.stop_reason, "agent_model_not_found")
+            self.assertEqual(final.total_rounds, 0)
+            self.assertEqual(final.best_score, 0)
+            self.assertIn("did not list configured model", final.stop_detail)
+            self.assertFalse(final.workspace.exists())
+            self.assertFalse(config.results_path.exists())
+            self.assertTrue((final.log_dir / "final_result.md").exists())
 
     def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
         class NoChangeRunner(Runner):
