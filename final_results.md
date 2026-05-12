@@ -13,3 +13,4 @@
 | 20260509-182003-opencode-openrouter-moonshotai-kimi-k2-6 | opencode-openrouter-moonshotai-kimi-k2.6 | high | 152 | 4 | 6 | agent_idle_timeout | 600s | 31h 0m | 25409 | 4631 | | $57.52  |  |
 | 20260511-082448-opencode-openrouter-x-ai-grok-4-3 | opencode-openrouter-x-ai-grok-4.3 | high | 47 | 1 | 4 | stale_limit | 600s | 36m 23s | 72 | 25 | 42 | $0.399170 | 636025 |
 | 20260511-112204-opencode-openrouter-mistralai-mistral-medium-3-1 | opencode-openrouter-mistralai-mistral-medium-3.1 | high | 47 | 1 | 4 | stale_limit | 600s | 3h 43m | 189182 | 192 | 313 | $5.308033 | 16098390 |
+| 20260511-171126-opencode-openrouter-qwen-qwen3-6-plus | opencode-openrouter-qwen-qwen3.6-plus | high | 68 | 1 | 4 | stale_limit | 600s | 7h 11m | 19780 | 2959 | 336 | $11.398238 | 32433127 |
