@@ -14,3 +14,5 @@
 | 20260511-112204-opencode-openrouter-mistralai-mistral-medium-3-1 | opencode-openrouter-mistralai-mistral-medium-3.1 | high | 47 | 1 | 4 | stale_limit | 600s | 3h 43m | 189182 | 192 | 313 | $5.308033 | 16098390 |
 | 20260511-171126-opencode-openrouter-qwen-qwen3-6-plus | opencode-openrouter-qwen-qwen3.6-plus | high | 68 | 1 | 4 | stale_limit | 600s | 7h 11m | 19780 | 2959 | 336 | $11.398238 | 32433127 |
 | 20260513-135710-claude-sonnet-4-5 | claude-sonnet-4-5 | xhigh | 64 | 3 | 6 | stale_limit | 600s | 4h 28m | 14413 | 2864 |  |  |  |
+| 20260513-213232-claude-opus-4-5 | claude-opus-4-5 | high | 100 | 1 | 1 | evaluation_failed | 600s | 47m 17s | 2337 | 665 |  |  |  |
+| 20260514-113354-claude-opus-4-5 | claude-opus-4-5 | high | 144 | 5 | 8 | stale_limit | 600s | 15h 19m | 16980 | 1689 |  |  |  |
