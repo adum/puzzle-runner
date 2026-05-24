@@ -48,6 +48,8 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.agent.model, "Gemini 3.5 Flash (High)")
         self.assertIn("{config_dir}/scripts/antigravity-cli", config.agent.command)
         self.assertIn("--dangerously-skip-permissions", config.agent.command)
+        self.assertIn("--print-timeout", config.agent.command)
+        self.assertIn("30m", config.agent.command)
 
     def test_gemini_cli_example_config_loads(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.gemini-cli.example.toml"

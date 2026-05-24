@@ -128,6 +128,7 @@ it does not mutate your normal Antigravity session settings.
 The command goes through `scripts/antigravity-cli`, which:
 
 - passes stdin prompts into `agy --print`
+- sets AGY's print-mode timeout to 30 minutes by default
 - applies the configured model by writing a temporary `settings.json`
 - adds the benchmark workspace to `trustedWorkspaces`
 - keeps auth in sync by copying the local Antigravity login state into that

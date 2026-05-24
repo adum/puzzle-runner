@@ -7,6 +7,7 @@ PATH="${real_home}/.local/bin:${PATH}"
 input_args=("$@")
 agy_args=()
 model=""
+print_timeout=""
 has_print_prompt=false
 
 for ((index=0; index<${#input_args[@]}; index++)); do
@@ -22,6 +23,19 @@ for ((index=0; index<${#input_args[@]}; index++)); do
       ;;
     --model=*)
       model="${arg#--model=}"
+      ;;
+    --print-timeout)
+      if (( index + 1 >= ${#input_args[@]} )); then
+        echo "missing value for --print-timeout" >&2
+        exit 2
+      fi
+      print_timeout="${input_args[$((index + 1))]}"
+      agy_args+=("$arg" "$print_timeout")
+      index=$((index + 1))
+      ;;
+    --print-timeout=*)
+      print_timeout="${arg#--print-timeout=}"
+      agy_args+=("$arg")
       ;;
     -p|--print|--prompt|--print=*|--prompt=*)
       has_print_prompt=true
@@ -107,4 +121,29 @@ if ! command -v agy >/dev/null 2>&1; then
   exit 127
 fi
 
-HOME="${tmp_home}" exec agy "${agy_args[@]}"
+stderr_path="${tmp_home}/agy.stderr"
+: > "${stderr_path}"
+
+set +e
+HOME="${tmp_home}" agy "${agy_args[@]}" 2> >(tee "${stderr_path}" >&2)
+status=$?
+set -e
+
+agy_timed_out=false
+if (( status != 0 )); then
+  for _ in {1..10}; do
+    if grep -Fq "timed out waiting for response" "${stderr_path}"; then
+      agy_timed_out=true
+      break
+    fi
+    sleep 0.1
+  done
+fi
+
+if [[ "${agy_timed_out}" == true ]]; then
+  timeout_label="${print_timeout:-agy default}"
+  echo "Antigravity CLI print-mode timed out after ${timeout_label} while waiting for the model response." >&2
+  echo "This timeout is controlled by agy --print-timeout, not Puzzle Runner's agent_timeout_seconds or agent_idle_timeout_seconds." >&2
+fi
+
+exit "${status}"

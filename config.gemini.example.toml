@@ -64,4 +64,6 @@ model = "Gemini 3.5 Flash (High)"
 command = [
   "{config_dir}/scripts/antigravity-cli",
   "--dangerously-skip-permissions",
+  "--print-timeout",
+  "30m",
 ]
