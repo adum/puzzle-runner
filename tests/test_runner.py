@@ -382,18 +382,18 @@ class RunnerTests(unittest.TestCase):
         command = runner._agent_command(Path("/tmp/round"))
 
         self.assertIn("--model", command)
-        self.assertIn("gemini-3.1-pro-preview", command)
+        self.assertIn("Gemini 3.5 Flash (High)", command)
 
     def test_gemini_model_is_not_duplicated(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
         config = load_config(str(config_path), run_id="test-run")
 
-        command = _apply_agent_model(config, ["gemini", "--model", "flash"])
+        command = _apply_agent_model(config, ["agy", "--model", "Gemini 3 Flash"])
 
-        self.assertEqual(command, ["gemini", "--model", "flash"])
+        self.assertEqual(command, ["agy", "--model", "Gemini 3 Flash"])
 
     def test_gemini_model_is_added_for_named_gemini_backend(self) -> None:
-        config_path = Path(__file__).resolve().parents[1] / "config.gemini.example.toml"
+        config_path = Path(__file__).resolve().parents[1] / "config.gemini-cli.example.toml"
         config = load_config(str(config_path), run_id="test-run")
         config = dataclasses.replace(
             config,

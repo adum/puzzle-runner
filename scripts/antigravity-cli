@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+real_home="${HOME}"
+PATH="${real_home}/.local/bin:${PATH}"
+
+input_args=("$@")
+agy_args=()
+model=""
+has_print_prompt=false
+
+for ((index=0; index<${#input_args[@]}; index++)); do
+  arg="${input_args[$index]}"
+  case "$arg" in
+    --model)
+      if (( index + 1 >= ${#input_args[@]} )); then
+        echo "missing value for --model" >&2
+        exit 2
+      fi
+      model="${input_args[$((index + 1))]}"
+      index=$((index + 1))
+      ;;
+    --model=*)
+      model="${arg#--model=}"
+      ;;
+    -p|--print|--prompt|--print=*|--prompt=*)
+      has_print_prompt=true
+      agy_args+=("$arg")
+      ;;
+    *)
+      agy_args+=("$arg")
+      ;;
+  esac
+done
+
+if [[ ! -t 0 && "${has_print_prompt}" == false ]]; then
+  prompt="$(cat)"
+  agy_args+=("--print" "$prompt")
+fi
+
+tmp_home="$(mktemp -d)"
+tmp_config_dir="${tmp_home}/.gemini/antigravity-cli"
+source_config_dir="${real_home}/.gemini/antigravity-cli"
+
+cleanup() {
+  rm -rf "${tmp_home}"
+}
+trap cleanup EXIT
+
+mkdir -p "${tmp_config_dir}"
+
+copy_config_path() {
+  local name="$1"
+  if [[ -e "${source_config_dir}/${name}" ]]; then
+    cp -a "${source_config_dir}/${name}" "${tmp_config_dir}/${name}"
+  fi
+}
+
+copy_config_path "antigravity-oauth-token"
+copy_config_path "installation_id"
+copy_config_path "keybindings.json"
+copy_config_path "import_manifest.json"
+copy_config_path "plugins"
+copy_config_path "knowledge"
+copy_config_path "implicit"
+
+mkdir -p "${tmp_config_dir}/cache" "${tmp_config_dir}/conversations" "${tmp_config_dir}/log"
+
+settings_source="${source_config_dir}/settings.json"
+settings_path="${tmp_config_dir}/settings.json"
+workspace_dir="$(pwd -P)"
+
+python3 - "${settings_source}" "${settings_path}" "${model}" "${workspace_dir}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+settings_source = Path(sys.argv[1])
+settings_path = Path(sys.argv[2])
+model = sys.argv[3]
+workspace_dir = sys.argv[4]
+
+settings = {}
+if settings_source.exists():
+    try:
+        loaded = json.loads(settings_source.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            settings = loaded
+    except (OSError, json.JSONDecodeError):
+        settings = {}
+
+if model:
+    settings["model"] = model
+
+trusted = settings.get("trustedWorkspaces")
+if not isinstance(trusted, list):
+    trusted = []
+if workspace_dir not in trusted:
+    trusted.append(workspace_dir)
+settings["trustedWorkspaces"] = trusted
+
+settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+PY
+
+if ! command -v agy >/dev/null 2>&1; then
+  echo "agy is not installed or not on PATH" >&2
+  exit 127
+fi
+
+HOME="${tmp_home}" exec agy "${agy_args[@]}"

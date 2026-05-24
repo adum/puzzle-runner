@@ -1827,7 +1827,7 @@ def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
     model = config.agent.model
     if not model:
         return command
-    if _is_gemini_backend(config):
+    if _is_gemini_backend(config) or _is_antigravity_backend(config):
         if _command_has_option(command, "--model"):
             return command
         return [*command, "--model", model]
@@ -1840,6 +1840,16 @@ def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
 
 def _is_gemini_backend(config: RunnerConfig) -> bool:
     return config.agent.backend == "gemini-cli" or config.agent.backend.startswith("gemini-")
+
+
+def _is_antigravity_backend(config: RunnerConfig) -> bool:
+    backend = config.agent.backend
+    return (
+        backend == "antigravity-cli"
+        or backend == "agy"
+        or backend.startswith("antigravity-")
+        or backend.startswith("agy-")
+    )
 
 
 def _is_opencode_backend(config: RunnerConfig) -> bool:

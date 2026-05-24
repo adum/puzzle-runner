@@ -1,4 +1,4 @@
-# Copy to runner.gemini.toml and edit local settings as needed.
+# Copy to runner.gemini-cli.toml and edit local settings as needed.
 
 benchmark_repo_url = "https://github.com/adum/coilbench.git"
 benchmark_ref = "main"
@@ -55,13 +55,17 @@ forbidden_paths = [
 ]
 
 [agent]
-# Antigravity uses human-readable model names in settings.json, so the example
-# sets an explicit lowercase name for run ids.
-name = "gemini-3.5-flash-high"
-backend = "antigravity-cli"
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
+backend = "gemini-cli"
 prompt_mode = "stdin"
-model = "Gemini 3.5 Flash (High)"
+model = "gemini-3.1-pro-preview"
 command = [
-  "{config_dir}/scripts/antigravity-cli",
-  "--dangerously-skip-permissions",
+  "{config_dir}/scripts/gemini-cli",
+  "--approval-mode",
+  "yolo",
+  "--skip-trust",
+  "--output-format",
+  "stream-json",
 ]

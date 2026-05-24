@@ -2,7 +2,7 @@
 
 Iterative benchmark orchestrator for AI coding agents.
 
-Backends: OpenAI Codex CLI, Claude Code, Gemini CLI, OpenCode, and OpenRouter API.
+Backends: OpenAI Codex CLI, Claude Code, Google Antigravity CLI, Gemini CLI, OpenCode, and OpenRouter API.
 
 Requires Python 3.10 or newer.
 
@@ -98,7 +98,7 @@ claude --print --no-session-persistence --verbose --output-format stream-json --
 
 The command goes through `scripts/claude-code`, which sources `nvm` first when available. This keeps unattended WSL runs from accidentally using an older system Node. Claude agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value or `effort` in `[agent]` when desired.
 
-## Gemini CLI
+## Gemini via Antigravity CLI
 
 Use the Gemini config:
 
@@ -113,20 +113,49 @@ Watch that run with:
 PYTHONPATH=src python3 -m puzzle_runner watch --config runner.gemini.toml
 ```
 
-Install and authenticate Gemini CLI before running, for example:
+Install and authenticate Antigravity CLI before running, for example:
 
 ```sh
-npm install -g @google/gemini-cli
-gemini
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+agy
 ```
 
-The Gemini config pipes Puzzle Runner's prompt to:
+The Gemini config uses Antigravity's `agy` CLI with Gemini 3.5 Flash (High) as
+the default model. Puzzle Runner's wrapper keeps model selection local to the
+benchmark run by writing a temporary `settings.json` in an isolated `HOME`, so
+it does not mutate your normal Antigravity session settings.
+
+The command goes through `scripts/antigravity-cli`, which:
+
+- passes stdin prompts into `agy --print`
+- applies the configured model by writing a temporary `settings.json`
+- adds the benchmark workspace to `trustedWorkspaces`
+- keeps auth in sync by copying the local Antigravity login state into that
+  temporary runtime
+
+Edit the model value in `[agent]` when desired.
+
+## Legacy Gemini CLI
+
+If you still want the original Gemini CLI instead of Antigravity, use the
+legacy config:
+
+```sh
+cp config.gemini-cli.example.toml runner.gemini-cli.toml
+PYTHONPATH=src python3 -m puzzle_runner --config runner.gemini-cli.toml
+```
+
+That config pipes Puzzle Runner's prompt to:
 
 ```sh
 gemini --model gemini-3.1-pro-preview --approval-mode yolo --skip-trust --output-format stream-json
 ```
 
-The command goes through `scripts/gemini-cli`, which sources `nvm` first when available and prefers a Node 20+ Gemini install. When Puzzle Runner pipes the prompt on stdin, the wrapper passes it to Gemini as `--prompt` so Gemini runs in headless mode instead of its interactive UI. Gemini agent output is raw stream JSON in the logs; use the watcher for a readable live view. Edit the model value and command in `[agent]` when desired.
+The command goes through `scripts/gemini-cli`, which sources `nvm` first when
+available and prefers a Node 20+ Gemini install. When Puzzle Runner pipes the
+prompt on stdin, the wrapper passes it to Gemini as `--prompt` so Gemini runs
+in headless mode instead of its interactive UI. Gemini agent output is raw
+stream JSON in the logs; use the watcher for a readable live view.
 
 ## OpenCode
 
