@@ -52,6 +52,11 @@ if [[ ! -t 0 && "${has_print_prompt}" == false ]]; then
   agy_args+=("--print" "$prompt")
 fi
 
+if [[ -z "${print_timeout}" ]]; then
+  print_timeout="${AGY_PRINT_TIMEOUT:-30m}"
+  agy_args=("--print-timeout" "${print_timeout}" "${agy_args[@]}")
+fi
+
 tmp_home="$(mktemp -d)"
 tmp_config_dir="${tmp_home}/.gemini/antigravity-cli"
 source_config_dir="${real_home}/.gemini/antigravity-cli"
@@ -121,18 +126,20 @@ if ! command -v agy >/dev/null 2>&1; then
   exit 127
 fi
 
+stdout_path="${tmp_home}/agy.stdout"
 stderr_path="${tmp_home}/agy.stderr"
+: > "${stdout_path}"
 : > "${stderr_path}"
 
 set +e
-HOME="${tmp_home}" agy "${agy_args[@]}" 2> >(tee "${stderr_path}" >&2)
+HOME="${tmp_home}" agy "${agy_args[@]}" > >(tee "${stdout_path}") 2> >(tee "${stderr_path}" >&2)
 status=$?
 set -e
 
 agy_timed_out=false
 if (( status != 0 )); then
   for _ in {1..10}; do
-    if grep -Fq "timed out waiting for response" "${stderr_path}"; then
+    if grep -Fq "timed out waiting for response" "${stdout_path}" "${stderr_path}"; then
       agy_timed_out=true
       break
     fi

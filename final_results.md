@@ -17,3 +17,4 @@
 | 20260513-154703-gpt-5-2 | gpt-5.2 | xhigh | 100 | 1 | 4 | stale_limit | 600s | 12h 9m | 13601515 | 1031 |  |  |  |
 | 20260513-213232-claude-opus-4-5 | claude-opus-4-5 | high | 100 | 1 | 1 | evaluation_failed | 600s | 47m 17s | 2337 | 665 |  |  |  |
 | 20260514-113354-claude-opus-4-5 | claude-opus-4-5 | high | 144 | 5 | 8 | stale_limit | 600s | 15h 19m | 16980 | 1689 |  |  |  |
+| 20260524-123240-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 176 | 5 | 8 | stale_limit | 600s | 6h 21m | 15906 | 678 |  |  |  |
