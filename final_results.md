@@ -18,3 +18,5 @@
 | 20260513-213232-claude-opus-4-5 | claude-opus-4-5 | high | 100 | 1 | 1 | evaluation_failed | 600s | 47m 17s | 2337 | 665 |  |  |  |
 | 20260514-113354-claude-opus-4-5 | claude-opus-4-5 | high | 144 | 5 | 8 | stale_limit | 600s | 15h 19m | 16980 | 1689 |  |  |  |
 | 20260524-123240-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 176 | 5 | 8 | stale_limit | 600s | 6h 21m | 15906 | 678 |  |  |  |
+| 20260524-193813-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 151 | 1 | 4 | stale_limit | 600s | 2h 51m | 27940 | 1065 |  |  |  |
+| 20260525-101237-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 195 | 1 | 4 | stale_limit | 600s | 3h 19m | 34222 | 1314 |  |  |  |

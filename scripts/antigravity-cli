@@ -131,26 +131,40 @@ stderr_path="${tmp_home}/agy.stderr"
 : > "${stdout_path}"
 : > "${stderr_path}"
 
+print_agy_timeout_message() {
+  local stream="$1"
+  local timeout_label="${print_timeout:-agy default}"
+  local line_1="Antigravity CLI print-mode timed out after ${timeout_label} while waiting for the model to finish responding."
+  local line_2="Cause: agy --print did not complete before agy --print-timeout expired."
+  local line_3="This is AGY's print-mode wait limit, not Puzzle Runner's agent_timeout_seconds or agent_idle_timeout_seconds."
+
+  if [[ "${stream}" == "stderr" ]]; then
+    printf '%s\n%s\n%s\n' "${line_1}" "${line_2}" "${line_3}" >&2
+  else
+    printf '%s\n%s\n%s\n' "${line_1}" "${line_2}" "${line_3}"
+  fi
+}
+
+capture_agy_stream() {
+  local log_path="$1"
+  local stream="$2"
+  local line
+
+  while IFS= read -r line; do
+    printf '%s\n' "${line}" >> "${log_path}"
+    if [[ "${line}" == *"timed out waiting for response"* ]]; then
+      print_agy_timeout_message "${stream}"
+    elif [[ "${stream}" == "stderr" ]]; then
+      printf '%s\n' "${line}" >&2
+    else
+      printf '%s\n' "${line}"
+    fi
+  done
+}
+
 set +e
-HOME="${tmp_home}" agy "${agy_args[@]}" > >(tee "${stdout_path}") 2> >(tee "${stderr_path}" >&2)
+HOME="${tmp_home}" agy "${agy_args[@]}" > >(capture_agy_stream "${stdout_path}" stdout) 2> >(capture_agy_stream "${stderr_path}" stderr)
 status=$?
 set -e
-
-agy_timed_out=false
-if (( status != 0 )); then
-  for _ in {1..10}; do
-    if grep -Fq "timed out waiting for response" "${stdout_path}" "${stderr_path}"; then
-      agy_timed_out=true
-      break
-    fi
-    sleep 0.1
-  done
-fi
-
-if [[ "${agy_timed_out}" == true ]]; then
-  timeout_label="${print_timeout:-agy default}"
-  echo "Antigravity CLI print-mode timed out after ${timeout_label} while waiting for the model response." >&2
-  echo "This timeout is controlled by agy --print-timeout, not Puzzle Runner's agent_timeout_seconds or agent_idle_timeout_seconds." >&2
-fi
 
 exit "${status}"
