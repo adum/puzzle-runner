@@ -20,3 +20,5 @@
 | 20260524-123240-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 176 | 5 | 8 | stale_limit | 600s | 6h 21m | 15906 | 678 |  |  |  |
 | 20260524-193813-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 151 | 1 | 4 | stale_limit | 600s | 2h 51m | 27940 | 1065 |  |  |  |
 | 20260525-101237-gemini-3-5-flash-high | gemini-3.5-flash-high |  | 195 | 1 | 4 | stale_limit | 600s | 3h 19m | 34222 | 1314 |  |  |  |
+| 20260527-103344-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | high | 89 | 3 | 4 | agent_idle_timeout | 600s | 15h 47m | 28354 | 292 | 423 | $4.077197 | 34813443 |
+| 20260528-073107-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | high | 63 | 1 | 3 | agent_idle_timeout | 600s | 8h 0m | 16866 | 188 | 314 | $5.867184 | 34605071 |
