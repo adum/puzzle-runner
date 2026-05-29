@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Puzzle Runner Visualizations</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #dbe3ef;
+      --track: #e8eef6;
+      --accent: #2563eb;
+      --warn-bg: #fff7ed;
+      --warn-text: #9a3412;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1240px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.05;
+      font-weight: 760;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .subhead {
+      max-width: 760px;
+      font-size: 16px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0;
+    }
+
+    .metric,
+    .chart-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    }
+
+    .metric {
+      padding: 14px 16px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 23px;
+      line-height: 1.1;
+    }
+
+    .chart-panel {
+      margin: 16px 0;
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .chart-grid .chart-panel {
+      margin: 0;
+    }
+
+    .chart-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .chart-heading p {
+      max-width: 520px;
+      text-align: right;
+    }
+
+    .chart-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .chart-svg.compact {
+      max-height: 360px;
+    }
+
+    .grid-line {
+      stroke: var(--line);
+      stroke-width: 1;
+    }
+
+    .axis-line {
+      stroke: #94a3b8;
+      stroke-width: 1.2;
+    }
+
+    .data-point {
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .bar-track {
+      fill: var(--track);
+    }
+
+    .bar {
+      shape-rendering: geometricPrecision;
+    }
+
+    text {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      fill: var(--ink);
+    }
+
+    .tick-label,
+    .muted-label {
+      fill: var(--muted);
+      font-size: 12px;
+    }
+
+    .axis-title {
+      fill: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .legend text,
+    .bar-label,
+    .value-label {
+      font-size: 13px;
+    }
+
+    .bar-label {
+      fill: #334155;
+    }
+
+    .value-label {
+      fill: #0f172a;
+      font-weight: 700;
+    }
+
+    .warning {
+      margin: 14px 0 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid #fed7aa;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #334155;
+      background: #f1f5f9;
+      font-weight: 720;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    footer {
+      color: var(--muted);
+      margin-top: 20px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        width: min(100vw - 20px, 1240px);
+        padding-top: 20px;
+      }
+
+      .metrics,
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-heading {
+        display: block;
+      }
+
+      .chart-heading p {
+        margin-top: 6px;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Puzzle Runner Visualizations</h1>
+      <p class="subhead">Static SVG report generated from <code>final_results.md</code> and <code>model_metadata.md</code>. Model releases span Jun 17, 2025 through May 28, 2026.</p>
+      
+    </header>
+    <div class="metrics">
+            <div class="metric">
+              <span>Runs</span>
+              <strong>23</strong>
+            </div>
+            
+
+            <div class="metric">
+              <span>Models</span>
+              <strong>17</strong>
+            </div>
+            
+
+            <div class="metric">
+              <span>Top score</span>
+              <strong>262</strong>
+            </div>
+            
+
+            <div class="metric">
+              <span>Newest release</span>
+              <strong>May 28, 2026</strong>
+            </div>
+            
+
+            <div class="metric">
+              <span>Origins</span>
+              <strong>3</strong>
+            </div>
+            
+
+            <div class="metric">
+              <span>OpenRouter cost</span>
+              <strong>$84.57</strong>
+            </div>
+            </div>
+    
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>All LLMs By Release Date</h2>
+        <p>Every benchmark run plotted by the model&#x27;s public release date and colored by model family.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 1180 430" role="img" aria-label="Best score by model release date">
+<line class="grid-line" x1="70" x2="990" y1="358.0" y2="358.0" />
+<text class="tick-label" x="58" y="362.0" text-anchor="end">0</text>
+<line class="grid-line" x1="70" x2="990" y1="292.4" y2="292.4" />
+<text class="tick-label" x="58" y="296.4" text-anchor="end">60</text>
+<line class="grid-line" x1="70" x2="990" y1="226.8" y2="226.8" />
+<text class="tick-label" x="58" y="230.8" text-anchor="end">120</text>
+<line class="grid-line" x1="70" x2="990" y1="161.2" y2="161.2" />
+<text class="tick-label" x="58" y="165.2" text-anchor="end">180</text>
+<line class="grid-line" x1="70" x2="990" y1="95.6" y2="95.6" />
+<text class="tick-label" x="58" y="99.6" text-anchor="end">240</text>
+<line class="grid-line" x1="70" x2="990" y1="30.0" y2="30.0" />
+<text class="tick-label" x="58" y="34.0" text-anchor="end">300</text>
+<line class="axis-line" x1="70" x2="990" y1="358" y2="358" />
+<line class="axis-line" x1="70" x2="70" y1="30" y2="358" />
+<text class="axis-title" x="530.0" y="416" text-anchor="middle">Model release date</text>
+<text class="axis-title" transform="translate(20 194.0) rotate(-90)" text-anchor="middle">Best score</text>
+<circle cx="70.0" cy="286.9" r="6.5" fill="#9333ea" class="data-point"><title>Released Jun 17, 2025 - Gemini 2.5 Flash: 65 (Gemini)</title></circle>
+<circle cx="219.3" cy="306.6" r="6.5" fill="#be123c" class="data-point"><title>Released Aug 12, 2025 - Mistral Medium 3.1: 47 (Mistral)</title></circle>
+<circle cx="347.3" cy="288.0" r="6.5" fill="#dc2626" class="data-point"><title>Released Sep 29, 2025 - Claude Sonnet 4.5: 64 (Claude)</title></circle>
+<circle cx="496.7" cy="248.7" r="6.5" fill="#dc2626" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 100 (Claude)</title></circle>
+<circle cx="496.7" cy="200.6" r="6.5" fill="#dc2626" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 144 (Claude)</title></circle>
+<circle cx="542.0" cy="248.7" r="6.5" fill="#2563eb" class="data-point"><title>Released Dec 11, 2025 - GPT-5.2: 100 (ChatGPT / Codex)</title></circle>
+<circle cx="558.0" cy="71.5" r="6.5" fill="#9333ea" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 262 (Gemini)</title></circle>
+<circle cx="558.0" cy="165.6" r="6.5" fill="#9333ea" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 176 (Gemini)</title></circle>
+<circle cx="691.3" cy="171.0" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 5, 2026 - GPT-5.3-Codex: 171 (ChatGPT / Codex)</title></circle>
+<circle cx="723.3" cy="289.1" r="6.5" fill="#dc2626" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 63 (Claude)</title></circle>
+<circle cx="723.3" cy="188.5" r="6.5" fill="#dc2626" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 155 (Claude)</title></circle>
+<circle cx="728.7" cy="71.5" r="6.5" fill="#9333ea" class="data-point"><title>Released Feb 19, 2026 - Gemini 3.1 Pro Preview: 262 (Gemini)</title></circle>
+<circle cx="840.7" cy="283.7" r="6.5" fill="#4f46e5" class="data-point"><title>Released Apr 2, 2026 - Qwen3.6-Plus: 68 (Qwen)</title></circle>
+<circle cx="878.0" cy="144.8" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 16, 2026 - Claude Opus 4.7: 195 (Claude)</title></circle>
+<circle cx="880.7" cy="306.6" r="6.5" fill="#ea580c" class="data-point"><title>Released Apr 17, 2026 - Grok 4.3: 47 (Grok)</title></circle>
+<circle cx="888.7" cy="191.8" r="6.5" fill="#0891b2" class="data-point"><title>Released Apr 20, 2026 - Kimi K2.6: 152 (Kimi)</title></circle>
+<circle cx="896.7" cy="148.1" r="6.5" fill="#2563eb" class="data-point"><title>Released Apr 23, 2026 - GPT-5.5 (Codex): 192 (ChatGPT / Codex)</title></circle>
+<circle cx="899.3" cy="260.7" r="6.5" fill="#16a34a" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 89 (DeepSeek)</title></circle>
+<circle cx="899.3" cy="289.1" r="6.5" fill="#16a34a" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 63 (DeepSeek)</title></circle>
+<circle cx="966.0" cy="165.6" r="6.5" fill="#9333ea" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 176 (Gemini)</title></circle>
+<circle cx="966.0" cy="192.9" r="6.5" fill="#9333ea" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 151 (Gemini)</title></circle>
+<circle cx="966.0" cy="144.8" r="6.5" fill="#9333ea" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 195 (Gemini)</title></circle>
+<circle cx="990.0" cy="71.5" r="6.5" fill="#dc2626" class="data-point"><title>Released May 28, 2026 - Claude Opus 4.8: 262 (Claude)</title></circle>
+<text class="tick-label" x="70.0" y="396" text-anchor="middle">Jun 2025</text>
+<text class="tick-label" x="299.3" y="396" text-anchor="middle">Sep 2025</text>
+<text class="tick-label" x="528.7" y="396" text-anchor="middle">Dec 2025</text>
+<text class="tick-label" x="760.7" y="396" text-anchor="middle">Mar 2026</text>
+<text class="tick-label" x="990.0" y="396" text-anchor="middle">May 2026</text>
+<g class="legend">
+<rect x="1018" y="34" width="12" height="12" rx="2" fill="#2563eb" />
+<text x="1038" y="44">ChatGPT / Codex</text>
+<rect x="1018" y="58" width="12" height="12" rx="2" fill="#dc2626" />
+<text x="1038" y="68">Claude</text>
+<rect x="1018" y="82" width="12" height="12" rx="2" fill="#16a34a" />
+<text x="1038" y="92">DeepSeek</text>
+<rect x="1018" y="106" width="12" height="12" rx="2" fill="#9333ea" />
+<text x="1038" y="116">Gemini</text>
+<rect x="1018" y="130" width="12" height="12" rx="2" fill="#ea580c" />
+<text x="1038" y="140">Grok</text>
+<rect x="1018" y="154" width="12" height="12" rx="2" fill="#0891b2" />
+<text x="1038" y="164">Kimi</text>
+<rect x="1018" y="178" width="12" height="12" rx="2" fill="#be123c" />
+<text x="1038" y="188">Mistral</text>
+<rect x="1018" y="202" width="12" height="12" rx="2" fill="#4f46e5" />
+<text x="1038" y="212">Qwen</text>
+</g>
+</svg>
+    </section>
+    <div class="chart-grid">
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Origin Comparison</h2>
+        <p>Every benchmark run plotted by model release date and colored by origin.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 650 360" role="img" aria-label="Best score by model release date and origin">
+<line class="grid-line" x1="66" x2="530" y1="290.0" y2="290.0" />
+<text class="tick-label" x="54" y="294.0" text-anchor="end">0</text>
+<line class="grid-line" x1="66" x2="530" y1="238.8" y2="238.8" />
+<text class="tick-label" x="54" y="242.8" text-anchor="end">60</text>
+<line class="grid-line" x1="66" x2="530" y1="187.6" y2="187.6" />
+<text class="tick-label" x="54" y="191.6" text-anchor="end">120</text>
+<line class="grid-line" x1="66" x2="530" y1="136.4" y2="136.4" />
+<text class="tick-label" x="54" y="140.4" text-anchor="end">180</text>
+<line class="grid-line" x1="66" x2="530" y1="85.2" y2="85.2" />
+<text class="tick-label" x="54" y="89.2" text-anchor="end">240</text>
+<line class="grid-line" x1="66" x2="530" y1="34.0" y2="34.0" />
+<text class="tick-label" x="54" y="38.0" text-anchor="end">300</text>
+<line class="axis-line" x1="66" x2="530" y1="290" y2="290" />
+<line class="axis-line" x1="66" x2="66" y1="34" y2="290" />
+<text class="axis-title" x="298.0" y="348" text-anchor="middle">Model release date</text>
+<text class="axis-title" transform="translate(20 162.0) rotate(-90)" text-anchor="middle">Best score</text>
+<circle cx="66.0" cy="234.5" r="6.5" fill="#2563eb" class="data-point"><title>Released Jun 17, 2025 - Gemini 2.5 Flash: 65 (America)</title></circle>
+<circle cx="141.3" cy="249.9" r="6.5" fill="#16a34a" class="data-point"><title>Released Aug 12, 2025 - Mistral Medium 3.1: 47 (Europe)</title></circle>
+<circle cx="205.9" cy="235.4" r="6.5" fill="#2563eb" class="data-point"><title>Released Sep 29, 2025 - Claude Sonnet 4.5: 64 (America)</title></circle>
+<circle cx="281.2" cy="204.7" r="6.5" fill="#2563eb" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 100 (America)</title></circle>
+<circle cx="281.2" cy="167.1" r="6.5" fill="#2563eb" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 144 (America)</title></circle>
+<circle cx="304.1" cy="204.7" r="6.5" fill="#2563eb" class="data-point"><title>Released Dec 11, 2025 - GPT-5.2: 100 (America)</title></circle>
+<circle cx="312.1" cy="66.4" r="6.5" fill="#2563eb" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 262 (America)</title></circle>
+<circle cx="312.1" cy="139.8" r="6.5" fill="#2563eb" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 176 (America)</title></circle>
+<circle cx="379.4" cy="144.1" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 5, 2026 - GPT-5.3-Codex: 171 (America)</title></circle>
+<circle cx="395.5" cy="236.2" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 63 (America)</title></circle>
+<circle cx="395.5" cy="157.7" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 155 (America)</title></circle>
+<circle cx="398.2" cy="66.4" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 19, 2026 - Gemini 3.1 Pro Preview: 262 (America)</title></circle>
+<circle cx="454.7" cy="232.0" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 2, 2026 - Qwen3.6-Plus: 68 (China)</title></circle>
+<circle cx="473.5" cy="123.6" r="6.5" fill="#2563eb" class="data-point"><title>Released Apr 16, 2026 - Claude Opus 4.7: 195 (America)</title></circle>
+<circle cx="474.9" cy="249.9" r="6.5" fill="#2563eb" class="data-point"><title>Released Apr 17, 2026 - Grok 4.3: 47 (America)</title></circle>
+<circle cx="478.9" cy="160.3" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 20, 2026 - Kimi K2.6: 152 (China)</title></circle>
+<circle cx="482.9" cy="126.2" r="6.5" fill="#2563eb" class="data-point"><title>Released Apr 23, 2026 - GPT-5.5 (Codex): 192 (America)</title></circle>
+<circle cx="484.3" cy="214.1" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 89 (China)</title></circle>
+<circle cx="484.3" cy="236.2" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 63 (China)</title></circle>
+<circle cx="517.9" cy="139.8" r="6.5" fill="#2563eb" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 176 (America)</title></circle>
+<circle cx="517.9" cy="161.1" r="6.5" fill="#2563eb" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 151 (America)</title></circle>
+<circle cx="517.9" cy="123.6" r="6.5" fill="#2563eb" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 195 (America)</title></circle>
+<circle cx="530.0" cy="66.4" r="6.5" fill="#2563eb" class="data-point"><title>Released May 28, 2026 - Claude Opus 4.8: 262 (America)</title></circle>
+<text class="tick-label" x="66.0" y="326" text-anchor="middle">Jun 2025</text>
+<text class="tick-label" x="181.7" y="326" text-anchor="middle">Sep 2025</text>
+<text class="tick-label" x="297.3" y="326" text-anchor="middle">Dec 2025</text>
+<text class="tick-label" x="414.3" y="326" text-anchor="middle">Mar 2026</text>
+<text class="tick-label" x="530.0" y="326" text-anchor="middle">May 2026</text>
+<g class="legend">
+<rect x="558" y="38" width="12" height="12" rx="2" fill="#2563eb" />
+<text x="578" y="48">America</text>
+<rect x="558" y="62" width="12" height="12" rx="2" fill="#dc2626" />
+<text x="578" y="72">China</text>
+<rect x="558" y="86" width="12" height="12" rx="2" fill="#16a34a" />
+<text x="578" y="96">Europe</text>
+</g>
+</svg>
+    </section>
+    
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Best Score By Origin</h2>
+        <p>Best score observed for each origin bucket.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 650 360" role="img" aria-label="Origin best score comparison">
+<line class="grid-line" x1="64" x2="622" y1="284.0" y2="284.0" />
+<text class="tick-label" x="52" y="288.0" text-anchor="end">0</text>
+<line class="grid-line" x1="64" x2="622" y1="234.0" y2="234.0" />
+<text class="tick-label" x="52" y="238.0" text-anchor="end">60</text>
+<line class="grid-line" x1="64" x2="622" y1="184.0" y2="184.0" />
+<text class="tick-label" x="52" y="188.0" text-anchor="end">120</text>
+<line class="grid-line" x1="64" x2="622" y1="134.0" y2="134.0" />
+<text class="tick-label" x="52" y="138.0" text-anchor="end">180</text>
+<line class="grid-line" x1="64" x2="622" y1="84.0" y2="84.0" />
+<text class="tick-label" x="52" y="88.0" text-anchor="end">240</text>
+<line class="grid-line" x1="64" x2="622" y1="34.0" y2="34.0" />
+<text class="tick-label" x="52" y="38.0" text-anchor="end">300</text>
+<line class="axis-line" x1="64" x2="622" y1="284" y2="284" />
+<line class="axis-line" x1="64" x2="64" y1="34" y2="284" />
+<rect class="bar" x="140.0" y="65.7" width="34.0" height="218.3" fill="#dc2626"><title>America best: 262</title></rect>
+<text class="tick-label" x="157.0" y="318" text-anchor="middle">America</text>
+<text class="muted-label" x="157.0" y="336" text-anchor="middle">18 runs</text>
+<rect class="bar" x="326.0" y="157.3" width="34.0" height="126.7" fill="#dc2626"><title>China best: 152</title></rect>
+<text class="tick-label" x="343.0" y="318" text-anchor="middle">China</text>
+<text class="muted-label" x="343.0" y="336" text-anchor="middle">4 runs</text>
+<rect class="bar" x="512.0" y="244.8" width="34.0" height="39.2" fill="#dc2626"><title>Europe best: 47</title></rect>
+<text class="tick-label" x="529.0" y="318" text-anchor="middle">Europe</text>
+<text class="muted-label" x="529.0" y="336" text-anchor="middle">1 runs</text>
+</svg>
+    </section>
+    </div><div class="chart-grid">
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Model Family Comparison</h2>
+        <p>Best score observed for each model family.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 650 360" role="img" aria-label="Model family best score comparison">
+<line class="grid-line" x1="64" x2="622" y1="284.0" y2="284.0" />
+<text class="tick-label" x="52" y="288.0" text-anchor="end">0</text>
+<line class="grid-line" x1="64" x2="622" y1="234.0" y2="234.0" />
+<text class="tick-label" x="52" y="238.0" text-anchor="end">60</text>
+<line class="grid-line" x1="64" x2="622" y1="184.0" y2="184.0" />
+<text class="tick-label" x="52" y="188.0" text-anchor="end">120</text>
+<line class="grid-line" x1="64" x2="622" y1="134.0" y2="134.0" />
+<text class="tick-label" x="52" y="138.0" text-anchor="end">180</text>
+<line class="grid-line" x1="64" x2="622" y1="84.0" y2="84.0" />
+<text class="tick-label" x="52" y="88.0" text-anchor="end">240</text>
+<line class="grid-line" x1="64" x2="622" y1="34.0" y2="34.0" />
+<text class="tick-label" x="52" y="38.0" text-anchor="end">300</text>
+<line class="axis-line" x1="64" x2="622" y1="284" y2="284" />
+<line class="axis-line" x1="64" x2="64" y1="34" y2="284" />
+<rect class="bar" x="83.2" y="65.7" width="31.4" height="218.3" fill="#dc2626"><title>Claude best: 262</title></rect>
+<text class="tick-label" x="98.9" y="318" text-anchor="middle">Claude</text>
+<text class="muted-label" x="98.9" y="336" text-anchor="middle">7 runs</text>
+<rect class="bar" x="152.9" y="65.7" width="31.4" height="218.3" fill="#dc2626"><title>Gemini best: 262</title></rect>
+<text class="tick-label" x="168.6" y="318" text-anchor="middle">Gemini</text>
+<text class="muted-label" x="168.6" y="336" text-anchor="middle">7 runs</text>
+<rect class="bar" x="222.7" y="124.0" width="31.4" height="160.0" fill="#dc2626"><title>ChatGPT / Codex best: 192</title></rect>
+<text class="tick-label" x="238.4" y="318" text-anchor="middle">ChatGPT / Codex</text>
+<text class="muted-label" x="238.4" y="336" text-anchor="middle">3 runs</text>
+<rect class="bar" x="292.4" y="157.3" width="31.4" height="126.7" fill="#dc2626"><title>Kimi best: 152</title></rect>
+<text class="tick-label" x="308.1" y="318" text-anchor="middle">Kimi</text>
+<text class="muted-label" x="308.1" y="336" text-anchor="middle">1 runs</text>
+<rect class="bar" x="362.2" y="209.8" width="31.4" height="74.2" fill="#dc2626"><title>DeepSeek best: 89</title></rect>
+<text class="tick-label" x="377.9" y="318" text-anchor="middle">DeepSeek</text>
+<text class="muted-label" x="377.9" y="336" text-anchor="middle">2 runs</text>
+<rect class="bar" x="431.9" y="227.3" width="31.4" height="56.7" fill="#dc2626"><title>Qwen best: 68</title></rect>
+<text class="tick-label" x="447.6" y="318" text-anchor="middle">Qwen</text>
+<text class="muted-label" x="447.6" y="336" text-anchor="middle">1 runs</text>
+<rect class="bar" x="501.7" y="244.8" width="31.4" height="39.2" fill="#dc2626"><title>Grok best: 47</title></rect>
+<text class="tick-label" x="517.4" y="318" text-anchor="middle">Grok</text>
+<text class="muted-label" x="517.4" y="336" text-anchor="middle">1 runs</text>
+<rect class="bar" x="571.4" y="244.8" width="31.4" height="39.2" fill="#dc2626"><title>Mistral best: 47</title></rect>
+<text class="tick-label" x="587.1" y="318" text-anchor="middle">Mistral</text>
+<text class="muted-label" x="587.1" y="336" text-anchor="middle">1 runs</text>
+</svg>
+    </section>
+    
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Runs By Family</h2>
+        <p>Run counts show which families have the most benchmark coverage.</p>
+      </div>
+      <svg class="chart-svg compact" viewBox="0 0 520 334" role="img" aria-label="Runs by family">
+<text class="bar-label" x="160" y="45" text-anchor="end">Claude</text>
+<rect class="bar-track" x="170" y="30" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="30" width="302.0" height="18" rx="4" fill="#dc2626" />
+<text class="value-label" x="480.0" y="45">7</text>
+<text class="bar-label" x="160" y="81" text-anchor="end">Gemini</text>
+<rect class="bar-track" x="170" y="66" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="66" width="302.0" height="18" rx="4" fill="#9333ea" />
+<text class="value-label" x="480.0" y="81">7</text>
+<text class="bar-label" x="160" y="117" text-anchor="end">ChatGPT / Codex</text>
+<rect class="bar-track" x="170" y="102" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="102" width="129.4" height="18" rx="4" fill="#2563eb" />
+<text class="value-label" x="307.4" y="117">3</text>
+<text class="bar-label" x="160" y="153" text-anchor="end">DeepSeek</text>
+<rect class="bar-track" x="170" y="138" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="138" width="86.3" height="18" rx="4" fill="#16a34a" />
+<text class="value-label" x="264.3" y="153">2</text>
+<text class="bar-label" x="160" y="189" text-anchor="end">Grok</text>
+<rect class="bar-track" x="170" y="174" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="174" width="43.1" height="18" rx="4" fill="#ea580c" />
+<text class="value-label" x="221.1" y="189">1</text>
+<text class="bar-label" x="160" y="225" text-anchor="end">Kimi</text>
+<rect class="bar-track" x="170" y="210" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="210" width="43.1" height="18" rx="4" fill="#0891b2" />
+<text class="value-label" x="221.1" y="225">1</text>
+<text class="bar-label" x="160" y="261" text-anchor="end">Mistral</text>
+<rect class="bar-track" x="170" y="246" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="246" width="43.1" height="18" rx="4" fill="#be123c" />
+<text class="value-label" x="221.1" y="261">1</text>
+<text class="bar-label" x="160" y="297" text-anchor="end">Qwen</text>
+<rect class="bar-track" x="170" y="282" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="282" width="43.1" height="18" rx="4" fill="#4f46e5" />
+<text class="value-label" x="221.1" y="297">1</text>
+</svg>
+    </section>
+    </div>
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Best Score By Model Version</h2>
+        <p>Highest score observed for each normalized model version.</p>
+      </div>
+      <svg class="chart-svg tall" viewBox="0 0 1180 648" role="img" aria-label="Best score by model version">
+<text class="bar-label" x="248" y="48" text-anchor="end">Claude Opus 4.8</text>
+<rect class="bar-track" x="260" y="33" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="33" width="733.6" height="18" rx="4" fill="#dc2626"><title>Claude Opus 4.8: best 262, average 262, 1 runs</title></rect>
+<text class="value-label" x="1001.6" y="48">262</text>
+<text class="bar-label" x="248" y="82" text-anchor="end">Gemini 3 Flash Preview</text>
+<rect class="bar-track" x="260" y="67" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="67" width="733.6" height="18" rx="4" fill="#9333ea"><title>Gemini 3 Flash Preview: best 262, average 219, 2 runs</title></rect>
+<text class="value-label" x="1001.6" y="82">262</text>
+<text class="bar-label" x="248" y="116" text-anchor="end">Gemini 3.1 Pro Preview</text>
+<rect class="bar-track" x="260" y="101" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="101" width="733.6" height="18" rx="4" fill="#9333ea"><title>Gemini 3.1 Pro Preview: best 262, average 262, 1 runs</title></rect>
+<text class="value-label" x="1001.6" y="116">262</text>
+<text class="bar-label" x="248" y="150" text-anchor="end">Claude Opus 4.7</text>
+<rect class="bar-track" x="260" y="135" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="135" width="546.0" height="18" rx="4" fill="#dc2626"><title>Claude Opus 4.7: best 195, average 195, 1 runs</title></rect>
+<text class="value-label" x="814.0" y="150">195</text>
+<text class="bar-label" x="248" y="184" text-anchor="end">Gemini 3.5 Flash (High)</text>
+<rect class="bar-track" x="260" y="169" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="169" width="546.0" height="18" rx="4" fill="#9333ea"><title>Gemini 3.5 Flash (High): best 195, average 174, 3 runs</title></rect>
+<text class="value-label" x="814.0" y="184">195</text>
+<text class="bar-label" x="248" y="218" text-anchor="end">GPT-5.5 (Codex)</text>
+<rect class="bar-track" x="260" y="203" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="203" width="537.6" height="18" rx="4" fill="#2563eb"><title>GPT-5.5 (Codex): best 192, average 192, 1 runs</title></rect>
+<text class="value-label" x="805.6" y="218">192</text>
+<text class="bar-label" x="248" y="252" text-anchor="end">GPT-5.3-Codex</text>
+<rect class="bar-track" x="260" y="237" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="237" width="478.8" height="18" rx="4" fill="#2563eb"><title>GPT-5.3-Codex: best 171, average 171, 1 runs</title></rect>
+<text class="value-label" x="746.8" y="252">171</text>
+<text class="bar-label" x="248" y="286" text-anchor="end">Claude Sonnet 4.6</text>
+<rect class="bar-track" x="260" y="271" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="271" width="434.0" height="18" rx="4" fill="#dc2626"><title>Claude Sonnet 4.6: best 155, average 109, 2 runs</title></rect>
+<text class="value-label" x="702.0" y="286">155</text>
+<text class="bar-label" x="248" y="320" text-anchor="end">Kimi K2.6</text>
+<rect class="bar-track" x="260" y="305" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="305" width="425.6" height="18" rx="4" fill="#0891b2"><title>Kimi K2.6: best 152, average 152, 1 runs</title></rect>
+<text class="value-label" x="693.6" y="320">152</text>
+<text class="bar-label" x="248" y="354" text-anchor="end">Claude Opus 4.5</text>
+<rect class="bar-track" x="260" y="339" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="339" width="403.2" height="18" rx="4" fill="#dc2626"><title>Claude Opus 4.5: best 144, average 122, 2 runs</title></rect>
+<text class="value-label" x="671.2" y="354">144</text>
+<text class="bar-label" x="248" y="388" text-anchor="end">GPT-5.2</text>
+<rect class="bar-track" x="260" y="373" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="373" width="280.0" height="18" rx="4" fill="#2563eb"><title>GPT-5.2: best 100, average 100, 1 runs</title></rect>
+<text class="value-label" x="548.0" y="388">100</text>
+<text class="bar-label" x="248" y="422" text-anchor="end">DeepSeek V4 Pro</text>
+<rect class="bar-track" x="260" y="407" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="407" width="249.2" height="18" rx="4" fill="#16a34a"><title>DeepSeek V4 Pro: best 89, average 76, 2 runs</title></rect>
+<text class="value-label" x="517.2" y="422">89</text>
+<text class="bar-label" x="248" y="456" text-anchor="end">Qwen3.6-Plus</text>
+<rect class="bar-track" x="260" y="441" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="441" width="190.4" height="18" rx="4" fill="#4f46e5"><title>Qwen3.6-Plus: best 68, average 68, 1 runs</title></rect>
+<text class="value-label" x="458.4" y="456">68</text>
+<text class="bar-label" x="248" y="490" text-anchor="end">Gemini 2.5 Flash</text>
+<rect class="bar-track" x="260" y="475" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="475" width="182.0" height="18" rx="4" fill="#9333ea"><title>Gemini 2.5 Flash: best 65, average 65, 1 runs</title></rect>
+<text class="value-label" x="450.0" y="490">65</text>
+<text class="bar-label" x="248" y="524" text-anchor="end">Claude Sonnet 4.5</text>
+<rect class="bar-track" x="260" y="509" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="509" width="179.2" height="18" rx="4" fill="#dc2626"><title>Claude Sonnet 4.5: best 64, average 64, 1 runs</title></rect>
+<text class="value-label" x="447.2" y="524">64</text>
+<text class="bar-label" x="248" y="558" text-anchor="end">Grok 4.3</text>
+<rect class="bar-track" x="260" y="543" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="543" width="131.6" height="18" rx="4" fill="#ea580c"><title>Grok 4.3: best 47, average 47, 1 runs</title></rect>
+<text class="value-label" x="399.6" y="558">47</text>
+<text class="bar-label" x="248" y="592" text-anchor="end">Mistral Medium 3.1</text>
+<rect class="bar-track" x="260" y="577" width="840" height="18" rx="4" />
+<rect class="bar" x="260" y="577" width="131.6" height="18" rx="4" fill="#be123c"><title>Mistral Medium 3.1: best 47, average 47, 1 runs</title></rect>
+<text class="value-label" x="399.6" y="592">47</text>
+</svg>
+    </section>
+    <div class="chart-grid">
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Runs By Effort</h2>
+        <p>Run counts by requested reasoning effort.</p>
+      </div>
+      <svg class="chart-svg compact" viewBox="0 0 520 262" role="img" aria-label="Runs by effort">
+<text class="bar-label" x="160" y="45" text-anchor="end">high</text>
+<rect class="bar-track" x="170" y="30" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="30" width="302.0" height="18" rx="4" fill="#2563eb" />
+<text class="value-label" x="480.0" y="45">9</text>
+<text class="bar-label" x="160" y="81" text-anchor="end">unspecified</text>
+<rect class="bar-track" x="170" y="66" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="66" width="201.3" height="18" rx="4" fill="#ea580c" />
+<text class="value-label" x="379.3" y="81">6</text>
+<text class="bar-label" x="160" y="117" text-anchor="end">xhigh</text>
+<rect class="bar-track" x="170" y="102" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="102" width="167.8" height="18" rx="4" fill="#0891b2" />
+<text class="value-label" x="345.8" y="117">5</text>
+<text class="bar-label" x="160" y="153" text-anchor="end">low</text>
+<rect class="bar-track" x="170" y="138" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="138" width="33.6" height="18" rx="4" fill="#dc2626" />
+<text class="value-label" x="211.6" y="153">1</text>
+<text class="bar-label" x="160" y="189" text-anchor="end">max</text>
+<rect class="bar-track" x="170" y="174" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="174" width="33.6" height="18" rx="4" fill="#16a34a" />
+<text class="value-label" x="211.6" y="189">1</text>
+<text class="bar-label" x="160" y="225" text-anchor="end">medium</text>
+<rect class="bar-track" x="170" y="210" width="302" height="18" rx="4" />
+<rect class="bar" x="170" y="210" width="33.6" height="18" rx="4" fill="#9333ea" />
+<text class="value-label" x="211.6" y="225">1</text>
+</svg>
+    </section>
+    </div>
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Score Versus Wall Time</h2>
+        <p>Each point compares a run&#x27;s best score with total wall-clock duration.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 1180 430" role="img" aria-label="Score versus wall time">
+<line class="grid-line" x1="70" x2="1138" y1="358.0" y2="358.0" />
+<text class="tick-label" x="58" y="362.0" text-anchor="end">0</text>
+<line class="grid-line" x1="70" x2="1138" y1="292.4" y2="292.4" />
+<text class="tick-label" x="58" y="296.4" text-anchor="end">60</text>
+<line class="grid-line" x1="70" x2="1138" y1="226.8" y2="226.8" />
+<text class="tick-label" x="58" y="230.8" text-anchor="end">120</text>
+<line class="grid-line" x1="70" x2="1138" y1="161.2" y2="161.2" />
+<text class="tick-label" x="58" y="165.2" text-anchor="end">180</text>
+<line class="grid-line" x1="70" x2="1138" y1="95.6" y2="95.6" />
+<text class="tick-label" x="58" y="99.6" text-anchor="end">240</text>
+<line class="grid-line" x1="70" x2="1138" y1="30.0" y2="30.0" />
+<text class="tick-label" x="58" y="34.0" text-anchor="end">300</text>
+<line class="axis-line" x1="70" x2="1138" y1="358" y2="358" />
+<line class="axis-line" x1="70" x2="70" y1="30" y2="358" />
+<text class="axis-title" x="604.0" y="416" text-anchor="middle">Wall time (hours)</text>
+<text class="axis-title" transform="translate(20 194.0) rotate(-90)" text-anchor="middle">Best score</text>
+<text class="tick-label" x="70.0" y="392" text-anchor="middle">0</text>
+<text class="tick-label" x="283.6" y="392" text-anchor="middle">10</text>
+<text class="tick-label" x="497.2" y="392" text-anchor="middle">20</text>
+<text class="tick-label" x="710.8" y="392" text-anchor="middle">30</text>
+<text class="tick-label" x="924.4" y="392" text-anchor="middle">40</text>
+<text class="tick-label" x="1138.0" y="392" text-anchor="middle">50</text>
+<circle cx="161.8" cy="286.9" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 2.5 Flash: 65, 4h 18m</title></circle>
+<circle cx="149.4" cy="306.6" r="6.5" fill="#be123c" class="data-point"><title>Mistral Medium 3.1: 47, 3h 43m</title></circle>
+<circle cx="165.4" cy="288.0" r="6.5" fill="#dc2626" class="data-point"><title>Claude Sonnet 4.5: 64, 4h 28m</title></circle>
+<circle cx="86.8" cy="248.7" r="6.5" fill="#dc2626" class="data-point"><title>Claude Opus 4.5: 100, 47m 17s</title></circle>
+<circle cx="397.2" cy="200.6" r="6.5" fill="#dc2626" class="data-point"><title>Claude Opus 4.5: 144, 15h 19m</title></circle>
+<circle cx="329.5" cy="248.7" r="6.5" fill="#2563eb" class="data-point"><title>GPT-5.2: 100, 12h 9m</title></circle>
+<circle cx="253.7" cy="71.5" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3 Flash Preview: 262, 8h 36m</title></circle>
+<circle cx="166.5" cy="165.6" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3 Flash Preview: 176, 4h 31m</title></circle>
+<circle cx="465.2" cy="171.0" r="6.5" fill="#2563eb" class="data-point"><title>GPT-5.3-Codex: 171, 18h 30m</title></circle>
+<circle cx="178.2" cy="289.1" r="6.5" fill="#dc2626" class="data-point"><title>Claude Sonnet 4.6: 63, 5h 4m</title></circle>
+<circle cx="736.8" cy="188.5" r="6.5" fill="#dc2626" class="data-point"><title>Claude Sonnet 4.6: 155, 31h 13m</title></circle>
+<circle cx="433.1" cy="71.5" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3.1 Pro Preview: 262, 17h 0m</title></circle>
+<circle cx="223.4" cy="283.7" r="6.5" fill="#4f46e5" class="data-point"><title>Qwen3.6-Plus: 68, 7h 11m</title></circle>
+<circle cx="304.2" cy="144.8" r="6.5" fill="#dc2626" class="data-point"><title>Claude Opus 4.7: 195, 10h 58m</title></circle>
+<circle cx="83.0" cy="306.6" r="6.5" fill="#ea580c" class="data-point"><title>Grok 4.3: 47, 36m 23s</title></circle>
+<circle cx="732.2" cy="191.8" r="6.5" fill="#0891b2" class="data-point"><title>Kimi K2.6: 152, 31h 0m</title></circle>
+<circle cx="265.8" cy="148.1" r="6.5" fill="#2563eb" class="data-point"><title>GPT-5.5 (Codex): 192, 9h 10m</title></circle>
+<circle cx="407.1" cy="260.7" r="6.5" fill="#16a34a" class="data-point"><title>DeepSeek V4 Pro: 89, 15h 47m</title></circle>
+<circle cx="240.9" cy="289.1" r="6.5" fill="#16a34a" class="data-point"><title>DeepSeek V4 Pro: 63, 8h 0m</title></circle>
+<circle cx="205.6" cy="165.6" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3.5 Flash (High): 176, 6h 21m</title></circle>
+<circle cx="130.9" cy="192.9" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3.5 Flash (High): 151, 2h 51m</title></circle>
+<circle cx="140.8" cy="144.8" r="6.5" fill="#9333ea" class="data-point"><title>Gemini 3.5 Flash (High): 195, 3h 19m</title></circle>
+<circle cx="242.3" cy="71.5" r="6.5" fill="#dc2626" class="data-point"><title>Claude Opus 4.8: 262, 8h 4m</title></circle>
+</svg>
+    </section>
+    
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Run Details</h2>
+        <p>Normalized rows used by the generated charts; charts use model release date.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Release date</th>
+              <th>Model version</th>
+              <th>Model family</th>
+              <th>Origin</th>
+              <th>Best score</th>
+              <th>Effort</th>
+              <th>Run date</th>
+              <th>Wall time</th>
+              <th>Stop reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>May 28, 2026</td><td>Claude Opus 4.8</td><td>Claude</td><td>America</td><td>262</td><td>xhigh</td><td>May 28, 2026</td><td>8h 4m</td><td>stale_limit</td></tr><tr><td>May 19, 2026</td><td>Gemini 3.5 Flash (High)</td><td>Gemini</td><td>America</td><td>195</td><td>unspecified</td><td>May 25, 2026</td><td>3h 19m</td><td>stale_limit</td></tr><tr><td>May 19, 2026</td><td>Gemini 3.5 Flash (High)</td><td>Gemini</td><td>America</td><td>176</td><td>unspecified</td><td>May 24, 2026</td><td>6h 21m</td><td>stale_limit</td></tr><tr><td>May 19, 2026</td><td>Gemini 3.5 Flash (High)</td><td>Gemini</td><td>America</td><td>151</td><td>unspecified</td><td>May 24, 2026</td><td>2h 51m</td><td>stale_limit</td></tr><tr><td>Apr 24, 2026</td><td>DeepSeek V4 Pro</td><td>DeepSeek</td><td>China</td><td>63</td><td>high</td><td>May 28, 2026</td><td>8h 0m</td><td>agent_idle_timeout</td></tr><tr><td>Apr 24, 2026</td><td>DeepSeek V4 Pro</td><td>DeepSeek</td><td>China</td><td>89</td><td>high</td><td>May 27, 2026</td><td>15h 47m</td><td>agent_idle_timeout</td></tr><tr><td>Apr 23, 2026</td><td>GPT-5.5 (Codex)</td><td>ChatGPT / Codex</td><td>America</td><td>192</td><td>xhigh</td><td>May 1, 2026</td><td>9h 10m</td><td>stale_limit</td></tr><tr><td>Apr 20, 2026</td><td>Kimi K2.6</td><td>Kimi</td><td>China</td><td>152</td><td>high</td><td>May 9, 2026</td><td>31h 0m</td><td>agent_idle_timeout</td></tr><tr><td>Apr 17, 2026</td><td>Grok 4.3</td><td>Grok</td><td>America</td><td>47</td><td>high</td><td>May 11, 2026</td><td>36m 23s</td><td>stale_limit</td></tr><tr><td>Apr 16, 2026</td><td>Claude Opus 4.7</td><td>Claude</td><td>America</td><td>195</td><td>max</td><td>May 4, 2026</td><td>10h 58m</td><td>stale_limit</td></tr><tr><td>Apr 2, 2026</td><td>Qwen3.6-Plus</td><td>Qwen</td><td>China</td><td>68</td><td>high</td><td>May 11, 2026</td><td>7h 11m</td><td>stale_limit</td></tr><tr><td>Feb 19, 2026</td><td>Gemini 3.1 Pro Preview</td><td>Gemini</td><td>America</td><td>262</td><td>unspecified</td><td>May 5, 2026</td><td>17h 0m</td><td>stale_limit</td></tr><tr><td>Feb 17, 2026</td><td>Claude Sonnet 4.6</td><td>Claude</td><td>America</td><td>63</td><td>low</td><td>May 2, 2026</td><td>5h 4m</td><td>forbidden_edit_detected</td></tr><tr><td>Feb 17, 2026</td><td>Claude Sonnet 4.6</td><td>Claude</td><td>America</td><td>155</td><td>medium</td><td>May 2, 2026</td><td>31h 13m</td><td>stale_limit</td></tr><tr><td>Feb 5, 2026</td><td>GPT-5.3-Codex</td><td>ChatGPT / Codex</td><td>America</td><td>171</td><td>xhigh</td><td>Apr 30, 2026</td><td>18h 30m</td><td>stale_limit</td></tr><tr><td>Dec 17, 2025</td><td>Gemini 3 Flash Preview</td><td>Gemini</td><td>America</td><td>176</td><td>high</td><td>May 8, 2026</td><td>4h 31m</td><td>stale_limit</td></tr><tr><td>Dec 17, 2025</td><td>Gemini 3 Flash Preview</td><td>Gemini</td><td>America</td><td>262</td><td>unspecified</td><td>May 6, 2026</td><td>8h 36m</td><td>agent_idle_timeout</td></tr><tr><td>Dec 11, 2025</td><td>GPT-5.2</td><td>ChatGPT / Codex</td><td>America</td><td>100</td><td>xhigh</td><td>May 13, 2026</td><td>12h 9m</td><td>stale_limit</td></tr><tr><td>Nov 24, 2025</td><td>Claude Opus 4.5</td><td>Claude</td><td>America</td><td>144</td><td>high</td><td>May 14, 2026</td><td>15h 19m</td><td>stale_limit</td></tr><tr><td>Nov 24, 2025</td><td>Claude Opus 4.5</td><td>Claude</td><td>America</td><td>100</td><td>high</td><td>May 13, 2026</td><td>47m 17s</td><td>evaluation_failed</td></tr><tr><td>Sep 29, 2025</td><td>Claude Sonnet 4.5</td><td>Claude</td><td>America</td><td>64</td><td>xhigh</td><td>May 13, 2026</td><td>4h 28m</td><td>stale_limit</td></tr><tr><td>Aug 12, 2025</td><td>Mistral Medium 3.1</td><td>Mistral</td><td>Europe</td><td>47</td><td>high</td><td>May 11, 2026</td><td>3h 43m</td><td>stale_limit</td></tr><tr><td>Jun 17, 2025</td><td>Gemini 2.5 Flash</td><td>Gemini</td><td>America</td><td>65</td><td>unspecified</td><td>May 6, 2026</td><td>4h 18m</td><td>stale_limit</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    
+    <footer>
+      Generated by <code>scripts/build_visualizations.py</code>. Rerun the script after updating benchmark results or model metadata.
+    </footer>
+  </main>
+</body>
+</html>
