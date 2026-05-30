@@ -150,6 +150,16 @@
       stroke-width: 2;
     }
 
+    .model-point {
+      stroke-width: 2.2;
+    }
+
+    .same-model-line {
+      stroke-width: 1.3;
+      stroke-linecap: round;
+      opacity: 0.42;
+    }
+
     .bar-track {
       fill: var(--track);
     }
@@ -179,6 +189,10 @@
     .bar-label,
     .value-label {
       font-size: 13px;
+    }
+
+    .model-legend text {
+      font-size: 11px;
     }
 
     .bar-label {
@@ -303,73 +317,170 @@
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>All LLMs By Release Date</h2>
-        <p>Every benchmark run plotted by the model&#x27;s public release date and colored by model family.</p>
+        <p>Every benchmark run plotted by public release date and styled by specific model version.</p>
       </div>
-      <svg class="chart-svg" viewBox="0 0 1180 430" role="img" aria-label="Best score by model release date">
-<line class="grid-line" x1="70" x2="990" y1="358.0" y2="358.0" />
-<text class="tick-label" x="58" y="362.0" text-anchor="end">0</text>
-<line class="grid-line" x1="70" x2="990" y1="292.4" y2="292.4" />
-<text class="tick-label" x="58" y="296.4" text-anchor="end">60</text>
-<line class="grid-line" x1="70" x2="990" y1="226.8" y2="226.8" />
-<text class="tick-label" x="58" y="230.8" text-anchor="end">120</text>
-<line class="grid-line" x1="70" x2="990" y1="161.2" y2="161.2" />
-<text class="tick-label" x="58" y="165.2" text-anchor="end">180</text>
-<line class="grid-line" x1="70" x2="990" y1="95.6" y2="95.6" />
-<text class="tick-label" x="58" y="99.6" text-anchor="end">240</text>
-<line class="grid-line" x1="70" x2="990" y1="30.0" y2="30.0" />
+      <svg class="chart-svg" viewBox="0 0 1180 560" role="img" aria-label="Best score by model release date and model version">
+<defs>
+<pattern id="model-pattern-0" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#1d4ed8" />
+</pattern>
+<pattern id="model-pattern-1" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#dc2626" />
+<path d="M-2 8 L8 -2 M0 10 L10 0" stroke="#ffffff" stroke-width="1.2" opacity="0.75" />
+</pattern>
+<pattern id="model-pattern-2" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#059669" />
+<path d="M-2 8 L8 -2 M0 10 L10 0 M-2 0 L8 10 M0 -2 L10 8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-3" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#7c3aed" />
+<circle cx="2" cy="2" r="1.1" fill="#ffffff" opacity="0.8" />
+<circle cx="6" cy="6" r="1.1" fill="#ffffff" opacity="0.8" />
+</pattern>
+<pattern id="model-pattern-4" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#ea580c" />
+<path d="M2 0 V8 M6 0 V8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-5" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#0891b2" />
+<path d="M0 2 H8 M0 6 H8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-6" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#be123c" />
+</pattern>
+<pattern id="model-pattern-7" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#4338ca" />
+<path d="M-2 8 L8 -2 M0 10 L10 0" stroke="#ffffff" stroke-width="1.2" opacity="0.75" />
+</pattern>
+<pattern id="model-pattern-8" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#65a30d" />
+<path d="M-2 8 L8 -2 M0 10 L10 0 M-2 0 L8 10 M0 -2 L10 8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-9" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#ca8a04" />
+<circle cx="2" cy="2" r="1.1" fill="#ffffff" opacity="0.8" />
+<circle cx="6" cy="6" r="1.1" fill="#ffffff" opacity="0.8" />
+</pattern>
+<pattern id="model-pattern-10" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#0f766e" />
+<path d="M2 0 V8 M6 0 V8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-11" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#c026d3" />
+<path d="M0 2 H8 M0 6 H8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-12" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#b45309" />
+</pattern>
+<pattern id="model-pattern-13" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#2563eb" />
+<path d="M-2 8 L8 -2 M0 10 L10 0" stroke="#ffffff" stroke-width="1.2" opacity="0.75" />
+</pattern>
+<pattern id="model-pattern-14" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#db2777" />
+<path d="M-2 8 L8 -2 M0 10 L10 0 M-2 0 L8 10 M0 -2 L10 8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-15" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#16a34a" />
+<circle cx="2" cy="2" r="1.1" fill="#ffffff" opacity="0.8" />
+<circle cx="6" cy="6" r="1.1" fill="#ffffff" opacity="0.8" />
+</pattern>
+<pattern id="model-pattern-16" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#9333ea" />
+<path d="M2 0 V8 M6 0 V8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+<pattern id="model-pattern-17" patternUnits="userSpaceOnUse" width="8" height="8">
+<rect width="8" height="8" fill="#f97316" />
+<path d="M0 2 H8 M0 6 H8" stroke="#ffffff" stroke-width="1" opacity="0.7" />
+</pattern>
+</defs>
+<line class="grid-line" x1="70" x2="760" y1="488.0" y2="488.0" />
+<text class="tick-label" x="58" y="492.0" text-anchor="end">0</text>
+<line class="grid-line" x1="70" x2="760" y1="396.4" y2="396.4" />
+<text class="tick-label" x="58" y="400.4" text-anchor="end">60</text>
+<line class="grid-line" x1="70" x2="760" y1="304.8" y2="304.8" />
+<text class="tick-label" x="58" y="308.8" text-anchor="end">120</text>
+<line class="grid-line" x1="70" x2="760" y1="213.2" y2="213.2" />
+<text class="tick-label" x="58" y="217.2" text-anchor="end">180</text>
+<line class="grid-line" x1="70" x2="760" y1="121.6" y2="121.6" />
+<text class="tick-label" x="58" y="125.6" text-anchor="end">240</text>
+<line class="grid-line" x1="70" x2="760" y1="30.0" y2="30.0" />
 <text class="tick-label" x="58" y="34.0" text-anchor="end">300</text>
-<line class="axis-line" x1="70" x2="990" y1="358" y2="358" />
-<line class="axis-line" x1="70" x2="70" y1="30" y2="358" />
-<text class="axis-title" x="530.0" y="416" text-anchor="middle">Model release date</text>
-<text class="axis-title" transform="translate(20 194.0) rotate(-90)" text-anchor="middle">Best score</text>
-<circle cx="70.0" cy="286.9" r="6.5" fill="#ea580c" class="data-point"><title>Released Jun 17, 2025 - Gemini 2.5 Flash: 65 (Gemini)</title></circle>
-<circle cx="219.3" cy="306.6" r="6.5" fill="#4f46e5" class="data-point"><title>Released Aug 12, 2025 - Mistral Medium 3.1: 47 (Mistral)</title></circle>
-<circle cx="347.3" cy="288.0" r="6.5" fill="#dc2626" class="data-point"><title>Released Sep 29, 2025 - Claude Sonnet 4.5: 64 (Claude)</title></circle>
-<circle cx="496.7" cy="248.7" r="6.5" fill="#dc2626" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 100 (Claude)</title></circle>
-<circle cx="496.7" cy="200.6" r="6.5" fill="#dc2626" class="data-point"><title>Released Nov 24, 2025 - Claude Opus 4.5: 144 (Claude)</title></circle>
-<circle cx="542.0" cy="248.7" r="6.5" fill="#2563eb" class="data-point"><title>Released Dec 11, 2025 - GPT-5.2: 100 (ChatGPT / Codex)</title></circle>
-<circle cx="558.0" cy="71.5" r="6.5" fill="#ea580c" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 262 (Gemini)</title></circle>
-<circle cx="558.0" cy="165.6" r="6.5" fill="#ea580c" class="data-point"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 176 (Gemini)</title></circle>
-<circle cx="691.3" cy="171.0" r="6.5" fill="#2563eb" class="data-point"><title>Released Feb 5, 2026 - GPT-5.3-Codex: 171 (ChatGPT / Codex)</title></circle>
-<circle cx="723.3" cy="289.1" r="6.5" fill="#dc2626" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 63 (Claude)</title></circle>
-<circle cx="723.3" cy="188.5" r="6.5" fill="#dc2626" class="data-point"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 155 (Claude)</title></circle>
-<circle cx="728.7" cy="71.5" r="6.5" fill="#ea580c" class="data-point"><title>Released Feb 19, 2026 - Gemini 3.1 Pro Preview: 262 (Gemini)</title></circle>
-<circle cx="840.7" cy="283.7" r="6.5" fill="#65a30d" class="data-point"><title>Released Apr 2, 2026 - Qwen3.6-Plus: 68 (Qwen)</title></circle>
-<circle cx="854.0" cy="244.3" r="6.5" fill="#9333ea" class="data-point"><title>Released Apr 7, 2026 - GLM-5.1: 104 (GLM)</title></circle>
-<circle cx="878.0" cy="144.8" r="6.5" fill="#dc2626" class="data-point"><title>Released Apr 16, 2026 - Claude Opus 4.7: 195 (Claude)</title></circle>
-<circle cx="880.7" cy="306.6" r="6.5" fill="#0891b2" class="data-point"><title>Released Apr 17, 2026 - Grok 4.3: 47 (Grok)</title></circle>
-<circle cx="888.7" cy="191.8" r="6.5" fill="#be123c" class="data-point"><title>Released Apr 20, 2026 - Kimi K2.6: 152 (Kimi)</title></circle>
-<circle cx="896.7" cy="148.1" r="6.5" fill="#2563eb" class="data-point"><title>Released Apr 23, 2026 - GPT-5.5 (Codex): 192 (ChatGPT / Codex)</title></circle>
-<circle cx="899.3" cy="260.7" r="6.5" fill="#16a34a" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 89 (DeepSeek)</title></circle>
-<circle cx="899.3" cy="289.1" r="6.5" fill="#16a34a" class="data-point"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 63 (DeepSeek)</title></circle>
-<circle cx="966.0" cy="165.6" r="6.5" fill="#ea580c" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 176 (Gemini)</title></circle>
-<circle cx="966.0" cy="192.9" r="6.5" fill="#ea580c" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 151 (Gemini)</title></circle>
-<circle cx="966.0" cy="144.8" r="6.5" fill="#ea580c" class="data-point"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 195 (Gemini)</title></circle>
-<circle cx="990.0" cy="71.5" r="6.5" fill="#dc2626" class="data-point"><title>Released May 28, 2026 - Claude Opus 4.8: 262 (Claude)</title></circle>
-<text class="tick-label" x="70.0" y="396" text-anchor="middle">Jun 2025</text>
-<text class="tick-label" x="299.3" y="396" text-anchor="middle">Sep 2025</text>
-<text class="tick-label" x="528.7" y="396" text-anchor="middle">Dec 2025</text>
-<text class="tick-label" x="760.7" y="396" text-anchor="middle">Mar 2026</text>
-<text class="tick-label" x="990.0" y="396" text-anchor="middle">May 2026</text>
-<g class="legend">
-<rect x="1018" y="34" width="12" height="12" rx="2" fill="#2563eb" />
-<text x="1038" y="44">ChatGPT / Codex</text>
-<rect x="1018" y="58" width="12" height="12" rx="2" fill="#dc2626" />
-<text x="1038" y="68">Claude</text>
-<rect x="1018" y="82" width="12" height="12" rx="2" fill="#16a34a" />
-<text x="1038" y="92">DeepSeek</text>
-<rect x="1018" y="106" width="12" height="12" rx="2" fill="#9333ea" />
-<text x="1038" y="116">GLM</text>
-<rect x="1018" y="130" width="12" height="12" rx="2" fill="#ea580c" />
-<text x="1038" y="140">Gemini</text>
-<rect x="1018" y="154" width="12" height="12" rx="2" fill="#0891b2" />
-<text x="1038" y="164">Grok</text>
-<rect x="1018" y="178" width="12" height="12" rx="2" fill="#be123c" />
-<text x="1038" y="188">Kimi</text>
-<rect x="1018" y="202" width="12" height="12" rx="2" fill="#4f46e5" />
-<text x="1038" y="212">Mistral</text>
-<rect x="1018" y="226" width="12" height="12" rx="2" fill="#65a30d" />
-<text x="1038" y="236">Qwen</text>
+<line class="axis-line" x1="70" x2="760" y1="488" y2="488" />
+<line class="axis-line" x1="70" x2="70" y1="30" y2="488" />
+<text class="axis-title" x="415.0" y="546" text-anchor="middle">Model release date</text>
+<text class="axis-title" transform="translate(20 259.0) rotate(-90)" text-anchor="middle">Best score</text>
+<line class="same-model-line" x1="390.0" x2="390.0" y1="268.2" y2="335.3" stroke="#7c3aed"><title>Claude Opus 4.5 repeated runs</title></line>
+<line class="same-model-line" x1="436.0" x2="436.0" y1="88.0" y2="219.3" stroke="#0891b2"><title>Gemini 3 Flash Preview repeated runs</title></line>
+<line class="same-model-line" x1="560.0" x2="560.0" y1="251.4" y2="391.8" stroke="#4338ca"><title>Claude Sonnet 4.6 repeated runs</title></line>
+<line class="same-model-line" x1="692.0" x2="692.0" y1="352.1" y2="391.8" stroke="#16a34a"><title>DeepSeek V4 Pro repeated runs</title></line>
+<line class="same-model-line" x1="742.0" x2="742.0" y1="190.3" y2="257.5" stroke="#9333ea"><title>Gemini 3.5 Flash (High) repeated runs</title></line>
+<circle cx="70.0" cy="388.8" r="9.5" fill="url(#model-pattern-0)" class="data-point model-point" style="stroke: #1d4ed8; stroke-width: 2.2;"><title>Released Jun 17, 2025 - Gemini 2.5 Flash: 65 (20260506-120335-gemini-2-5-flash)</title></circle>
+<circle cx="182.0" cy="416.2" r="9.5" fill="url(#model-pattern-1)" class="data-point model-point" style="stroke: #dc2626; stroke-width: 2.2;"><title>Released Aug 12, 2025 - Mistral Medium 3.1: 47 (20260511-112204-opencode-openrouter-mistralai-mistral-medium-3-1)</title></circle>
+<circle cx="278.0" cy="390.3" r="9.5" fill="url(#model-pattern-2)" class="data-point model-point" style="stroke: #059669; stroke-width: 2.2;"><title>Released Sep 29, 2025 - Claude Sonnet 4.5: 64 (20260513-135710-claude-sonnet-4-5)</title></circle>
+<circle cx="390.0" cy="335.3" r="9.5" fill="url(#model-pattern-3)" class="data-point model-point" style="stroke: #7c3aed; stroke-width: 2.2;"><title>Released Nov 24, 2025 - Claude Opus 4.5: 100 (20260513-213232-claude-opus-4-5)</title></circle>
+<circle cx="390.0" cy="268.2" r="9.5" fill="url(#model-pattern-3)" class="data-point model-point" style="stroke: #7c3aed; stroke-width: 2.2;"><title>Released Nov 24, 2025 - Claude Opus 4.5: 144 (20260514-113354-claude-opus-4-5)</title></circle>
+<circle cx="424.0" cy="335.3" r="9.5" fill="url(#model-pattern-4)" class="data-point model-point" style="stroke: #ea580c; stroke-width: 2.2;"><title>Released Dec 11, 2025 - GPT-5.2: 100 (20260513-154703-gpt-5-2)</title></circle>
+<circle cx="436.0" cy="88.0" r="9.5" fill="url(#model-pattern-5)" class="data-point model-point" style="stroke: #0891b2; stroke-width: 2.2;"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 262 (20260506-184031-gemini-3-flash-preview)</title></circle>
+<circle cx="436.0" cy="219.3" r="9.5" fill="url(#model-pattern-5)" class="data-point model-point" style="stroke: #0891b2; stroke-width: 2.2;"><title>Released Dec 17, 2025 - Gemini 3 Flash Preview: 176 (20260508-163024-opencode-openrouter-gemini-3-flash-preview)</title></circle>
+<circle cx="536.0" cy="226.9" r="9.5" fill="url(#model-pattern-6)" class="data-point model-point" style="stroke: #be123c; stroke-width: 2.2;"><title>Released Feb 5, 2026 - GPT-5.3-Codex: 171 (20260430-102443-codex-5-3)</title></circle>
+<circle cx="560.0" cy="391.8" r="9.5" fill="url(#model-pattern-7)" class="data-point model-point" style="stroke: #4338ca; stroke-width: 2.2;"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 63 (20260502-094850-claude-code-sonnet)</title></circle>
+<circle cx="560.0" cy="251.4" r="9.5" fill="url(#model-pattern-7)" class="data-point model-point" style="stroke: #4338ca; stroke-width: 2.2;"><title>Released Feb 17, 2026 - Claude Sonnet 4.6: 155 (20260502-153410-claude-code-sonnet)</title></circle>
+<circle cx="564.0" cy="88.0" r="9.5" fill="url(#model-pattern-8)" class="data-point model-point" style="stroke: #65a30d; stroke-width: 2.2;"><title>Released Feb 19, 2026 - Gemini 3.1 Pro Preview: 262 (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="648.0" cy="384.2" r="9.5" fill="url(#model-pattern-9)" class="data-point model-point" style="stroke: #ca8a04; stroke-width: 2.2;"><title>Released Apr 2, 2026 - Qwen3.6-Plus: 68 (20260511-171126-opencode-openrouter-qwen-qwen3-6-plus)</title></circle>
+<circle cx="658.0" cy="329.2" r="9.5" fill="url(#model-pattern-10)" class="data-point model-point" style="stroke: #0f766e; stroke-width: 2.2;"><title>Released Apr 7, 2026 - GLM-5.1: 104 (20260529-153836-opencode-openrouter-z-ai-glm-5-1)</title></circle>
+<circle cx="676.0" cy="190.3" r="9.5" fill="url(#model-pattern-11)" class="data-point model-point" style="stroke: #c026d3; stroke-width: 2.2;"><title>Released Apr 16, 2026 - Claude Opus 4.7: 195 (20260504-090806-claude-code-opus)</title></circle>
+<circle cx="678.0" cy="416.2" r="9.5" fill="url(#model-pattern-12)" class="data-point model-point" style="stroke: #b45309; stroke-width: 2.2;"><title>Released Apr 17, 2026 - Grok 4.3: 47 (20260511-082448-opencode-openrouter-x-ai-grok-4-3)</title></circle>
+<circle cx="684.0" cy="255.9" r="9.5" fill="url(#model-pattern-13)" class="data-point model-point" style="stroke: #2563eb; stroke-width: 2.2;"><title>Released Apr 20, 2026 - Kimi K2.6: 152 (20260509-182003-opencode-openrouter-moonshotai-kimi-k2-6)</title></circle>
+<circle cx="690.0" cy="194.9" r="9.5" fill="url(#model-pattern-14)" class="data-point model-point" style="stroke: #db2777; stroke-width: 2.2;"><title>Released Apr 23, 2026 - GPT-5.5 (Codex): 192 (20260501-122827-codex-5-5)</title></circle>
+<circle cx="692.0" cy="352.1" r="9.5" fill="url(#model-pattern-15)" class="data-point model-point" style="stroke: #16a34a; stroke-width: 2.2;"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 89 (20260527-103344-opencode-openrouter-deepseek-deepseek-v4-pro)</title></circle>
+<circle cx="692.0" cy="391.8" r="9.5" fill="url(#model-pattern-15)" class="data-point model-point" style="stroke: #16a34a; stroke-width: 2.2;"><title>Released Apr 24, 2026 - DeepSeek V4 Pro: 63 (20260528-073107-opencode-openrouter-deepseek-deepseek-v4-pro)</title></circle>
+<circle cx="742.0" cy="219.3" r="9.5" fill="url(#model-pattern-16)" class="data-point model-point" style="stroke: #9333ea; stroke-width: 2.2;"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 176 (20260524-123240-gemini-3-5-flash-high)</title></circle>
+<circle cx="742.0" cy="257.5" r="9.5" fill="url(#model-pattern-16)" class="data-point model-point" style="stroke: #9333ea; stroke-width: 2.2;"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 151 (20260524-193813-gemini-3-5-flash-high)</title></circle>
+<circle cx="742.0" cy="190.3" r="9.5" fill="url(#model-pattern-16)" class="data-point model-point" style="stroke: #9333ea; stroke-width: 2.2;"><title>Released May 19, 2026 - Gemini 3.5 Flash (High): 195 (20260525-101237-gemini-3-5-flash-high)</title></circle>
+<circle cx="760.0" cy="88.0" r="9.5" fill="url(#model-pattern-17)" class="data-point model-point" style="stroke: #f97316; stroke-width: 2.2;"><title>Released May 28, 2026 - Claude Opus 4.8: 262 (20260528-160434-claude-opus-4-8)</title></circle>
+<text class="tick-label" x="70.0" y="526" text-anchor="middle">Jun 2025</text>
+<text class="tick-label" x="242.0" y="526" text-anchor="middle">Sep 2025</text>
+<text class="tick-label" x="414.0" y="526" text-anchor="middle">Dec 2025</text>
+<text class="tick-label" x="588.0" y="526" text-anchor="middle">Mar 2026</text>
+<text class="tick-label" x="760.0" y="526" text-anchor="middle">May 2026</text>
+<g class="legend model-legend">
+<circle cx="796" cy="40" r="6" fill="url(#model-pattern-0)" stroke="#1d4ed8" stroke-width="1.5" />
+<text x="808" y="44">Gemini 2.5 Flash</text>
+<circle cx="796" cy="64" r="6" fill="url(#model-pattern-1)" stroke="#dc2626" stroke-width="1.5" />
+<text x="808" y="68">Mistral Medium 3.1</text>
+<circle cx="796" cy="88" r="6" fill="url(#model-pattern-2)" stroke="#059669" stroke-width="1.5" />
+<text x="808" y="92">Claude Sonnet 4.5</text>
+<circle cx="796" cy="112" r="6" fill="url(#model-pattern-3)" stroke="#7c3aed" stroke-width="1.5" />
+<text x="808" y="116">Claude Opus 4.5</text>
+<circle cx="796" cy="136" r="6" fill="url(#model-pattern-4)" stroke="#ea580c" stroke-width="1.5" />
+<text x="808" y="140">GPT-5.2</text>
+<circle cx="796" cy="160" r="6" fill="url(#model-pattern-5)" stroke="#0891b2" stroke-width="1.5" />
+<text x="808" y="164">Gemini 3 Flash Preview</text>
+<circle cx="796" cy="184" r="6" fill="url(#model-pattern-6)" stroke="#be123c" stroke-width="1.5" />
+<text x="808" y="188">GPT-5.3-Codex</text>
+<circle cx="796" cy="208" r="6" fill="url(#model-pattern-7)" stroke="#4338ca" stroke-width="1.5" />
+<text x="808" y="212">Claude Sonnet 4.6</text>
+<circle cx="796" cy="232" r="6" fill="url(#model-pattern-8)" stroke="#65a30d" stroke-width="1.5" />
+<text x="808" y="236">Gemini 3.1 Pro Preview</text>
+<circle cx="986" cy="40" r="6" fill="url(#model-pattern-9)" stroke="#ca8a04" stroke-width="1.5" />
+<text x="998" y="44">Qwen3.6-Plus</text>
+<circle cx="986" cy="64" r="6" fill="url(#model-pattern-10)" stroke="#0f766e" stroke-width="1.5" />
+<text x="998" y="68">GLM-5.1</text>
+<circle cx="986" cy="88" r="6" fill="url(#model-pattern-11)" stroke="#c026d3" stroke-width="1.5" />
+<text x="998" y="92">Claude Opus 4.7</text>
+<circle cx="986" cy="112" r="6" fill="url(#model-pattern-12)" stroke="#b45309" stroke-width="1.5" />
+<text x="998" y="116">Grok 4.3</text>
+<circle cx="986" cy="136" r="6" fill="url(#model-pattern-13)" stroke="#2563eb" stroke-width="1.5" />
+<text x="998" y="140">Kimi K2.6</text>
+<circle cx="986" cy="160" r="6" fill="url(#model-pattern-14)" stroke="#db2777" stroke-width="1.5" />
+<text x="998" y="164">GPT-5.5 (Codex)</text>
+<circle cx="986" cy="184" r="6" fill="url(#model-pattern-15)" stroke="#16a34a" stroke-width="1.5" />
+<text x="998" y="188">DeepSeek V4 Pro</text>
+<circle cx="986" cy="208" r="6" fill="url(#model-pattern-16)" stroke="#9333ea" stroke-width="1.5" />
+<text x="998" y="212">Gemini 3.5 Flash (High)</text>
+<circle cx="986" cy="232" r="6" fill="url(#model-pattern-17)" stroke="#f97316" stroke-width="1.5" />
+<text x="998" y="236">Claude Opus 4.8</text>
 </g>
 </svg>
     </section>

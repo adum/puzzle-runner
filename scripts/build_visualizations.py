@@ -26,6 +26,31 @@ PALETTE = [
     "#ca8a04",
 ]
 
+MODEL_PALETTE = [
+    "#1d4ed8",
+    "#dc2626",
+    "#059669",
+    "#7c3aed",
+    "#ea580c",
+    "#0891b2",
+    "#be123c",
+    "#4338ca",
+    "#65a30d",
+    "#ca8a04",
+    "#0f766e",
+    "#c026d3",
+    "#b45309",
+    "#2563eb",
+    "#db2777",
+    "#16a34a",
+    "#9333ea",
+    "#f97316",
+    "#0284c7",
+    "#b91c1c",
+]
+
+MODEL_PATTERNS = ["solid", "diagonal", "cross", "dots", "vertical", "horizontal"]
+
 ORIGIN_COLORS = {
     "America": "#2563eb",
     "China": "#dc2626",
@@ -276,6 +301,21 @@ def color_map(labels: list[str]) -> dict[str, str]:
     return {label: PALETTE[index % len(PALETTE)] for index, label in enumerate(sorted(set(labels)))}
 
 
+def model_style_map(runs: list[RunResult]) -> dict[str, dict[str, str]]:
+    ordered_versions = sorted(
+        {run.version: run.release_date or run.run_date for run in runs}.items(),
+        key=lambda item: (item[1], item[0]),
+    )
+    styles: dict[str, dict[str, str]] = {}
+    for index, (version, _) in enumerate(ordered_versions):
+        styles[version] = {
+            "color": MODEL_PALETTE[index % len(MODEL_PALETTE)],
+            "pattern": MODEL_PATTERNS[index % len(MODEL_PATTERNS)],
+            "pattern_id": f"model-pattern-{index}",
+        }
+    return styles
+
+
 def aggregate_scores(runs: list[RunResult], key: str) -> list[dict[str, object]]:
     buckets: dict[str, list[int]] = defaultdict(list)
     for run in runs:
@@ -389,6 +429,117 @@ def chart_shell(title: str, subtitle: str, svg: str) -> str:
     """
 
 
+def svg_model_pattern_defs(styles: dict[str, dict[str, str]]) -> str:
+    elements = ["<defs>"]
+    for style in styles.values():
+        pattern_id = style["pattern_id"]
+        color = style["color"]
+        pattern = style["pattern"]
+        elements.append(f'<pattern id="{pattern_id}" patternUnits="userSpaceOnUse" width="8" height="8">')
+        elements.append(f'<rect width="8" height="8" fill="{color}" />')
+        if pattern == "diagonal":
+            elements.append('<path d="M-2 8 L8 -2 M0 10 L10 0" stroke="#ffffff" stroke-width="1.2" opacity="0.75" />')
+        elif pattern == "cross":
+            elements.append('<path d="M-2 8 L8 -2 M0 10 L10 0 M-2 0 L8 10 M0 -2 L10 8" stroke="#ffffff" stroke-width="1" opacity="0.7" />')
+        elif pattern == "dots":
+            elements.append('<circle cx="2" cy="2" r="1.1" fill="#ffffff" opacity="0.8" />')
+            elements.append('<circle cx="6" cy="6" r="1.1" fill="#ffffff" opacity="0.8" />')
+        elif pattern == "vertical":
+            elements.append('<path d="M2 0 V8 M6 0 V8" stroke="#ffffff" stroke-width="1" opacity="0.7" />')
+        elif pattern == "horizontal":
+            elements.append('<path d="M0 2 H8 M0 6 H8" stroke="#ffffff" stroke-width="1" opacity="0.7" />')
+        elements.append("</pattern>")
+    elements.append("</defs>")
+    return "\n".join(elements)
+
+
+def svg_model_legend(styles: dict[str, dict[str, str]], x: int, y: int, columns: int = 2) -> str:
+    labels = list(styles)
+    rows = math.ceil(len(labels) / columns)
+    column_width = 190
+    row_height = 24
+    elements = ['<g class="legend model-legend">']
+    for index, label in enumerate(labels):
+        column = index // rows
+        row = index % rows
+        style = styles[label]
+        marker_x = x + column * column_width
+        marker_y = y + row * row_height
+        elements.append(
+            f'<circle cx="{marker_x + 6}" cy="{marker_y + 6}" r="6" fill="url(#{style["pattern_id"]})" '
+            f'stroke="{style["color"]}" stroke-width="1.5" />'
+        )
+        elements.append(f'<text x="{marker_x + 18}" y="{marker_y + 10}">{html_escape(label)}</text>')
+    elements.append("</g>")
+    return "\n".join(elements)
+
+
+def svg_model_release_date_scatter(runs: list[RunResult]) -> str:
+    plotted = [run for run in runs if run.release_date]
+    plotted.sort(key=lambda run: (run.release_date or run.run_date, run.version, run.run_id))
+    styles = model_style_map(plotted)
+    width = 1180
+    height = 560
+    left = 70
+    right = 420
+    top = 30
+    bottom = 72
+    plot_w = width - left - right
+    plot_h = height - top - bottom
+    max_score = score_axis_max([run.best_score for run in plotted])
+    min_date = min(run.release_date for run in plotted if run.release_date)
+    max_date = max(run.release_date for run in plotted if run.release_date)
+    total_days = max(1, (max_date - min_date).days)
+
+    elements = [
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Best score by model release date and model version">',
+        svg_model_pattern_defs(styles),
+        grid_lines(left, top, plot_w, plot_h, max_score),
+        axis_labels(left, top, plot_w, plot_h, "Model release date", "Best score"),
+    ]
+
+    points: list[tuple[RunResult, float, float]] = []
+    for run in plotted:
+        release_date = run.release_date or run.run_date
+        x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
+        y = scale(run.best_score, 0, max_score, top + plot_h, top)
+        points.append((run, x, y))
+
+    by_version: dict[str, list[tuple[RunResult, float, float]]] = defaultdict(list)
+    for point in points:
+        by_version[point[0].version].append(point)
+
+    for version, version_points in by_version.items():
+        if len(version_points) < 2:
+            continue
+        x = version_points[0][1]
+        y_values = [point[2] for point in version_points]
+        style = styles[version]
+        elements.append(
+            f'<line class="same-model-line" x1="{x:.1f}" x2="{x:.1f}" '
+            f'y1="{min(y_values):.1f}" y2="{max(y_values):.1f}" stroke="{style["color"]}">'
+            f"<title>{html_escape(version)} repeated runs</title></line>"
+        )
+
+    for run, x, y in points:
+        style = styles[run.version]
+        tooltip = f"Released {fmt_date(run.release_date or run.run_date)} - {run.version}: {run.best_score} ({run.run_id})"
+        elements.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="9.5" fill="url(#{style["pattern_id"]})" '
+            f'class="data-point model-point" style="stroke: {style["color"]}; stroke-width: 2.2;">'
+            f"<title>{html_escape(tooltip)}</title></circle>"
+        )
+
+    for tick_index in range(5):
+        tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
+        x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
+
+    elements.append(svg_model_legend(styles, left + plot_w + 30, top + 4, columns=2))
+    elements.append("</svg>")
+    return "\n".join(elements)
+
+
 def svg_release_date_scatter(
     runs: list[RunResult],
     colors: dict[str, str],
@@ -443,8 +594,8 @@ def svg_release_date_scatter(
     return "\n".join(elements)
 
 
-def svg_score_over_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
-    return svg_release_date_scatter(runs, family_colors, "family")
+def svg_score_over_time(runs: list[RunResult]) -> str:
+    return svg_model_release_date_scatter(runs)
 
 
 def grid_lines(left: int, top: int, plot_w: int, plot_h: int, max_value: float) -> str:
@@ -704,8 +855,8 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     charts = [
         chart_shell(
             "All LLMs By Release Date",
-            "Every benchmark run plotted by the model's public release date and colored by model family.",
-            svg_score_over_time(runs, family_colors),
+            "Every benchmark run plotted by public release date and styled by specific model version.",
+            svg_score_over_time(runs),
         ),
         '<div class="chart-grid">',
         chart_shell(
@@ -914,6 +1065,16 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
       stroke-width: 2;
     }}
 
+    .model-point {{
+      stroke-width: 2.2;
+    }}
+
+    .same-model-line {{
+      stroke-width: 1.3;
+      stroke-linecap: round;
+      opacity: 0.42;
+    }}
+
     .bar-track {{
       fill: var(--track);
     }}
@@ -943,6 +1104,10 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     .bar-label,
     .value-label {{
       font-size: 13px;
+    }}
+
+    .model-legend text {{
+      font-size: 11px;
     }}
 
     .bar-label {{
