@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: May 29, 2026.
+Last researched: May 30, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home region: America, China, or Europe.
 
@@ -19,6 +19,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America |
 | Gemini | Gemini 3.5 Flash (High) | May 19, 2026 | America |
 | Grok | Grok 4.3 | April 17, 2026 | America |
+| GLM | GLM-5.1 | April 7, 2026 | China |
 | Kimi | Kimi K2.6 | April 20, 2026 | China |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe |
 | Qwen | Qwen3.6-Plus | April 2, 2026 | China |
@@ -36,6 +37,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Anthropic: [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime)
+- Z.AI / GLM: [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [OpenRouter model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks)
 - Moonshot AI / Kimi: [Kimi K2.6 tech blog](https://www.kimi.com/blog/kimi-k2-6), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
 - Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08)
 - Alibaba Cloud / Qwen: [Qwen3.6-Plus launch post](https://www.alibabacloud.com/blog/alibaba-unveils-qwen3-6-plus-to-accelerate-agentic-ai-deployment-for-enterprises-and-alibaba%E2%80%99s-ai-applications_603005)

@@ -198,6 +198,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("x ai "))
     if stripped.startswith("mistralai "):
         candidates.append(stripped.removeprefix("mistralai "))
+    if stripped.startswith("z ai "):
+        candidates.append(stripped.removeprefix("z ai "))
     if stripped.startswith("qwen qwen"):
         candidates.append("qwen" + stripped.removeprefix("qwen qwen"))
     if stripped.startswith("deepseek deepseek "):
