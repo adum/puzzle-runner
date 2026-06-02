@@ -160,6 +160,18 @@
       opacity: 0.42;
     }
 
+    .family-progress-line {
+      fill: none;
+      stroke-width: 2.4;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .family-progress-point {
+      stroke: #ffffff;
+      stroke-width: 1.8;
+    }
+
     .bar-track {
       fill: var(--track);
     }
@@ -484,6 +496,83 @@
 </g>
 </svg>
     </section>
+    
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Family Best Score Over Time</h2>
+        <p>Cumulative best score each model family has achieved as newer models are released.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 1180 430" role="img" aria-label="Cumulative best score by model family over release date">
+<line class="grid-line" x1="70" x2="990" y1="358.0" y2="358.0" />
+<text class="tick-label" x="58" y="362.0" text-anchor="end">0</text>
+<line class="grid-line" x1="70" x2="990" y1="292.4" y2="292.4" />
+<text class="tick-label" x="58" y="296.4" text-anchor="end">60</text>
+<line class="grid-line" x1="70" x2="990" y1="226.8" y2="226.8" />
+<text class="tick-label" x="58" y="230.8" text-anchor="end">120</text>
+<line class="grid-line" x1="70" x2="990" y1="161.2" y2="161.2" />
+<text class="tick-label" x="58" y="165.2" text-anchor="end">180</text>
+<line class="grid-line" x1="70" x2="990" y1="95.6" y2="95.6" />
+<text class="tick-label" x="58" y="99.6" text-anchor="end">240</text>
+<line class="grid-line" x1="70" x2="990" y1="30.0" y2="30.0" />
+<text class="tick-label" x="58" y="34.0" text-anchor="end">300</text>
+<line class="axis-line" x1="70" x2="990" y1="358" y2="358" />
+<line class="axis-line" x1="70" x2="70" y1="30" y2="358" />
+<text class="axis-title" x="530.0" y="416" text-anchor="middle">Model release date</text>
+<text class="axis-title" transform="translate(20 194.0) rotate(-90)" text-anchor="middle">Family best score so far</text>
+<path class="family-progress-line" d="M 542.0 248.7 L 691.3 248.7 L 691.3 171.0 L 896.7 171.0 L 896.7 148.1" stroke="#2563eb"><title>ChatGPT / Codex best score over time</title></path>
+<circle cx="542.0" cy="248.7" r="5.5" fill="#2563eb" class="family-progress-point"><title>ChatGPT / Codex: best score so far 100 as of Dec 11, 2025</title></circle>
+<circle cx="691.3" cy="171.0" r="5.5" fill="#2563eb" class="family-progress-point"><title>ChatGPT / Codex: best score so far 171 as of Feb 5, 2026</title></circle>
+<circle cx="896.7" cy="148.1" r="5.5" fill="#2563eb" class="family-progress-point"><title>ChatGPT / Codex: best score so far 192 as of Apr 23, 2026</title></circle>
+<path class="family-progress-line" d="M 347.3 288.0 L 496.7 288.0 L 496.7 200.6 L 723.3 200.6 L 723.3 188.5 L 878.0 188.5 L 878.0 144.8 L 990.0 144.8 L 990.0 71.5" stroke="#dc2626"><title>Claude best score over time</title></path>
+<circle cx="347.3" cy="288.0" r="5.5" fill="#dc2626" class="family-progress-point"><title>Claude: best score so far 64 as of Sep 29, 2025</title></circle>
+<circle cx="496.7" cy="200.6" r="5.5" fill="#dc2626" class="family-progress-point"><title>Claude: best score so far 144 as of Nov 24, 2025</title></circle>
+<circle cx="723.3" cy="188.5" r="5.5" fill="#dc2626" class="family-progress-point"><title>Claude: best score so far 155 as of Feb 17, 2026</title></circle>
+<circle cx="878.0" cy="144.8" r="5.5" fill="#dc2626" class="family-progress-point"><title>Claude: best score so far 195 as of Apr 16, 2026</title></circle>
+<circle cx="990.0" cy="71.5" r="5.5" fill="#dc2626" class="family-progress-point"><title>Claude: best score so far 262 as of May 28, 2026</title></circle>
+<path class="family-progress-line" d="M 899.3 260.7" stroke="#16a34a"><title>DeepSeek best score over time</title></path>
+<circle cx="899.3" cy="260.7" r="5.5" fill="#16a34a" class="family-progress-point"><title>DeepSeek: best score so far 89 as of Apr 24, 2026</title></circle>
+<path class="family-progress-line" d="M 854.0 244.3" stroke="#9333ea"><title>GLM best score over time</title></path>
+<circle cx="854.0" cy="244.3" r="5.5" fill="#9333ea" class="family-progress-point"><title>GLM: best score so far 104 as of Apr 7, 2026</title></circle>
+<path class="family-progress-line" d="M 70.0 286.9 L 558.0 286.9 L 558.0 71.5 L 728.7 71.5 L 728.7 71.5 L 966.0 71.5 L 966.0 71.5" stroke="#ea580c"><title>Gemini best score over time</title></path>
+<circle cx="70.0" cy="286.9" r="5.5" fill="#ea580c" class="family-progress-point"><title>Gemini: best score so far 65 as of Jun 17, 2025</title></circle>
+<circle cx="558.0" cy="71.5" r="5.5" fill="#ea580c" class="family-progress-point"><title>Gemini: best score so far 262 as of Dec 17, 2025</title></circle>
+<circle cx="728.7" cy="71.5" r="5.5" fill="#ea580c" class="family-progress-point"><title>Gemini: best score so far 262 as of Feb 19, 2026</title></circle>
+<circle cx="966.0" cy="71.5" r="5.5" fill="#ea580c" class="family-progress-point"><title>Gemini: best score so far 262 as of May 19, 2026</title></circle>
+<path class="family-progress-line" d="M 880.7 306.6" stroke="#0891b2"><title>Grok best score over time</title></path>
+<circle cx="880.7" cy="306.6" r="5.5" fill="#0891b2" class="family-progress-point"><title>Grok: best score so far 47 as of Apr 17, 2026</title></circle>
+<path class="family-progress-line" d="M 888.7 191.8" stroke="#be123c"><title>Kimi best score over time</title></path>
+<circle cx="888.7" cy="191.8" r="5.5" fill="#be123c" class="family-progress-point"><title>Kimi: best score so far 152 as of Apr 20, 2026</title></circle>
+<path class="family-progress-line" d="M 219.3 306.6" stroke="#4f46e5"><title>Mistral best score over time</title></path>
+<circle cx="219.3" cy="306.6" r="5.5" fill="#4f46e5" class="family-progress-point"><title>Mistral: best score so far 47 as of Aug 12, 2025</title></circle>
+<path class="family-progress-line" d="M 840.7 283.7" stroke="#65a30d"><title>Qwen best score over time</title></path>
+<circle cx="840.7" cy="283.7" r="5.5" fill="#65a30d" class="family-progress-point"><title>Qwen: best score so far 68 as of Apr 2, 2026</title></circle>
+<text class="tick-label" x="70.0" y="396" text-anchor="middle">Jun 2025</text>
+<text class="tick-label" x="299.3" y="396" text-anchor="middle">Sep 2025</text>
+<text class="tick-label" x="528.7" y="396" text-anchor="middle">Dec 2025</text>
+<text class="tick-label" x="760.7" y="396" text-anchor="middle">Mar 2026</text>
+<text class="tick-label" x="990.0" y="396" text-anchor="middle">May 2026</text>
+<g class="legend">
+<rect x="1018" y="34" width="12" height="12" rx="2" fill="#2563eb" />
+<text x="1038" y="44">ChatGPT / Codex</text>
+<rect x="1018" y="58" width="12" height="12" rx="2" fill="#dc2626" />
+<text x="1038" y="68">Claude</text>
+<rect x="1018" y="82" width="12" height="12" rx="2" fill="#16a34a" />
+<text x="1038" y="92">DeepSeek</text>
+<rect x="1018" y="106" width="12" height="12" rx="2" fill="#9333ea" />
+<text x="1038" y="116">GLM</text>
+<rect x="1018" y="130" width="12" height="12" rx="2" fill="#ea580c" />
+<text x="1038" y="140">Gemini</text>
+<rect x="1018" y="154" width="12" height="12" rx="2" fill="#0891b2" />
+<text x="1038" y="164">Grok</text>
+<rect x="1018" y="178" width="12" height="12" rx="2" fill="#be123c" />
+<text x="1038" y="188">Kimi</text>
+<rect x="1018" y="202" width="12" height="12" rx="2" fill="#4f46e5" />
+<text x="1038" y="212">Mistral</text>
+<rect x="1018" y="226" width="12" height="12" rx="2" fill="#65a30d" />
+<text x="1038" y="236">Qwen</text>
+</g>
+</svg>
+    </section>
     <div class="chart-grid">
     <section class="chart-panel">
       <div class="chart-heading">
@@ -567,13 +656,13 @@
 <text class="tick-label" x="52" y="38.0" text-anchor="end">300</text>
 <line class="axis-line" x1="64" x2="622" y1="284" y2="284" />
 <line class="axis-line" x1="64" x2="64" y1="34" y2="284" />
-<rect class="bar" x="140.0" y="65.7" width="34.0" height="218.3" fill="#dc2626"><title>America best: 262</title></rect>
+<rect class="bar" x="140.0" y="65.7" width="34.0" height="218.3" fill="#64748b"><title>America best: 262</title></rect>
 <text class="tick-label" x="157.0" y="318" text-anchor="middle">America</text>
 <text class="muted-label" x="157.0" y="336" text-anchor="middle">18 runs</text>
-<rect class="bar" x="326.0" y="157.3" width="34.0" height="126.7" fill="#dc2626"><title>China best: 152</title></rect>
+<rect class="bar" x="326.0" y="157.3" width="34.0" height="126.7" fill="#64748b"><title>China best: 152</title></rect>
 <text class="tick-label" x="343.0" y="318" text-anchor="middle">China</text>
 <text class="muted-label" x="343.0" y="336" text-anchor="middle">5 runs</text>
-<rect class="bar" x="512.0" y="244.8" width="34.0" height="39.2" fill="#dc2626"><title>Europe best: 47</title></rect>
+<rect class="bar" x="512.0" y="244.8" width="34.0" height="39.2" fill="#64748b"><title>Europe best: 47</title></rect>
 <text class="tick-label" x="529.0" y="318" text-anchor="middle">Europe</text>
 <text class="muted-label" x="529.0" y="336" text-anchor="middle">1 runs</text>
 </svg>
@@ -599,31 +688,31 @@
 <text class="tick-label" x="52" y="38.0" text-anchor="end">300</text>
 <line class="axis-line" x1="64" x2="622" y1="284" y2="284" />
 <line class="axis-line" x1="64" x2="64" y1="34" y2="284" />
-<rect class="bar" x="81.0" y="65.7" width="27.9" height="218.3" fill="#dc2626"><title>Claude best: 262</title></rect>
+<rect class="bar" x="81.0" y="65.7" width="27.9" height="218.3" fill="#64748b"><title>Claude best: 262</title></rect>
 <text class="tick-label" x="95.0" y="318" text-anchor="middle">Claude</text>
 <text class="muted-label" x="95.0" y="336" text-anchor="middle">7 runs</text>
-<rect class="bar" x="143.1" y="65.7" width="27.9" height="218.3" fill="#dc2626"><title>Gemini best: 262</title></rect>
+<rect class="bar" x="143.1" y="65.7" width="27.9" height="218.3" fill="#64748b"><title>Gemini best: 262</title></rect>
 <text class="tick-label" x="157.0" y="318" text-anchor="middle">Gemini</text>
 <text class="muted-label" x="157.0" y="336" text-anchor="middle">7 runs</text>
-<rect class="bar" x="205.1" y="124.0" width="27.9" height="160.0" fill="#dc2626"><title>ChatGPT / Codex best: 192</title></rect>
+<rect class="bar" x="205.1" y="124.0" width="27.9" height="160.0" fill="#64748b"><title>ChatGPT / Codex best: 192</title></rect>
 <text class="tick-label" x="219.0" y="318" text-anchor="middle">ChatGPT / Codex</text>
 <text class="muted-label" x="219.0" y="336" text-anchor="middle">3 runs</text>
-<rect class="bar" x="267.1" y="157.3" width="27.9" height="126.7" fill="#dc2626"><title>Kimi best: 152</title></rect>
+<rect class="bar" x="267.1" y="157.3" width="27.9" height="126.7" fill="#64748b"><title>Kimi best: 152</title></rect>
 <text class="tick-label" x="281.0" y="318" text-anchor="middle">Kimi</text>
 <text class="muted-label" x="281.0" y="336" text-anchor="middle">1 runs</text>
-<rect class="bar" x="329.1" y="197.3" width="27.9" height="86.7" fill="#dc2626"><title>GLM best: 104</title></rect>
+<rect class="bar" x="329.1" y="197.3" width="27.9" height="86.7" fill="#64748b"><title>GLM best: 104</title></rect>
 <text class="tick-label" x="343.0" y="318" text-anchor="middle">GLM</text>
 <text class="muted-label" x="343.0" y="336" text-anchor="middle">1 runs</text>
-<rect class="bar" x="391.1" y="209.8" width="27.9" height="74.2" fill="#dc2626"><title>DeepSeek best: 89</title></rect>
+<rect class="bar" x="391.1" y="209.8" width="27.9" height="74.2" fill="#64748b"><title>DeepSeek best: 89</title></rect>
 <text class="tick-label" x="405.0" y="318" text-anchor="middle">DeepSeek</text>
 <text class="muted-label" x="405.0" y="336" text-anchor="middle">2 runs</text>
-<rect class="bar" x="453.1" y="227.3" width="27.9" height="56.7" fill="#dc2626"><title>Qwen best: 68</title></rect>
+<rect class="bar" x="453.1" y="227.3" width="27.9" height="56.7" fill="#64748b"><title>Qwen best: 68</title></rect>
 <text class="tick-label" x="467.0" y="318" text-anchor="middle">Qwen</text>
 <text class="muted-label" x="467.0" y="336" text-anchor="middle">1 runs</text>
-<rect class="bar" x="515.0" y="244.8" width="27.9" height="39.2" fill="#dc2626"><title>Grok best: 47</title></rect>
+<rect class="bar" x="515.0" y="244.8" width="27.9" height="39.2" fill="#64748b"><title>Grok best: 47</title></rect>
 <text class="tick-label" x="529.0" y="318" text-anchor="middle">Grok</text>
 <text class="muted-label" x="529.0" y="336" text-anchor="middle">1 runs</text>
-<rect class="bar" x="577.0" y="244.8" width="27.9" height="39.2" fill="#dc2626"><title>Mistral best: 47</title></rect>
+<rect class="bar" x="577.0" y="244.8" width="27.9" height="39.2" fill="#64748b"><title>Mistral best: 47</title></rect>
 <text class="tick-label" x="591.0" y="318" text-anchor="middle">Mistral</text>
 <text class="muted-label" x="591.0" y="336" text-anchor="middle">1 runs</text>
 </svg>

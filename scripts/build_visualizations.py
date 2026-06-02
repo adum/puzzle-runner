@@ -51,6 +51,8 @@ MODEL_PALETTE = [
 
 MODEL_PATTERNS = ["solid", "diagonal", "cross", "dots", "vertical", "horizontal"]
 
+SINGLE_SERIES_COLOR = "#64748b"
+
 ORIGIN_COLORS = {
     "America": "#2563eb",
     "China": "#dc2626",
@@ -598,6 +600,82 @@ def svg_score_over_time(runs: list[RunResult]) -> str:
     return svg_model_release_date_scatter(runs)
 
 
+def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
+    release_rows = [run for run in runs if run.release_date]
+    by_family_date: dict[str, dict[dt.date, int]] = defaultdict(dict)
+    for run in release_rows:
+        release_date = run.release_date or run.run_date
+        current = by_family_date[run.family].get(release_date, 0)
+        by_family_date[run.family][release_date] = max(current, run.best_score)
+
+    family_points: dict[str, list[tuple[dt.date, int]]] = {}
+    for family, dated_scores in by_family_date.items():
+        best_so_far = 0
+        points: list[tuple[dt.date, int]] = []
+        for release_date, score in sorted(dated_scores.items()):
+            best_so_far = max(best_so_far, score)
+            points.append((release_date, best_so_far))
+        family_points[family] = points
+
+    width = 1180
+    height = 430
+    left = 70
+    right = 190
+    top = 30
+    bottom = 72
+    plot_w = width - left - right
+    plot_h = height - top - bottom
+    max_score = score_axis_max([score for points in family_points.values() for _, score in points])
+    min_date = min(run.release_date for run in release_rows if run.release_date)
+    max_date = max(run.release_date for run in release_rows if run.release_date)
+    total_days = max(1, (max_date - min_date).days)
+
+    elements = [
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Cumulative best score by model family over release date">',
+        grid_lines(left, top, plot_w, plot_h, max_score),
+        axis_labels(left, top, plot_w, plot_h, "Model release date", "Family best score so far"),
+    ]
+
+    for family in sorted(family_points):
+        points = family_points[family]
+        color = family_colors.get(family, "#64748b")
+        scaled: list[tuple[dt.date, int, float, float]] = []
+        for release_date, score in points:
+            x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
+            y = scale(score, 0, max_score, top + plot_h, top)
+            scaled.append((release_date, score, x, y))
+
+        path_parts: list[str] = []
+        for index, (_, _, x, y) in enumerate(scaled):
+            if index == 0:
+                path_parts.append(f"M {x:.1f} {y:.1f}")
+                continue
+            previous_y = scaled[index - 1][3]
+            path_parts.append(f"L {x:.1f} {previous_y:.1f}")
+            path_parts.append(f"L {x:.1f} {y:.1f}")
+        if path_parts:
+            elements.append(
+                f'<path class="family-progress-line" d="{" ".join(path_parts)}" stroke="{color}">'
+                f"<title>{html_escape(family)} best score over time</title></path>"
+            )
+
+        for release_date, score, x, y in scaled:
+            tooltip = f"{family}: best score so far {score} as of {fmt_date(release_date)}"
+            elements.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" class="family-progress-point">'
+                f"<title>{html_escape(tooltip)}</title></circle>"
+            )
+
+    for tick_index in range(5):
+        tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
+        x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
+
+    elements.append(svg_legend(family_colors, width - right + 28, top + 4))
+    elements.append("</svg>")
+    return "\n".join(elements)
+
+
 def grid_lines(left: int, top: int, plot_w: int, plot_h: int, max_value: float) -> str:
     elements: list[str] = []
     for index in range(6):
@@ -653,7 +731,7 @@ def svg_best_bars(rows: list[dict[str, object]], title: str) -> str:
         y = scale(value, 0, max_value, top + plot_h, top)
         height_px = top + plot_h - y
         elements.append(
-            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="#dc2626">'
+            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="{SINGLE_SERIES_COLOR}">'
             f"<title>{html_escape(row['label'])} best: {fmt_number(value)}</title></rect>"
         )
         elements.append(
@@ -857,6 +935,11 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             "All LLMs By Release Date",
             "Every benchmark run plotted by public release date and styled by specific model version.",
             svg_score_over_time(runs),
+        ),
+        chart_shell(
+            "Family Best Score Over Time",
+            "Cumulative best score each model family has achieved as newer models are released.",
+            svg_family_best_over_time(runs, family_colors),
         ),
         '<div class="chart-grid">',
         chart_shell(
@@ -1073,6 +1156,18 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
       stroke-width: 1.3;
       stroke-linecap: round;
       opacity: 0.42;
+    }}
+
+    .family-progress-line {{
+      fill: none;
+      stroke-width: 2.4;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }}
+
+    .family-progress-point {{
+      stroke: #ffffff;
+      stroke-width: 1.8;
     }}
 
     .bar-track {{
