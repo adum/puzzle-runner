@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: May 30, 2026.
+Last researched: June 1, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home region: America, China, or Europe.
 
@@ -22,6 +22,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | GLM | GLM-5.1 | April 7, 2026 | China |
 | Kimi | Kimi K2.6 | April 20, 2026 | China |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe |
+| Mistral | Mistral Medium 3.5 | April 29, 2026 | Europe |
 | Qwen | Qwen3.6-Plus | April 2, 2026 | China |
 | DeepSeek | DeepSeek V4 Pro | April 24, 2026 | China |
 
@@ -39,6 +40,6 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime)
 - Z.AI / GLM: [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [OpenRouter model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks)
 - Moonshot AI / Kimi: [Kimi K2.6 tech blog](https://www.kimi.com/blog/kimi-k2-6), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
-- Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08)
+- Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08), [Mistral Medium 3.5 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04), [Mistral Medium 3.5 launch post](https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5)
 - Alibaba Cloud / Qwen: [Qwen3.6-Plus launch post](https://www.alibabacloud.com/blog/alibaba-unveils-qwen3-6-plus-to-accelerate-agentic-ai-deployment-for-enterprises-and-alibaba%E2%80%99s-ai-applications_603005)
 - DeepSeek: [V4 preview release notes](https://api-docs.deepseek.com/news/news260424), [transparency center](https://www.deepseek.com/en/transparency/)

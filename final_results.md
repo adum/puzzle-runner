@@ -24,3 +24,4 @@
 | 20260528-073107-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | high | 63 | 1 | 3 | agent_idle_timeout | 600s | 8h 0m | 16866 | 188 | 314 | $5.867184 | 34605071 |
 | 20260528-160434-claude-opus-4-8 | claude-opus-4-8 | xhigh | 262 | 3 | 6 | stale_limit | 600s | 8h 4m | 36000 | 813 |  |  |  |
 | 20260529-153836-opencode-openrouter-z-ai-glm-5-1 | opencode-openrouter-z-ai-glm-5.1 | high | 104 | 8 | 8 |  | 600s | 18h 40m | 79704 | 1959 |  | $64.8177 |  |
+| 20260531-213945-opencode-openrouter-mistralai-mistral-medium-3-5 | opencode-openrouter-mistralai-mistral-medium-3-5 | high | 68 | 3 | 6 | stale_limit | 600s | 22h 5m | 214079 | 4675 | 681 | $59.786295 | 40832194 |
