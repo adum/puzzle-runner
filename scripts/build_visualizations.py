@@ -15,12 +15,12 @@ from pathlib import Path
 
 PALETTE = [
     "#2563eb",
-    "#dc2626",
+    "#64748b",
     "#16a34a",
     "#9333ea",
     "#ea580c",
     "#0891b2",
-    "#be123c",
+    "#9f6b7d",
     "#4f46e5",
     "#65a30d",
     "#ca8a04",
@@ -28,12 +28,12 @@ PALETTE = [
 
 MODEL_PALETTE = [
     "#1d4ed8",
-    "#dc2626",
+    "#64748b",
     "#059669",
     "#7c3aed",
     "#ea580c",
     "#0891b2",
-    "#be123c",
+    "#9f6b7d",
     "#4338ca",
     "#65a30d",
     "#ca8a04",
@@ -41,12 +41,12 @@ MODEL_PALETTE = [
     "#c026d3",
     "#b45309",
     "#2563eb",
-    "#db2777",
+    "#8b5cf6",
     "#16a34a",
     "#9333ea",
     "#f97316",
     "#0284c7",
-    "#b91c1c",
+    "#78716c",
 ]
 
 MODEL_PATTERNS = ["solid", "diagonal", "cross", "dots", "vertical", "horizontal"]
@@ -55,9 +55,14 @@ SINGLE_SERIES_COLOR = "#64748b"
 
 ORIGIN_COLORS = {
     "America": "#2563eb",
-    "China": "#dc2626",
-    "Europe": "#16a34a",
+    "China": "#7c3aed",
+    "Europe": "#059669",
     "Unknown": "#64748b",
+}
+
+OPEN_WEIGHTS_COLORS = {
+    "Open weights": "#059669",
+    "Closed weights": "#64748b",
 }
 
 
@@ -67,6 +72,7 @@ class ModelMeta:
     version: str
     release_date: dt.date
     origin: str
+    open_weights: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -102,6 +108,14 @@ class RunResult:
     @property
     def release_date(self) -> dt.date | None:
         return self.model.release_date if self.model else None
+
+    @property
+    def open_weights(self) -> bool:
+        return self.model.open_weights if self.model else False
+
+    @property
+    def weights_status(self) -> str:
+        return "Open weights" if self.open_weights else "Closed weights"
 
 
 def parse_args() -> argparse.Namespace:
@@ -171,6 +185,10 @@ def parse_date(value: str) -> dt.date:
     return dt.datetime.strptime(value.strip(), "%B %d, %Y").date()
 
 
+def parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"true", "yes", "1"}
+
+
 def parse_run_date(run_id: str) -> dt.date:
     return dt.datetime.strptime(run_id[:15], "%Y%m%d-%H%M%S").date()
 
@@ -225,6 +243,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("x ai "))
     if stripped.startswith("mistralai "):
         candidates.append(stripped.removeprefix("mistralai "))
+    if stripped.startswith("minimax minimax "):
+        candidates.append(stripped.removeprefix("minimax "))
     if stripped.startswith("z ai "):
         candidates.append(stripped.removeprefix("z ai "))
     if stripped.startswith("qwen qwen"):
@@ -258,6 +278,7 @@ def load_metadata(path: Path) -> dict[str, ModelMeta]:
             version=row["Specific model version"],
             release_date=parse_date(row["Release date"]),
             origin=row["Origin"],
+            open_weights=parse_bool(row.get("Open weights", "false")),
         )
         metadata[normalize_key(model.version)] = model
     return metadata
@@ -600,22 +621,29 @@ def svg_score_over_time(runs: list[RunResult]) -> str:
     return svg_model_release_date_scatter(runs)
 
 
-def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
+def svg_group_best_over_time(
+    runs: list[RunResult],
+    colors: dict[str, str],
+    group_key: str,
+    y_label: str,
+    aria_label: str,
+) -> str:
     release_rows = [run for run in runs if run.release_date]
-    by_family_date: dict[str, dict[dt.date, int]] = defaultdict(dict)
+    by_group_date: dict[str, dict[dt.date, int]] = defaultdict(dict)
     for run in release_rows:
         release_date = run.release_date or run.run_date
-        current = by_family_date[run.family].get(release_date, 0)
-        by_family_date[run.family][release_date] = max(current, run.best_score)
+        group = str(getattr(run, group_key))
+        current = by_group_date[group].get(release_date, 0)
+        by_group_date[group][release_date] = max(current, run.best_score)
 
-    family_points: dict[str, list[tuple[dt.date, int]]] = {}
-    for family, dated_scores in by_family_date.items():
+    group_points: dict[str, list[tuple[dt.date, int]]] = {}
+    for group, dated_scores in by_group_date.items():
         best_so_far = 0
         points: list[tuple[dt.date, int]] = []
         for release_date, score in sorted(dated_scores.items()):
             best_so_far = max(best_so_far, score)
             points.append((release_date, best_so_far))
-        family_points[family] = points
+        group_points[group] = points
 
     width = 1180
     height = 430
@@ -625,20 +653,20 @@ def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, st
     bottom = 72
     plot_w = width - left - right
     plot_h = height - top - bottom
-    max_score = score_axis_max([score for points in family_points.values() for _, score in points])
+    max_score = score_axis_max([score for points in group_points.values() for _, score in points])
     min_date = min(run.release_date for run in release_rows if run.release_date)
     max_date = max(run.release_date for run in release_rows if run.release_date)
     total_days = max(1, (max_date - min_date).days)
 
     elements = [
-        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Cumulative best score by model family over release date">',
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(aria_label)}">',
         grid_lines(left, top, plot_w, plot_h, max_score),
-        axis_labels(left, top, plot_w, plot_h, "Model release date", "Family best score so far"),
+        axis_labels(left, top, plot_w, plot_h, "Model release date", y_label),
     ]
 
-    for family in sorted(family_points):
-        points = family_points[family]
-        color = family_colors.get(family, "#64748b")
+    for group in sorted(group_points):
+        points = group_points[group]
+        color = colors.get(group, "#64748b")
         scaled: list[tuple[dt.date, int, float, float]] = []
         for release_date, score in points:
             x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
@@ -655,14 +683,14 @@ def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, st
             path_parts.append(f"L {x:.1f} {y:.1f}")
         if path_parts:
             elements.append(
-                f'<path class="family-progress-line" d="{" ".join(path_parts)}" stroke="{color}">'
-                f"<title>{html_escape(family)} best score over time</title></path>"
+                f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{color}">'
+                f"<title>{html_escape(group)} best score over time</title></path>"
             )
 
         for release_date, score, x, y in scaled:
-            tooltip = f"{family}: best score so far {score} as of {fmt_date(release_date)}"
+            tooltip = f"{group}: best score so far {score} as of {fmt_date(release_date)}"
             elements.append(
-                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" class="family-progress-point">'
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" class="progress-point">'
                 f"<title>{html_escape(tooltip)}</title></circle>"
             )
 
@@ -671,9 +699,39 @@ def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, st
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
         elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
 
-    elements.append(svg_legend(family_colors, width - right + 28, top + 4))
+    elements.append(svg_legend(colors, width - right + 28, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
+
+
+def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
+    return svg_group_best_over_time(
+        runs,
+        family_colors,
+        "family",
+        "Family best score so far",
+        "Cumulative best score by model family over release date",
+    )
+
+
+def svg_origin_best_over_time(runs: list[RunResult], origin_colors: dict[str, str]) -> str:
+    return svg_group_best_over_time(
+        runs,
+        origin_colors,
+        "origin",
+        "Origin best score so far",
+        "Cumulative best score by model origin over release date",
+    )
+
+
+def svg_open_weights_best_over_time(runs: list[RunResult]) -> str:
+    return svg_group_best_over_time(
+        runs,
+        OPEN_WEIGHTS_COLORS,
+        "weights_status",
+        "Best score so far",
+        "Cumulative best score by open weights status over release date",
+    )
 
 
 def grid_lines(left: int, top: int, plot_w: int, plot_h: int, max_value: float) -> str:
@@ -866,6 +924,7 @@ def data_table(runs: list[RunResult]) -> str:
             f"<td>{html_escape(run.version)}</td>"
             f"<td>{html_escape(run.family)}</td>"
             f"<td>{html_escape(run.origin)}</td>"
+            f"<td>{str(run.open_weights).lower()}</td>"
             f"<td>{run.best_score}</td>"
             f"<td>{html_escape(run.effort)}</td>"
             f"<td>{html_escape(fmt_date(run.run_date))}</td>"
@@ -887,6 +946,7 @@ def data_table(runs: list[RunResult]) -> str:
               <th>Model version</th>
               <th>Model family</th>
               <th>Origin</th>
+              <th>Open weights</th>
               <th>Best score</th>
               <th>Effort</th>
               <th>Run date</th>
@@ -940,6 +1000,16 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             "Family Best Score Over Time",
             "Cumulative best score each model family has achieved as newer models are released.",
             svg_family_best_over_time(runs, family_colors),
+        ),
+        chart_shell(
+            "Origin Best Score Over Time",
+            "Cumulative best score each origin has achieved as newer models are released.",
+            svg_origin_best_over_time(runs, origin_colors),
+        ),
+        chart_shell(
+            "Open Weights Versus Closed Weights",
+            "Cumulative best score achieved by public-weight and closed-weight models as newer models are released.",
+            svg_open_weights_best_over_time(runs),
         ),
         '<div class="chart-grid">',
         chart_shell(
@@ -1158,14 +1228,14 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
       opacity: 0.42;
     }}
 
-    .family-progress-line {{
+    .progress-line {{
       fill: none;
       stroke-width: 2.4;
       stroke-linejoin: round;
       stroke-linecap: round;
     }}
 
-    .family-progress-point {{
+    .progress-point {{
       stroke: #ffffff;
       stroke-width: 1.8;
     }}
