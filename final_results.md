@@ -26,3 +26,4 @@
 | 20260529-153836-opencode-openrouter-z-ai-glm-5-1 | opencode-openrouter-z-ai-glm-5.1 | high | 104 | 8 | 8 |  | 600s | 18h 40m | 79704 | 1959 |  | $64.8177 |  |
 | 20260531-213945-opencode-openrouter-mistralai-mistral-medium-3-5 | opencode-openrouter-mistralai-mistral-medium-3-5 | high | 68 | 3 | 6 | stale_limit | 600s | 22h 5m | 214079 | 4675 | 681 | $59.786295 | 40832194 |
 | 20260602-130130-opencode-openrouter-minimax-minimax-m3 | opencode-openrouter-minimax-minimax-m3 | high | 89 | 2 | 3 |  | 600s | 10h 50m | 631855 | 1942 |  | $7.9823 | 119564526 |
+| 20260609-075824-opencode-openrouter-qwen-qwen3-7-max | opencode-openrouter-qwen-qwen3.7-max | high | 77 | 2 | 5 | stale_limit | 600s | 4h 44m | 34669 | 700 | 346 | $11.838221 | 27760197 |
