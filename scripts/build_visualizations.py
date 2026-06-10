@@ -651,10 +651,13 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
     min_date = min(by_date)
     max_date = max(by_date)
     total_days = max(1, (max_date - min_date).days)
+    ai_label = "AI best so far"
+    human_label = f"Human best ({HUMAN_BEST_SCORE})"
+    brute_force_label = f"Bundled brute force ({DEFAULT_BRUTE_FORCE_SCORE})"
     colors = {
-        "AI best so far": "#2563eb",
-        "Human best": "#7c3aed",
-        "Bundled brute force": "#ea580c",
+        ai_label: "#2563eb",
+        human_label: "#7c3aed",
+        brute_force_label: "#ea580c",
     }
 
     elements = [
@@ -663,16 +666,12 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
         axis_labels(left, top, plot_w, plot_h, "Benchmark run date", "Score"),
     ]
 
-    for label, score in [("Human best", HUMAN_BEST_SCORE), ("Bundled brute force", DEFAULT_BRUTE_FORCE_SCORE)]:
+    for label, score in [(human_label, HUMAN_BEST_SCORE), (brute_force_label, DEFAULT_BRUTE_FORCE_SCORE)]:
         y = scale(score, 0, max_score, top + plot_h, top)
         color = colors[label]
         elements.append(
             f'<line class="reference-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" stroke="{color}">'
-            f"<title>{html_escape(label)}: {score}</title></line>"
-        )
-        elements.append(
-            f'<text class="reference-label" x="{left + plot_w + 12}" y="{y + 4:.1f}" fill="{color}">'
-            f"{html_escape(label)} {score}</text>"
+            f"<title>{html_escape(label)}</title></line>"
         )
 
     scaled: list[tuple[dt.date, int, RunResult, float, float]] = []
@@ -691,21 +690,21 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
         path_parts.append(f"L {x:.1f} {y:.1f}")
     if path_parts:
         elements.append(
-            f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{colors["AI best so far"]}">'
+            f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{colors[ai_label]}">'
             "<title>AI best score so far by benchmark run date</title></path>"
         )
 
     for run_date, score, run, x, y in scaled:
         tooltip = f"AI best score so far {score} as of {fmt_date(run_date)} from {run.version} ({run.run_id})"
         elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.8" fill="{colors["AI best so far"]}" class="progress-point">'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.8" fill="{colors[ai_label]}" class="progress-point">'
             f"<title>{html_escape(tooltip)}</title></circle>"
         )
 
     for tick_index in range(5):
         tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
-        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_short_date(tick_date)}</text>')
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_date(tick_date)}</text>')
 
     elements.append(svg_legend(colors, width - right + 32, top + 4))
     elements.append("</svg>")
@@ -1340,11 +1339,6 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
       stroke-width: 2;
       stroke-dasharray: 7 6;
       stroke-linecap: round;
-    }}
-
-    .reference-label {{
-      font-size: 12px;
-      font-weight: 700;
     }}
 
     .bar-track {{
