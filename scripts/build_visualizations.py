@@ -65,6 +65,9 @@ OPEN_WEIGHTS_COLORS = {
     "Closed weights": "#64748b",
 }
 
+HUMAN_BEST_SCORE = 1206
+DEFAULT_BRUTE_FORCE_SCORE = 47
+
 
 @dataclasses.dataclass(frozen=True)
 class ModelMeta:
@@ -621,6 +624,94 @@ def svg_score_over_time(runs: list[RunResult]) -> str:
     return svg_model_release_date_scatter(runs)
 
 
+def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
+    by_date: dict[dt.date, list[RunResult]] = defaultdict(list)
+    for run in runs:
+        by_date[run.run_date].append(run)
+
+    best_score = 0
+    best_run: RunResult | None = None
+    points: list[tuple[dt.date, int, RunResult]] = []
+    for run_date in sorted(by_date):
+        day_best = max(by_date[run_date], key=lambda run: run.best_score)
+        if day_best.best_score > best_score or best_run is None:
+            best_score = day_best.best_score
+            best_run = day_best
+        points.append((run_date, best_score, best_run))
+
+    width = 1180
+    height = 430
+    left = 70
+    right = 250
+    top = 30
+    bottom = 72
+    plot_w = width - left - right
+    plot_h = height - top - bottom
+    max_score = score_axis_max([HUMAN_BEST_SCORE, DEFAULT_BRUTE_FORCE_SCORE, *[score for _, score, _ in points]])
+    min_date = min(by_date)
+    max_date = max(by_date)
+    total_days = max(1, (max_date - min_date).days)
+    colors = {
+        "AI best so far": "#2563eb",
+        "Human best": "#7c3aed",
+        "Bundled brute force": "#ea580c",
+    }
+
+    elements = [
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="AI benchmark progress versus human and default solver scores">',
+        grid_lines(left, top, plot_w, plot_h, max_score),
+        axis_labels(left, top, plot_w, plot_h, "Benchmark run date", "Score"),
+    ]
+
+    for label, score in [("Human best", HUMAN_BEST_SCORE), ("Bundled brute force", DEFAULT_BRUTE_FORCE_SCORE)]:
+        y = scale(score, 0, max_score, top + plot_h, top)
+        color = colors[label]
+        elements.append(
+            f'<line class="reference-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" stroke="{color}">'
+            f"<title>{html_escape(label)}: {score}</title></line>"
+        )
+        elements.append(
+            f'<text class="reference-label" x="{left + plot_w + 12}" y="{y + 4:.1f}" fill="{color}">'
+            f"{html_escape(label)} {score}</text>"
+        )
+
+    scaled: list[tuple[dt.date, int, RunResult, float, float]] = []
+    for run_date, score, run in points:
+        x = scale((run_date - min_date).days, 0, total_days, left, left + plot_w)
+        y = scale(score, 0, max_score, top + plot_h, top)
+        scaled.append((run_date, score, run, x, y))
+
+    path_parts: list[str] = []
+    for index, (_, _, _, x, y) in enumerate(scaled):
+        if index == 0:
+            path_parts.append(f"M {x:.1f} {y:.1f}")
+            continue
+        previous_y = scaled[index - 1][4]
+        path_parts.append(f"L {x:.1f} {previous_y:.1f}")
+        path_parts.append(f"L {x:.1f} {y:.1f}")
+    if path_parts:
+        elements.append(
+            f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{colors["AI best so far"]}">'
+            "<title>AI best score so far by benchmark run date</title></path>"
+        )
+
+    for run_date, score, run, x, y in scaled:
+        tooltip = f"AI best score so far {score} as of {fmt_date(run_date)} from {run.version} ({run.run_id})"
+        elements.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.8" fill="{colors["AI best so far"]}" class="progress-point">'
+            f"<title>{html_escape(tooltip)}</title></circle>"
+        )
+
+    for tick_index in range(5):
+        tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
+        x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_short_date(tick_date)}</text>')
+
+    elements.append(svg_legend(colors, width - right + 32, top + 4))
+    elements.append("</svg>")
+    return "\n".join(elements)
+
+
 def svg_group_best_over_time(
     runs: list[RunResult],
     colors: dict[str, str],
@@ -997,6 +1088,11 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             svg_score_over_time(runs),
         ),
         chart_shell(
+            "AI Versus Humans Over Time",
+            "Cumulative best AI score by benchmark run date, compared with the top human score and bundled brute-force solver baseline.",
+            svg_ai_vs_human_over_time(runs),
+        ),
+        chart_shell(
             "Family Best Score Over Time",
             "Cumulative best score each model family has achieved as newer models are released.",
             svg_family_best_over_time(runs, family_colors),
@@ -1240,6 +1336,17 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
       stroke-width: 1.8;
     }}
 
+    .reference-line {{
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      stroke-linecap: round;
+    }}
+
+    .reference-label {{
+      font-size: 12px;
+      font-weight: 700;
+    }}
+
     .bar-track {{
       fill: var(--track);
     }}
@@ -1373,6 +1480,7 @@ def main() -> int:
     metadata = load_metadata(args.metadata)
     runs, unmatched = load_results(args.results, metadata)
     html_output = render_html(runs, unmatched)
+    html_output = "\n".join(line.rstrip() for line in html_output.splitlines()) + "\n"
     args.output.write_text(html_output, encoding="utf-8")
 
     print(f"Wrote {args.output}")

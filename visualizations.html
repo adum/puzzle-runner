@@ -172,6 +172,17 @@
       stroke-width: 1.8;
     }
 
+    .reference-line {
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      stroke-linecap: round;
+    }
+
+    .reference-label {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .bar-track {
       fill: var(--track);
     }
@@ -287,45 +298,45 @@
     <header>
       <h1>Puzzle Runner Visualizations</h1>
       <p class="subhead">Static SVG report generated from <code>final_results.md</code> and <code>model_metadata.md</code>. Model releases span Jun 17, 2025 through Jun 9, 2026.</p>
-      
+
     </header>
     <div class="metrics">
             <div class="metric">
               <span>Runs</span>
               <strong>28</strong>
             </div>
-            
+
 
             <div class="metric">
               <span>Models</span>
               <strong>22</strong>
             </div>
-            
+
 
             <div class="metric">
               <span>Top score</span>
               <strong>352</strong>
             </div>
-            
+
 
             <div class="metric">
               <span>Newest release</span>
               <strong>Jun 9, 2026</strong>
             </div>
-            
+
 
             <div class="metric">
               <span>Origins</span>
               <strong>3</strong>
             </div>
-            
+
 
             <div class="metric">
               <span>OpenRouter cost</span>
               <strong>$228.99</strong>
             </div>
             </div>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>All LLMs By Release Date</h2>
@@ -524,7 +535,69 @@
 </g>
 </svg>
     </section>
-    
+
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>AI Versus Humans Over Time</h2>
+        <p>Cumulative best AI score by benchmark run date, compared with the top human score and bundled brute-force solver baseline.</p>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 1180 430" role="img" aria-label="AI benchmark progress versus human and default solver scores">
+<line class="grid-line" x1="70" x2="930" y1="358.0" y2="358.0" />
+<text class="tick-label" x="58" y="362.0" text-anchor="end">0</text>
+<line class="grid-line" x1="70" x2="930" y1="292.4" y2="292.4" />
+<text class="tick-label" x="58" y="296.4" text-anchor="end">250</text>
+<line class="grid-line" x1="70" x2="930" y1="226.8" y2="226.8" />
+<text class="tick-label" x="58" y="230.8" text-anchor="end">500</text>
+<line class="grid-line" x1="70" x2="930" y1="161.2" y2="161.2" />
+<text class="tick-label" x="58" y="165.2" text-anchor="end">750</text>
+<line class="grid-line" x1="70" x2="930" y1="95.6" y2="95.6" />
+<text class="tick-label" x="58" y="99.6" text-anchor="end">1,000</text>
+<line class="grid-line" x1="70" x2="930" y1="30.0" y2="30.0" />
+<text class="tick-label" x="58" y="34.0" text-anchor="end">1,250</text>
+<line class="axis-line" x1="70" x2="930" y1="358" y2="358" />
+<line class="axis-line" x1="70" x2="70" y1="30" y2="358" />
+<text class="axis-title" x="500.0" y="416" text-anchor="middle">Benchmark run date</text>
+<text class="axis-title" transform="translate(20 194.0) rotate(-90)" text-anchor="middle">Score</text>
+<line class="reference-line" x1="70" x2="930" y1="41.5" y2="41.5" stroke="#7c3aed"><title>Human best: 1206</title></line>
+<text class="reference-label" x="942" y="45.5" fill="#7c3aed">Human best 1206</text>
+<line class="reference-line" x1="70" x2="930" y1="345.7" y2="345.7" stroke="#ea580c"><title>Bundled brute force: 47</title></line>
+<text class="reference-label" x="942" y="349.7" fill="#ea580c">Bundled brute force 47</text>
+<path class="progress-line" d="M 70.0 313.1 L 91.5 313.1 L 91.5 307.6 L 113.0 307.6 L 113.0 307.6 L 156.0 307.6 L 156.0 306.8 L 177.5 306.8 L 177.5 289.3 L 199.0 289.3 L 199.0 289.3 L 242.0 289.3 L 242.0 289.3 L 263.5 289.3 L 263.5 289.3 L 306.5 289.3 L 306.5 289.3 L 349.5 289.3 L 349.5 289.3 L 371.0 289.3 L 371.0 289.3 L 586.0 289.3 L 586.0 289.3 L 607.5 289.3 L 607.5 289.3 L 650.5 289.3 L 650.5 289.3 L 672.0 289.3 L 672.0 289.3 L 693.5 289.3 L 693.5 289.3 L 736.5 289.3 L 736.5 289.3 L 779.5 289.3 L 779.5 289.3 L 930.0 289.3 L 930.0 265.6" stroke="#2563eb"><title>AI best score so far by benchmark run date</title></path>
+<circle cx="70.0" cy="313.1" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 171 as of Apr 30, 2026 from GPT-5.3-Codex (20260430-102443-codex-5-3)</title></circle>
+<circle cx="91.5" cy="307.6" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 192 as of May 1, 2026 from GPT-5.5 (Codex) (20260501-122827-codex-5-5)</title></circle>
+<circle cx="113.0" cy="307.6" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 192 as of May 2, 2026 from GPT-5.5 (Codex) (20260501-122827-codex-5-5)</title></circle>
+<circle cx="156.0" cy="306.8" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 195 as of May 4, 2026 from Claude Opus 4.7 (20260504-090806-claude-code-opus)</title></circle>
+<circle cx="177.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 5, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="199.0" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 6, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="242.0" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 8, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="263.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 9, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="306.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 11, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="349.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 13, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="371.0" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 14, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="586.0" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 24, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="607.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 25, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="650.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 27, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="672.0" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 28, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="693.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 29, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="736.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of May 31, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="779.5" cy="289.3" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 262 as of Jun 2, 2026 from Gemini 3.1 Pro Preview (20260505-082141-gemini-3-1-pro-preview)</title></circle>
+<circle cx="930.0" cy="265.6" r="5.8" fill="#2563eb" class="progress-point"><title>AI best score so far 352 as of Jun 9, 2026 from Claude Fable 5 (20260609-155527-claude-fable-5)</title></circle>
+<text class="tick-label" x="70.0" y="396" text-anchor="middle">Apr 30</text>
+<text class="tick-label" x="285.0" y="396" text-anchor="middle">May 10</text>
+<text class="tick-label" x="500.0" y="396" text-anchor="middle">May 20</text>
+<text class="tick-label" x="715.0" y="396" text-anchor="middle">May 30</text>
+<text class="tick-label" x="930.0" y="396" text-anchor="middle">Jun 9</text>
+<g class="legend">
+<rect x="962" y="34" width="12" height="12" rx="2" fill="#2563eb" />
+<text x="982" y="44">AI best so far</text>
+<rect x="962" y="58" width="12" height="12" rx="2" fill="#7c3aed" />
+<text x="982" y="68">Human best</text>
+<rect x="962" y="82" width="12" height="12" rx="2" fill="#ea580c" />
+<text x="982" y="92">Bundled brute force</text>
+</g>
+</svg>
+    </section>
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Family Best Score Over Time</h2>
@@ -608,7 +681,7 @@
 </g>
 </svg>
     </section>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Origin Best Score Over Time</h2>
@@ -671,7 +744,7 @@
 </g>
 </svg>
     </section>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Open Weights Versus Closed Weights</h2>
@@ -797,7 +870,7 @@
 </g>
 </svg>
     </section>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Best Score By Origin</h2>
@@ -882,7 +955,7 @@
 <text class="muted-label" x="594.1" y="336" text-anchor="middle">1 runs</text>
 </svg>
     </section>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Runs By Family</h2>
@@ -1120,7 +1193,7 @@
 <circle cx="190.7" cy="69.4" r="6.5" fill="#64748b" class="data-point"><title>Claude Fable 5: 352, 5h 39m</title></circle>
 </svg>
     </section>
-    
+
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Run Details</h2>
@@ -1148,7 +1221,7 @@
         </table>
       </div>
     </section>
-    
+
     <footer>
       Generated by <code>scripts/build_visualizations.py</code>. Rerun the script after updating benchmark results or model metadata.
     </footer>
