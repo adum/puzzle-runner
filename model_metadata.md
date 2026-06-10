@@ -14,6 +14,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Claude | Claude Sonnet 4.6 | February 17, 2026 | America | false |
 | Claude | Claude Opus 4.7 | April 16, 2026 | America | false |
 | Claude | Claude Opus 4.8 | May 28, 2026 | America | false |
+| Claude | Claude Fable 5 | June 9, 2026 | America | false |
 | Gemini | Gemini 2.5 Flash | June 17, 2025 | America | false |
 | Gemini | Gemini 3 Flash Preview | December 17, 2025 | America | false |
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America | false |
@@ -34,6 +35,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
 - MiniMax M3 uses OpenRouter's listed release date because it appears to be the earliest public availability; MiniMax's official launch post is dated June 1, 2026 and says the API was available then.
+- Claude Fable 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
 - Open weights means public model weights are available now. MiniMax describes M3 as open-weight, but its official model page still says the Hugging Face and GitHub release is coming soon, so it remains false until the weights are published.
 - Qwen3.6-Plus remains false because it is the hosted API model tested here; Alibaba separately open-sourced Qwen3.6-35B-A3B after the Plus launch.
 - Qwen3.7-Max uses OpenRouter's listed release date; it remains false because the tested Max API model is proprietary/hosted.
@@ -41,7 +43,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 ## Sources
 
 - OpenAI: [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/)
-- Anthropic: [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8)
+- Anthropic: [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime)
 - Z.AI / GLM: [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [GLM-5.1 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.1), [OpenRouter model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks)
