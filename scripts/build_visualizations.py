@@ -625,19 +625,20 @@ def svg_score_over_time(runs: list[RunResult]) -> str:
 
 
 def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
+    release_rows = [run for run in runs if run.release_date]
     by_date: dict[dt.date, list[RunResult]] = defaultdict(list)
-    for run in runs:
-        by_date[run.run_date].append(run)
+    for run in release_rows:
+        by_date[run.release_date or run.run_date].append(run)
 
     best_score = 0
     best_run: RunResult | None = None
     points: list[tuple[dt.date, int, RunResult]] = []
-    for run_date in sorted(by_date):
-        day_best = max(by_date[run_date], key=lambda run: run.best_score)
+    for release_date in sorted(by_date):
+        day_best = max(by_date[release_date], key=lambda run: run.best_score)
         if day_best.best_score > best_score or best_run is None:
             best_score = day_best.best_score
             best_run = day_best
-        points.append((run_date, best_score, best_run))
+        points.append((release_date, best_score, best_run))
 
     width = 1180
     height = 430
@@ -661,9 +662,9 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
     }
 
     elements = [
-        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="AI benchmark progress versus human and default solver scores">',
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="AI benchmark progress by model release date versus human and default solver scores">',
         grid_lines(left, top, plot_w, plot_h, max_score),
-        axis_labels(left, top, plot_w, plot_h, "Benchmark run date", "Score"),
+        axis_labels(left, top, plot_w, plot_h, "Model release date", "Score"),
     ]
 
     for label, score in [(human_label, HUMAN_BEST_SCORE), (brute_force_label, DEFAULT_BRUTE_FORCE_SCORE)]:
@@ -675,10 +676,10 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
         )
 
     scaled: list[tuple[dt.date, int, RunResult, float, float]] = []
-    for run_date, score, run in points:
-        x = scale((run_date - min_date).days, 0, total_days, left, left + plot_w)
+    for release_date, score, run in points:
+        x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
         y = scale(score, 0, max_score, top + plot_h, top)
-        scaled.append((run_date, score, run, x, y))
+        scaled.append((release_date, score, run, x, y))
 
     path_parts: list[str] = []
     for index, (_, _, _, x, y) in enumerate(scaled):
@@ -691,11 +692,14 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
     if path_parts:
         elements.append(
             f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{colors[ai_label]}">'
-            "<title>AI best score so far by benchmark run date</title></path>"
+            "<title>AI best score so far by model release date</title></path>"
         )
 
-    for run_date, score, run, x, y in scaled:
-        tooltip = f"AI best score so far {score} as of {fmt_date(run_date)} from {run.version} ({run.run_id})"
+    for release_date, score, run, x, y in scaled:
+        tooltip = (
+            f"AI best score so far {score} as of {fmt_date(release_date)} "
+            f"from {run.version} ({run.run_id}, run {fmt_date(run.run_date)})"
+        )
         elements.append(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.8" fill="{colors[ai_label]}" class="progress-point">'
             f"<title>{html_escape(tooltip)}</title></circle>"
