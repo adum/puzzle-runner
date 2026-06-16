@@ -776,6 +776,83 @@ class RunnerTests(unittest.TestCase):
             self.assertFalse(config.results_path.exists())
             self.assertTrue((final.log_dir / "final_result.md").exists())
 
+    def test_agent_idle_timeout_runs_final_evaluation(self) -> None:
+        class IdleTimeoutRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\necho solved\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _can_shortcut_default_solver_evaluation(self) -> bool:
+                return False
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text("partial work before idle\n", encoding="utf-8")
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["agent"],
+                    cwd=self.workspace,
+                    returncode=-9,
+                    elapsed_seconds=1800.0,
+                    timed_out=True,
+                    timeout_reason="idle",
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                stdout = round_dir / "evaluation.stdout.log"
+                stderr = round_dir / "evaluation.stderr.log"
+                stdout.write_text(
+                    "Level 123 (baseline): PASS (0.00s)\n"
+                    "Level 124 (baseline): FAIL - test stop (0.00s)\n",
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["python3", "evaluate_full.py"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = IdleTimeoutRunner(config).run()
+            evaluation_result_exists = (
+                final.log_dir / "round-001" / "evaluation_result.json"
+            ).exists()
+
+        self.assertEqual(final.stop_reason, "agent_idle_timeout")
+        self.assertEqual(final.best_score, 123)
+        self.assertEqual(final.best_round, 1)
+        self.assertEqual(final.total_rounds, 1)
+        self.assertTrue(evaluation_result_exists)
+
     def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
         class NoChangeRunner(Runner):
             def _prepare_workspace(self) -> None:

@@ -307,19 +307,18 @@ class Runner:
                 agent_retry_delay_seconds=None,
             )
 
-            if agent_result.timed_out:
-                stop_reason = (
-                    "agent_idle_timeout"
-                    if agent_result.timeout_reason == "idle"
-                    else "agent_timeout"
-                )
+            agent_idle_timed_out = (
+                agent_result.timed_out and agent_result.timeout_reason == "idle"
+            )
+            if agent_result.timed_out and not agent_idle_timed_out:
+                stop_reason = "agent_timeout"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
             if self._status.get("last_agent_model_not_found"):
                 stop_reason = "agent_model_not_found"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
-            if agent_result.returncode != 0:
+            if agent_result.returncode != 0 and not agent_idle_timed_out:
                 stop_reason = (
                     "agent_max_steps"
                     if agent_result.returncode == AGENT_MAX_STEPS_RETURN_CODE
@@ -422,6 +421,11 @@ class Runner:
                 break
             if eval_result.returncode != 0:
                 stop_reason = "evaluation_failed"
+                self._update_status(phase="stopping", stop_reason=stop_reason)
+                break
+
+            if agent_idle_timed_out:
+                stop_reason = "agent_idle_timeout"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
 
