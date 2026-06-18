@@ -30,3 +30,4 @@
 | 20260609-155527-claude-fable-5 | claude-fable-5 | xhigh | 352 | 1 | 4 | stale_limit | 600s | 5h 39m | 7324 | 1259 |  |  |  |
 | 20260615-085613-opencode-openrouter-moonshotai-kimi-k2-7-code | opencode-openrouter-moonshotai-kimi-k2.7-code | high | 99 | 1 | 3 | agent_idle_timeout | 600s | 11h 51m | 505461 | 2923 | 454 | $15.429768 | 45475119 |
 | 20260616-225849-opencode-openrouter-moonshotai-kimi-k2-5 | opencode-openrouter-moonshotai-kimi-k2.5 | high | 68 | 2 | 5 | stale_limit | 600s | 8h 21m | 16212 | 264 | 359 | $1.898840 | 18242601 |
+| 20260617-174139-opencode-openrouter-minimax-minimax-m2 | opencode-openrouter-minimax-minimax-m2 | high | 65 | 3 | 5 | agent_idle_timeout | 600s | 7h 53m | 8688 | 325 | 362 | $3.317071 | 13772479 |
