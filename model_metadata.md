@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: June 18, 2026.
+Last researched: June 20, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home region: America, China, or Europe.
 
@@ -33,6 +33,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Mistral | Mistral Medium 3.5 | April 29, 2026 | Europe | true |
 | Qwen | Qwen3.6-Plus | April 2, 2026 | China | false |
 | Qwen | Qwen3.7-Max | May 21, 2026 | China | false |
+| DeepSeek | DeepSeek R1 | January 20, 2025 | China | true |
 | DeepSeek | DeepSeek V4 Pro | April 24, 2026 | China | true |
 
 ## Notes
@@ -48,6 +49,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Kimi K2.7 Code uses OpenRouter's listed release date and is true for open weights because the Hugging Face model card says the model weights are released under the Modified MIT License.
 - Qwen3.6-Plus remains false because it is the hosted API model tested here; Alibaba separately open-sourced Qwen3.6-35B-A3B after the Plus launch.
 - Qwen3.7-Max uses OpenRouter's listed release date; it remains false because the tested Max API model is proprietary/hosted.
+- DeepSeek R1 uses DeepSeek's public launch date and is true for open weights because DeepSeek publishes the model weights under the MIT License.
 - GLM-4.5 uses Z.AI technical blog release date and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
@@ -62,4 +64,4 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - MiniMax: [MiniMax M2 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M2), [MiniMax M2 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M2), [OpenRouter MiniMax M2 model page](https://openrouter.ai/minimax/minimax-m2), [MiniMax M3 launch post](https://www.minimax.io/blog/minimax-m3), [MiniMax M3 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M3), [MiniMax M3 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M3), [OpenRouter MiniMax M3 model page](https://openrouter.ai/minimax/minimax-m3/performance)
 - Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08), [Mistral Medium 3.5 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04), [Mistral Medium 3.5 Hugging Face model card](https://huggingface.co/mistralai/Mistral-Medium-3.5-128B), [Mistral Medium 3.5 launch post](https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5)
 - Alibaba Cloud / Qwen: [Qwen3.6-Plus launch post](https://www.alibabacloud.com/blog/alibaba-unveils-qwen3-6-plus-to-accelerate-agentic-ai-deployment-for-enterprises-and-alibaba%E2%80%99s-ai-applications_603005), [Qwen3.6-35B-A3B open-weights post](https://www.alibabacloud.com/blog/alibaba-open-sources-qwen3-6-35b-a3b-wan2-7-tops-design-arena_603042), [Qwen3.7 blog](https://qwen.ai/blog?id=qwen3.7), [OpenRouter Qwen3.7-Max model page](https://openrouter.ai/qwen/qwen3.7-max)
-- DeepSeek: [DeepSeek V4 Pro Hugging Face model card](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro), [V4 preview release notes](https://api-docs.deepseek.com/news/news260424), [transparency center](https://www.deepseek.com/en/transparency/)
+- DeepSeek: [DeepSeek R1 GitHub repo](https://github.com/deepseek-ai/DeepSeek-R1), [DeepSeek R1 Hugging Face model card](https://huggingface.co/deepseek-ai/DeepSeek-R1), [DeepSeek V4 Pro Hugging Face model card](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro), [V4 preview release notes](https://api-docs.deepseek.com/news/news260424), [transparency center](https://www.deepseek.com/en/transparency/)
