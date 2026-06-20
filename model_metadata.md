@@ -6,6 +6,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 | Model family | Specific model version | Release date | Origin | Open weights |
 | --- | --- | --- | --- | --- |
+| ChatGPT / Codex | GPT-4.1 | April 14, 2025 | America | false |
 | ChatGPT / Codex | GPT-5.2 | December 11, 2025 | America | false |
 | ChatGPT / Codex | GPT-5.3-Codex | February 5, 2026 | America | false |
 | ChatGPT / Codex | GPT-5.5 (Codex) | April 23, 2026 | America | false |
@@ -36,6 +37,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 ## Notes
 
+- GPT-4.1 uses OpenAI's official API launch date and remains false because OpenAI has not published public model weights.
 - GPT-5.5 was publicly rolling out in ChatGPT and Codex on April 23, 2026; API availability followed on April 24, 2026.
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
@@ -51,7 +53,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 ## Sources
 
-- OpenAI: [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/)
+- OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/)
 - Anthropic: [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime)

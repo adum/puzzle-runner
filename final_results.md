@@ -33,3 +33,4 @@
 | 20260617-174139-opencode-openrouter-minimax-minimax-m2 | opencode-openrouter-minimax-minimax-m2 | high | 65 | 3 | 5 | agent_idle_timeout | 600s | 7h 53m | 8688 | 325 | 362 | $3.317071 | 13772479 |
 | 20260618-093335-opencode-openrouter-z-ai-glm-5-2 | opencode-openrouter-z-ai-glm-5.2 | high | 176 | 2 | 2 | agent_idle_timeout | 600s | 5h 14m | 9885 | 655 | 225 | $8.904978 | 25992819 |
 | 20260618-154508-opencode-openrouter-z-ai-glm-4-5 | opencode-openrouter-z-ai-glm-4.5 | high | 68 | 1 | 4 | stale_limit | 600s | 3h 31m | 5243 | 196 | 206 | $1.114505 | 5539750 |
+| 20260619-155922-opencode-openrouter-openai-gpt-4-1 | opencode-openrouter-openai-gpt-4.1 | high | 1 | 4 | 7 | stale_limit | 600s | 18m 19s | 91781 | 181 | 177 | $3.053126 | 4685197 |
