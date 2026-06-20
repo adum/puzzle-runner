@@ -35,3 +35,4 @@
 | 20260618-154508-opencode-openrouter-z-ai-glm-4-5 | opencode-openrouter-z-ai-glm-4.5 | high | 68 | 1 | 4 | stale_limit | 600s | 3h 31m | 5243 | 196 | 206 | $1.114505 | 5539750 |
 | 20260619-155922-opencode-openrouter-openai-gpt-4-1 | opencode-openrouter-openai-gpt-4.1 | high | 1 | 4 | 7 | stale_limit | 600s | 18m 19s | 91781 | 181 | 177 | $3.053126 | 4685197 |
 | 20260619-185805-opencode-openrouter-deepseek-deepseek-r1 | opencode-openrouter-deepseek-deepseek-r1 | high | 41 | 3 | 6 | stale_limit | 600s | 4h 50m | 50108 | 669 | 159 | $3.073608 | 3583156 |
+| 20260620-084401-opencode-openrouter-anthropic-claude-opus-4 | opencode-openrouter-anthropic-claude-opus-4 | high | 47 | 2 | 5 | stale_limit | 600s | 1h 28m | 24471 | 2836 | 287 | $26.950575 | 9534134 |

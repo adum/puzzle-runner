@@ -246,6 +246,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("x ai "))
     if stripped.startswith("openai "):
         candidates.append(stripped.removeprefix("openai "))
+    if stripped.startswith("anthropic "):
+        candidates.append(stripped.removeprefix("anthropic "))
     if stripped.startswith("mistralai "):
         candidates.append(stripped.removeprefix("mistralai "))
     if stripped.startswith("minimax minimax "):
