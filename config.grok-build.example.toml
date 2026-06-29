@@ -1,0 +1,66 @@
+# Copy to runner.grok-build.toml and authenticate/configure Grok Build as needed.
+
+benchmark_repo_url = "https://github.com/adum/coilbench.git"
+benchmark_ref = "main"
+download_full_levels = true
+
+workspace_mode = "worktree"
+worktree_root = ".puzzle-runs/worktrees"
+log_root = ".puzzle-runs/logs"
+status_dir = ".puzzle-runs/current"
+results_path = "final_results.md"
+
+solver_wrapper = "run_solver"
+evaluation_script = "evaluate_full.py"
+evaluation_timeout_seconds = 600
+evaluation_process_timeout_seconds = 0
+
+full_eval_password_env = "COIL_FULL_PASSWORD"
+generate_full_eval_password = true
+
+stale_limit = 3
+max_rounds = 20
+
+# Wall-clock cap for a single Grok Build call.
+agent_timeout_seconds = 86400
+
+# Idle-output cap for a single Grok Build call. Set to 0 to disable.
+agent_idle_timeout_seconds = 1800
+
+# Retry window for non-timeout agent process failures. Retries use exponential
+# backoff starting at 5s and doubling each time. Set to 0 to disable.
+agent_failure_retry_limit_seconds = 900
+
+build_checker = true
+echo_agent_output = true
+echo_evaluation_output = true
+
+forbidden_paths = [
+  "levels_public/**",
+  "levels_secret_even.tar.enc",
+  "evaluate.py",
+  "evaluate_full.py",
+  "coil_check/check.c",
+  "coil_check/Makefile",
+  "coil_check/check",
+]
+
+[agent]
+# Optional override. If omitted, Puzzle Runner derives this from agent.model or
+# the --model/-m value in command.
+# name = "custom-agent-name"
+backend = "grok-build"
+prompt_mode = "file"
+model = "composer-2.5-fast"
+command = [
+  "grok",
+  "--prompt-file",
+  "{prompt_path}",
+  "--output-format",
+  "plain",
+  "--permission-mode",
+  "bypassPermissions",
+  "--always-approve",
+  "--max-turns",
+  "40",
+]

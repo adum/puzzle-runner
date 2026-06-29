@@ -331,6 +331,8 @@ def find_model(agent: str, metadata: dict[str, ModelMeta]) -> ModelMeta | None:
 
 def infer_harness(agent: str) -> str:
     normalized = agent.strip().lower()
+    if normalized.startswith("grok-"):
+        return "grokbuild"
     if normalized.startswith("opencode-"):
         return "opencode"
     if normalized.startswith("claude-code-"):

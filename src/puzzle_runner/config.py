@@ -16,7 +16,7 @@ class ConfigError(ValueError):
     pass
 
 
-PromptMode = Literal["stdin", "arg"]
+PromptMode = Literal["stdin", "arg", "file"]
 WorkspaceMode = Literal["worktree", "copy"]
 
 
@@ -120,7 +120,11 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
             name=agent_name,
             backend=agent_backend,
             command=agent_command,
-            prompt_mode=_literal(agent_raw.get("prompt_mode", "stdin"), {"stdin", "arg"}, "agent.prompt_mode"),
+            prompt_mode=_literal(
+                agent_raw.get("prompt_mode", "stdin"),
+                {"stdin", "arg", "file"},
+                "agent.prompt_mode",
+            ),
             effort=_optional_str(agent_raw, "effort"),
             model=agent_model,
             api_key_env=_str(agent_raw, "api_key_env", "OPENROUTER_API_KEY"),
@@ -172,6 +176,8 @@ def _agent_name_backend_prefix(backend: str) -> str:
         return "openrouter"
     if backend == "opencode" or backend.startswith("opencode-"):
         return "opencode"
+    if backend == "grok-build" or backend.startswith("grok-"):
+        return "grok"
     return ""
 
 

@@ -318,6 +318,7 @@ class Runner:
             agent_idle_timed_out = (
                 agent_result.timed_out and agent_result.timeout_reason == "idle"
             )
+            agent_failure_stop_reason: str | None = None
             if agent_result.timed_out and not agent_idle_timed_out:
                 stop_reason = "agent_timeout"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
@@ -327,13 +328,11 @@ class Runner:
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
             if agent_result.returncode != 0 and not agent_idle_timed_out:
-                stop_reason = (
+                agent_failure_stop_reason = (
                     "agent_max_steps"
                     if agent_result.returncode == AGENT_MAX_STEPS_RETURN_CODE
                     else "agent_failed"
                 )
-                self._update_status(phase="stopping", stop_reason=stop_reason)
-                break
 
             self._update_status(phase="pre_evaluation_guard")
             pre_eval_findings = guard.check()
@@ -434,6 +433,11 @@ class Runner:
 
             if agent_idle_timed_out:
                 stop_reason = "agent_idle_timeout"
+                self._update_status(phase="stopping", stop_reason=stop_reason)
+                break
+
+            if agent_failure_stop_reason is not None:
+                stop_reason = agent_failure_stop_reason
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
 
@@ -793,6 +797,8 @@ exec python3 ./coil_solver.py
         if self.config.agent.backend != "openrouter" and self.config.agent.prompt_mode == "arg":
             command = [*command, prompt]
             stdin_text = None
+        elif self.config.agent.backend != "openrouter" and self.config.agent.prompt_mode == "file":
+            stdin_text = None
         else:
             stdin_text = prompt
 
@@ -1095,6 +1101,7 @@ exec python3 ./coil_solver.py
             "workspace": str(self.workspace),
             "log_dir": str(self.log_dir),
             "round_dir": str(round_dir),
+            "prompt_path": str(round_dir / "prompt.md"),
             "run_id": self.config.run_id,
         }
         return [part.format(**replacements) for part in command]
@@ -1832,6 +1839,10 @@ def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
         if _command_has_option(command, "--variant"):
             return command
         return [*command, "--variant", effort]
+    if _is_grok_backend(config):
+        if _command_has_option(command, "--effort"):
+            return command
+        return [*command, "--effort", effort]
     return command
 
 
@@ -1844,6 +1855,10 @@ def _apply_agent_model(config: RunnerConfig, command: list[str]) -> list[str]:
             return command
         return [*command, "--model", model]
     if _is_opencode_backend(config):
+        if _command_has_any_option(command, {"--model", "-m"}):
+            return command
+        return [*command, "--model", model]
+    if _is_grok_backend(config):
         if _command_has_any_option(command, {"--model", "-m"}):
             return command
         return [*command, "--model", model]
@@ -1866,6 +1881,11 @@ def _is_antigravity_backend(config: RunnerConfig) -> bool:
 
 def _is_opencode_backend(config: RunnerConfig) -> bool:
     return config.agent.backend == "opencode" or config.agent.backend.startswith("opencode-")
+
+
+def _is_grok_backend(config: RunnerConfig) -> bool:
+    backend = config.agent.backend
+    return backend == "grok-build" or backend == "grok" or backend.startswith("grok-")
 
 
 def _opencode_required_auth_provider(config: RunnerConfig) -> str | None:
@@ -2432,10 +2452,14 @@ def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
         return "geminicli"
     if normalized_backend in {"antigravity-cli", "antigravity"}:
         return "antigravity"
+    if normalized_backend in {"grok-build", "grokbuild"} or normalized_backend.startswith("grok-"):
+        return "grokbuild"
     if normalized_backend:
         return normalized_backend.replace("-", "")
 
     normalized_agent = agent_name.strip().lower()
+    if normalized_agent.startswith("grok-"):
+        return "grokbuild"
     if normalized_agent.startswith("opencode-"):
         return "opencode"
     if normalized_agent.startswith("claude-code-"):
@@ -2446,7 +2470,7 @@ def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
 
 
 def _should_append_results_summary(final: FinalResult) -> bool:
-    return final.stop_reason != "agent_model_not_found"
+    return final.best_round is not None and final.stop_reason != "agent_model_not_found"
 
 
 def _openrouter_usage_for_result(config: RunnerConfig, log_dir: Path) -> dict | None:

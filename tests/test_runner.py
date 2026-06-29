@@ -26,6 +26,7 @@ from puzzle_runner.runner import (
     _opencode_model_problem_from_listing,
     _openrouter_usage_for_result,
     _results_summary_row,
+    _should_append_results_summary,
     count_agent_output_chars,
     count_code_lines_added,
     explain_stop_reason,
@@ -254,6 +255,27 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("| run-1 | gpt-5.3-codex | codex | xhigh |", row)
         self.assertNotIn("/tmp/logs", row)
 
+    def test_results_summary_row_records_grok_build_harness(self) -> None:
+        final = FinalResult(
+            run_id="run-1",
+            best_score=1,
+            best_round=1,
+            total_rounds=1,
+            stop_reason="stale_limit",
+            stop_detail="done",
+            total_wall_seconds=10,
+            agent_output_chars=10,
+            code_lines_added=1,
+            log_dir=Path("/tmp/logs"),
+            workspace=Path("/tmp/workspace"),
+        )
+        config_path = Path(__file__).resolve().parents[1] / "config.grok-build.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+
+        row = _results_summary_row(final, config)
+
+        self.assertIn("| run-1 | grok-composer-2.5-fast | grokbuild |", row)
+
     def test_results_summary_header_appends_new_schema_after_old_header(self) -> None:
         old_header = (
             "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs |\n"
@@ -315,6 +337,23 @@ class RunnerTests(unittest.TestCase):
         row = _results_summary_row(final, config)
 
         self.assertIn("| 4 | $0.012346 | 1234 |", row)
+
+    def test_results_summary_is_not_appended_without_evaluation(self) -> None:
+        final = FinalResult(
+            run_id="run-1",
+            best_score=0,
+            best_round=None,
+            total_rounds=1,
+            stop_reason="agent_failed",
+            stop_detail="agent failed before evaluation",
+            total_wall_seconds=10,
+            agent_output_chars=100,
+            code_lines_added=10,
+            log_dir=Path("/tmp/logs"),
+            workspace=Path("/tmp/workspace"),
+        )
+
+        self.assertFalse(_should_append_results_summary(final))
 
     def test_opencode_openrouter_usage_is_included_for_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -432,6 +471,27 @@ class RunnerTests(unittest.TestCase):
         command = _apply_agent_effort(config, ["opencode", "run", "--variant", "max"])
 
         self.assertEqual(command, ["opencode", "run", "--variant", "max"])
+
+    def test_grok_build_command_uses_prompt_file_and_model(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.grok-build.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        runner = Runner(config)
+
+        command = runner._agent_command(Path("/tmp/round"))
+
+        self.assertIn("--prompt-file", command)
+        self.assertIn("/tmp/round/prompt.md", command)
+        self.assertIn("--model", command)
+        self.assertIn("composer-2.5-fast", command)
+
+    def test_grok_build_effort_is_added_to_agent_command(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.grok-build.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        config = dataclasses.replace(config, agent=dataclasses.replace(config.agent, effort="high"))
+
+        command = _apply_agent_effort(config, ["grok", "--prompt-file", "prompt.md"])
+
+        self.assertEqual(command, ["grok", "--prompt-file", "prompt.md", "--effort", "high"])
 
     def test_claude_result_line_is_terminal_even_when_error(self) -> None:
         self.assertTrue(
@@ -850,6 +910,84 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(final.stop_reason, "agent_idle_timeout")
         self.assertEqual(final.best_score, 123)
+        self.assertEqual(final.best_round, 1)
+        self.assertEqual(final.total_rounds, 1)
+        self.assertTrue(evaluation_result_exists)
+
+    def test_agent_failure_runs_final_evaluation(self) -> None:
+        class AgentFailedRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\necho solved\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _can_shortcut_default_solver_evaluation(self) -> bool:
+                return False
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text("work completed before failure\n", encoding="utf-8")
+                stderr.write_text("Error: max turns reached\n", encoding="utf-8")
+                (self.workspace / "solver.py").write_text("print('changed')\n", encoding="utf-8")
+                return CommandResult(
+                    argv=["agent"],
+                    cwd=self.workspace,
+                    returncode=1,
+                    elapsed_seconds=10.0,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                stdout = round_dir / "evaluation.stdout.log"
+                stderr = round_dir / "evaluation.stderr.log"
+                stdout.write_text(
+                    "Level 88 (baseline): PASS (0.00s)\n"
+                    "Level 89 (baseline): FAIL - test stop (0.00s)\n",
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["python3", "evaluate_full.py"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = AgentFailedRunner(config).run()
+            evaluation_result_exists = (
+                final.log_dir / "round-001" / "evaluation_result.json"
+            ).exists()
+
+        self.assertEqual(final.stop_reason, "agent_failed")
+        self.assertEqual(final.best_score, 88)
         self.assertEqual(final.best_round, 1)
         self.assertEqual(final.total_rounds, 1)
         self.assertTrue(evaluation_result_exists)

@@ -101,6 +101,23 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("json", config.agent.command)
         self.assertIn("--dangerously-skip-permissions", config.agent.command)
 
+    def test_grok_build_example_config_loads(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.grok-build.example.toml"
+
+        config = load_config(str(config_path), run_id="test-run")
+
+        self.assertEqual(config.agent.name, "grok-composer-2.5-fast")
+        self.assertEqual(config.agent.backend, "grok-build")
+        self.assertEqual(config.agent.prompt_mode, "file")
+        self.assertEqual(config.agent.model, "composer-2.5-fast")
+        self.assertIn("grok", config.agent.command)
+        self.assertIn("--prompt-file", config.agent.command)
+        self.assertIn("{prompt_path}", config.agent.command)
+        self.assertIn("--permission-mode", config.agent.command)
+        self.assertIn("bypassPermissions", config.agent.command)
+        self.assertEqual(config.agent_idle_timeout_seconds, 1800)
+        self.assertTrue(config.echo_agent_output)
+
     def test_explicit_agent_name_overrides_model_default(self) -> None:
         source_path = Path(__file__).resolve().parents[1] / "config.example.toml"
         with tempfile.TemporaryDirectory() as temp_dir:

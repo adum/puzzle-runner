@@ -182,6 +182,29 @@ opencode run --title <run-id> --format json --dangerously-skip-permissions --mod
 
 The command goes through `scripts/opencode`, which sources `nvm` first when available. OpenCode agent output is raw JSON events in the logs; use the watcher for a readable live view. Edit `model` and `effort` in `[agent]` when desired.
 
+## Grok Build
+
+Use the Grok Build config:
+
+```sh
+cp config.grok-build.example.toml runner.grok-build.toml
+PYTHONPATH=src python3 -m puzzle_runner --config runner.grok-build.toml
+```
+
+Watch that run with:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner watch --config runner.grok-build.toml
+```
+
+The Grok Build config passes Puzzle Runner's prompt file to:
+
+```sh
+grok --prompt-file <round-dir>/prompt.md --output-format plain --permission-mode bypassPermissions --always-approve --max-turns 40 --model composer-2.5-fast
+```
+
+Puzzle Runner records this harness as `grokbuild` in `final_results.md`.
+
 ## OpenRouter
 
 Use the OpenRouter config:
