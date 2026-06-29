@@ -251,6 +251,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("1h 1m", row)
         self.assertIn("12345", row)
         self.assertIn("67", row)
+        self.assertIn("| run-1 | gpt-5.3-codex | codex | xhigh |", row)
         self.assertNotIn("/tmp/logs", row)
 
     def test_results_summary_header_appends_new_schema_after_old_header(self) -> None:
@@ -268,7 +269,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("Agent Chars", text)
         self.assertIn("Code Lines Added", text)
         self.assertIn("OpenRouter Cost", text)
-        self.assertIn("| Run ID | Agent | Effort |", text)
+        self.assertIn("| Run ID | Agent | Harness | Effort |", text)
         self.assertNotIn("Timeout | Logs |\n\n| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Logs", text)
 
     def test_results_summary_header_migrates_no_effort_schema(self) -> None:
@@ -284,9 +285,9 @@ class RunnerTests(unittest.TestCase):
             _ensure_results_summary_header(path)
             text = path.read_text(encoding="utf-8")
 
-        self.assertIn("| Run ID | Agent | Effort | Best Score |", text)
-        self.assertIn("| run-1 | claude |  | 0 |", text)
-        self.assertIn("| run-1 | claude |  | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |  |  |  |", text)
+        self.assertIn("| Run ID | Agent | Harness | Effort | Best Score |", text)
+        self.assertIn("| run-1 | claude | codex |  | 0 |", text)
+        self.assertIn("| run-1 | claude | codex |  | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |  |  |  |", text)
         self.assertEqual(text.count("| Run ID | Agent |"), 1)
 
     def test_results_summary_row_includes_openrouter_usage_when_present(self) -> None:

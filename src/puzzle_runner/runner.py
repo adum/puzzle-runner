@@ -46,10 +46,18 @@ MODEL_NOT_FOUND_MESSAGE_RE = re.compile(
 PROVIDER_MODEL_ID_RE = re.compile(r'\bmodelID:\s*"([^"]+)"')
 PROVIDER_ID_RE = re.compile(r'\bproviderID:\s*"([^"]+)"')
 RESULTS_SUMMARY_HEADER = (
-    "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
+    "| Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | "
     "Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | "
     "OpenRouter Cost | OpenRouter Tokens |\n"
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+)
+RESULTS_SUMMARY_NO_HARNESS_HEADER = (
+    "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
+    "Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | "
+    "OpenRouter Cost | OpenRouter Tokens |"
+)
+RESULTS_SUMMARY_NO_HARNESS_SEPARATOR = (
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 RESULTS_SUMMARY_NO_OPENROUTER_HEADER = (
     "| Run ID | Agent | Effort | Best Score | Best Round | Rounds | Stop Reason | "
@@ -2295,6 +2303,7 @@ def _migrate_results_summary_schema(text: str) -> str:
 
     for line in lines:
         if line in {
+            RESULTS_SUMMARY_NO_HARNESS_HEADER,
             RESULTS_SUMMARY_NO_EFFORT_HEADER,
             RESULTS_SUMMARY_NO_OPENROUTER_HEADER,
             RESULTS_SUMMARY_OLD_LOGS_HEADER,
@@ -2304,6 +2313,7 @@ def _migrate_results_summary_schema(text: str) -> str:
             continue
 
         if in_migrated_table and line in {
+            RESULTS_SUMMARY_NO_HARNESS_SEPARATOR,
             RESULTS_SUMMARY_NO_EFFORT_SEPARATOR,
             RESULTS_SUMMARY_NO_OPENROUTER_SEPARATOR,
             RESULTS_SUMMARY_OLD_LOGS_SEPARATOR,
@@ -2327,18 +2337,36 @@ def _migrate_results_summary_schema(text: str) -> str:
 
 
 def _migrate_results_summary_row_cells(cells: list[str]) -> list[str] | None:
-    if len(cells) == 14:
+    if len(cells) == 15:
         return cells
+    if len(cells) == 14:
+        return [cells[0], cells[1], _harness_from_agent_name(cells[1]), *cells[2:]]
     if len(cells) == 11:
-        return [*cells, "", "", ""]
+        return [
+            cells[0],
+            cells[1],
+            _harness_from_agent_name(cells[1]),
+            *cells[2:],
+            "",
+            "",
+            "",
+        ]
     if len(cells) == 10:
-        migrated = list(cells)
-        migrated.insert(2, "")
-        return [*migrated, "", "", ""]
+        return [
+            cells[0],
+            cells[1],
+            _harness_from_agent_name(cells[1]),
+            "",
+            *cells[2:],
+            "",
+            "",
+            "",
+        ]
     if len(cells) == 8:
         return [
             cells[0],
             cells[1],
+            _harness_from_agent_name(cells[1]),
             "",
             cells[2],
             cells[3],
@@ -2371,6 +2399,7 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
     row = [
         final.run_id,
         config.agent.name,
+        _harness_from_config(config),
         _agent_effort_text(config),
         str(final.best_score),
         "" if final.best_round is None else str(final.best_round),
@@ -2385,6 +2414,35 @@ def _results_summary_row(final: FinalResult, config: RunnerConfig) -> str:
         _openrouter_int_cell(usage, "total_tokens"),
     ]
     return "| " + " | ".join(_escape_table_cell(value) for value in row) + " |\n"
+
+
+def _harness_from_config(config: RunnerConfig) -> str:
+    return _harness_from_backend_or_agent(config.agent.backend, config.agent.name)
+
+
+def _harness_from_agent_name(agent_name: str) -> str:
+    return _harness_from_backend_or_agent("", agent_name)
+
+
+def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
+    normalized_backend = backend.strip().lower().replace("_", "-")
+    if normalized_backend in {"claude-code", "claudecode"}:
+        return "claudecode"
+    if normalized_backend in {"gemini-cli", "geminicli"}:
+        return "geminicli"
+    if normalized_backend in {"antigravity-cli", "antigravity"}:
+        return "antigravity"
+    if normalized_backend:
+        return normalized_backend.replace("-", "")
+
+    normalized_agent = agent_name.strip().lower()
+    if normalized_agent.startswith("opencode-"):
+        return "opencode"
+    if normalized_agent.startswith("claude-code-"):
+        return "claudecode"
+    if normalized_agent.startswith("gemini"):
+        return "antigravity"
+    return "codex"
 
 
 def _should_append_results_summary(final: FinalResult) -> bool:

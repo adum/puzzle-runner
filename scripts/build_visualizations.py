@@ -83,6 +83,7 @@ class RunResult:
     run_id: str
     run_date: dt.date
     agent: str
+    harness: str
     effort: str
     best_score: int
     best_round: int | None
@@ -303,6 +304,7 @@ def load_results(path: Path, metadata: dict[str, ModelMeta]) -> tuple[list[RunRe
                 run_id=row["Run ID"],
                 run_date=parse_run_date(row["Run ID"]),
                 agent=row["Agent"],
+                harness=row.get("Harness", "") or infer_harness(row["Agent"]),
                 effort=row["Effort"] or "unspecified",
                 best_score=parse_int(row["Best Score"]) or 0,
                 best_round=parse_int(row["Best Round"]),
@@ -325,6 +327,17 @@ def find_model(agent: str, metadata: dict[str, ModelMeta]) -> ModelMeta | None:
         if candidate in metadata:
             return metadata[candidate]
     return None
+
+
+def infer_harness(agent: str) -> str:
+    normalized = agent.strip().lower()
+    if normalized.startswith("opencode-"):
+        return "opencode"
+    if normalized.startswith("claude-code-"):
+        return "claudecode"
+    if normalized.startswith("gemini"):
+        return "antigravity"
+    return "codex"
 
 
 def color_map(labels: list[str]) -> dict[str, str]:
