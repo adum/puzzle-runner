@@ -38,3 +38,4 @@
 | 20260620-084401-opencode-openrouter-anthropic-claude-opus-4 | opencode-openrouter-anthropic-claude-opus-4 | opencode | high | 47 | 2 | 5 | stale_limit | 600s | 1h 28m | 24471 | 2836 | 287 | $26.950575 | 9534134 |
 | 20260620-103318-opencode-openrouter-qwen-qwen3-coder-plus | opencode-openrouter-qwen-qwen3-coder-plus | opencode | high | 29 | 2 | 5 | stale_limit | 600s | 53m 36s | 46816 | 2581 | 273 | $2.698133 | 13380415 |
 | 20260628-223303-grok-composer-2-5-fast | grok-composer-2.5-fast | grokbuild |  | 64 | 1 | 1 | agent_failed | 600s | 1h 13m | 4726 | 591 |  |  |  |
+| 20260629-091644-grok-build | grok-build | grokbuild |  | 65 | 1 | 1 | agent_failed | 600s | 53m 9s | 2204 | 208 |  |  |  |

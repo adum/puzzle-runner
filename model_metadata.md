@@ -23,6 +23,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3.5 Flash (High) | May 19, 2026 | America | false |
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
+| Grok | Grok Build | June 1, 2026 | America | false |
 | GLM | GLM-4.5 | July 28, 2025 | China | true |
 | GLM | GLM-5.1 | April 7, 2026 | China | true |
 | GLM | GLM-5.2 | June 16, 2026 | China | true |
@@ -46,7 +47,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Claude Opus 4 uses Anthropic's official Claude 4 launch date and remains false because it is a hosted proprietary model.
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
-- Grok Composer 2.5 Fast uses xAI's official Composer 2.5 announcement date. It remains false because xAI describes it as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
+- Grok Composer 2.5 Fast and Grok Build use xAI's official Composer 2.5 announcement date. They remain false because xAI describes Composer 2.5 as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
 - MiniMax M2 and M3 use OpenRouter's listed release dates. MiniMax M3's official launch post is dated June 1, 2026, but OpenRouter lists earlier public availability.
 - Claude Fable 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
 - Open weights means public model weights are available now. MiniMax M2 and M3 are true because MiniMax publishes public Hugging Face/GitHub model weights for both.
