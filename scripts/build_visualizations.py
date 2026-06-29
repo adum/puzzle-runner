@@ -1036,6 +1036,7 @@ def data_table(runs: list[RunResult]) -> str:
             f"<td>{html_escape(fmt_date(run.release_date or run.run_date))}</td>"
             f"<td>{html_escape(run.version)}</td>"
             f"<td>{html_escape(run.family)}</td>"
+            f"<td>{html_escape(run.harness)}</td>"
             f"<td>{html_escape(run.origin)}</td>"
             f"<td>{str(run.open_weights).lower()}</td>"
             f"<td>{run.best_score}</td>"
@@ -1058,6 +1059,7 @@ def data_table(runs: list[RunResult]) -> str:
               <th>Release date</th>
               <th>Model version</th>
               <th>Model family</th>
+              <th>Harness</th>
               <th>Origin</th>
               <th>Open weights</th>
               <th>Best score</th>
@@ -1091,6 +1093,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
         origin_colors[origin] = ORIGIN_COLORS.get(origin, "#64748b")
     origin_rows = aggregate_scores(runs, "origin")
     family_rows = aggregate_scores(runs, "family")
+    harness_rows = aggregate_scores(runs, "harness")
     version_rows = best_by_version(runs)
     family_counts = Counter(run.family for run in runs)
     effort_counts = Counter(run.effort for run in runs)
@@ -1111,7 +1114,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
         ),
         chart_shell(
             "AI Versus Humans Over Time",
-            "Cumulative best AI score by benchmark run date, compared with the top human score and bundled brute-force solver baseline.",
+            "Cumulative best AI score by model release date, compared with the top human score and bundled brute-force solver baseline.",
             svg_ai_vs_human_over_time(runs),
         ),
         chart_shell(
@@ -1170,6 +1173,11 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             svg_horizontal_bars(version_rows, family_colors),
         ),
         '<div class="chart-grid">',
+        chart_shell(
+            "Harness Comparison",
+            "Best score observed for each evaluation harness, with run counts shown below each bar.",
+            svg_best_bars(harness_rows, "Harness best score comparison"),
+        ),
         chart_shell(
             "Runs By Effort",
             "Run counts by requested reasoning effort.",
@@ -1423,7 +1431,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
 
     table {{
       width: 100%;
-      min-width: 900px;
+      min-width: 980px;
       border-collapse: collapse;
       font-size: 13px;
     }}
