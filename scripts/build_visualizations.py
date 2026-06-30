@@ -57,6 +57,7 @@ ORIGIN_COLORS = {
     "America": "#2563eb",
     "China": "#7c3aed",
     "Europe": "#059669",
+    "Japan": "#b45309",
     "Unknown": "#64748b",
 }
 
@@ -257,6 +258,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("z ai "))
     if stripped.startswith("qwen qwen"):
         candidates.append("qwen" + stripped.removeprefix("qwen qwen"))
+    if stripped.startswith("sakana "):
+        candidates.append(stripped.removeprefix("sakana "))
     if stripped.startswith("deepseek deepseek "):
         candidates.append(stripped.removeprefix("deepseek "))
 

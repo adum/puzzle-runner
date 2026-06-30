@@ -1,8 +1,8 @@
 # Model Metadata
 
-Last researched: June 29, 2026.
+Last researched: June 30, 2026.
 
-This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home region: America, China, or Europe.
+This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
 | Model family | Specific model version | Release date | Origin | Open weights |
 | --- | --- | --- | --- | --- |
@@ -24,6 +24,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
 | Grok | Grok Build | June 1, 2026 | America | false |
+| Sakana Fugu | Fugu Ultra | June 22, 2026 | Japan | false |
 | GLM | GLM-4.5 | July 28, 2025 | China | true |
 | GLM | GLM-5.1 | April 7, 2026 | China | true |
 | GLM | GLM-5.2 | June 16, 2026 | China | true |
@@ -48,6 +49,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
 - Grok Composer 2.5 Fast and Grok Build use xAI's official Composer 2.5 announcement date. They remain false because xAI describes Composer 2.5 as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
+- Fugu Ultra uses Sakana AI's official launch date and remains false because Sakana Fugu is available through an API and its model selection and coordination are described as proprietary, not as public model weights.
 - MiniMax M2 and M3 use OpenRouter's listed release dates. MiniMax M3's official launch post is dated June 1, 2026, but OpenRouter lists earlier public availability.
 - Claude Fable 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
 - Open weights means public model weights are available now. MiniMax M2 and M3 are true because MiniMax publishes public Hugging Face/GitHub model weights for both.
@@ -66,6 +68,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
+- Sakana AI: [Sakana AI homepage](https://sakana.ai/), [Fugu launch post](https://sakana.ai/fugu-release/), [Fugu product page](https://sakana.ai/fugu/)
 - Z.AI / GLM: [GLM-4.5 technical blog](https://z.ai/blog/glm-4.5), [GLM-4.5 Hugging Face model card](https://huggingface.co/zai-org/GLM-4.5), [OpenRouter GLM-4.5 model page](https://openrouter.ai/z-ai/glm-4.5), [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [GLM-5.1 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.1), [OpenRouter GLM-5.1 model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks), [Z.AI GLM-5.2 docs](https://docs.z.ai/guides/llm/glm-5.2), [GLM-5.2 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.2), [OpenRouter GLM-5.2 model page](https://openrouter.ai/z-ai/glm-5.2)
 - Moonshot AI / Kimi: [Kimi K2.5 GitHub repo](https://github.com/MoonshotAI/Kimi-K2.5), [Kimi K2.5 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.5), [OpenRouter Kimi K2.5 model page](https://openrouter.ai/moonshotai/kimi-k2.5), [Kimi K2.6 model page](https://www.kimi.com/ai-models/kimi-k2-6), [Kimi K2.6 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.6), [Kimi K2.7 Code API docs](https://platform.kimi.ai/docs/guide/kimi-k2-7-code-quickstart), [Kimi K2.7 Code Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.7-Code), [OpenRouter Kimi K2.7 Code model page](https://openrouter.ai/moonshotai/kimi-k2.7-code), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
 - MiniMax: [MiniMax M2 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M2), [MiniMax M2 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M2), [OpenRouter MiniMax M2 model page](https://openrouter.ai/minimax/minimax-m2), [MiniMax M3 launch post](https://www.minimax.io/blog/minimax-m3), [MiniMax M3 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M3), [MiniMax M3 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M3), [OpenRouter MiniMax M3 model page](https://openrouter.ai/minimax/minimax-m3/performance)
