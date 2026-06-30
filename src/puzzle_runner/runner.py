@@ -327,6 +327,10 @@ class Runner:
                 stop_reason = "agent_model_not_found"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
+            if self._status.get("last_agent_returned_error"):
+                stop_reason = str(self._status.get("last_agent_error_stop_reason") or "agent_error")
+                self._update_status(phase="stopping", stop_reason=stop_reason)
+                break
             if agent_result.returncode != 0 and not agent_idle_timed_out:
                 agent_failure_stop_reason = (
                     "agent_max_steps"
@@ -854,22 +858,35 @@ exec python3 ./coil_solver.py
                     stderr_line_callback=self._agent_output_status_callback(stdout_path, stderr_path),
                 )
             self._write_round_command(round_dir, f"agent_attempt-{attempt:03d}.json", result)
-            agent_returned_error = _agent_returned_error(self.config, stdout_path)
+            agent_error_detail = _agent_error_detail(self.config, stdout_path, stderr_path)
+            agent_returned_error = agent_error_detail is not None
             agent_model_not_found_model = _agent_model_not_found_detail(stdout_path, stderr_path)
             agent_model_not_found = agent_model_not_found_model is not None
             if agent_returned_error:
                 agent_error_count = int(self._status.get("agent_error_count") or 0) + 1
+                assert agent_error_detail is not None
                 self._event(
                     "agent_returned_error",
                     round=round_number,
                     attempt=attempt,
                     error_count=agent_error_count,
+                    detail=agent_error_detail,
+                )
+                print(
+                    "Puzzle Runner agent error: " + agent_error_detail["detail"],
+                    flush=True,
                 )
             else:
                 agent_error_count = int(self._status.get("agent_error_count") or 0)
             self._update_status(
                 agent_error_count=agent_error_count,
                 last_agent_returned_error=agent_returned_error,
+                last_agent_error=agent_error_detail,
+                last_agent_error_stop_reason=(
+                    _agent_error_stop_reason(agent_error_detail)
+                    if agent_error_detail is not None
+                    else None
+                ),
                 last_agent_model_not_found=agent_model_not_found,
                 last_agent_model_not_found_model=agent_model_not_found_model,
             )
@@ -890,7 +907,7 @@ exec python3 ./coil_solver.py
                 elapsed_seconds=result.elapsed_seconds,
             )
 
-            if agent_model_not_found:
+            if agent_model_not_found or agent_returned_error:
                 return result
 
             if not _agent_result_is_retryable(result):
@@ -1443,14 +1460,22 @@ def _is_terminal_stream_result_line(line: str) -> bool:
 
 
 def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
+    return _agent_error_detail(config, stdout_path, Path()) is not None
+
+
+def _agent_error_detail(config: RunnerConfig, stdout_path: Path, stderr_path: Path) -> dict | None:
     agent_stream_format = _agent_stream_format(config)
     if agent_stream_format == "claude-stream-json":
-        return _claude_stdout_has_error_result(stdout_path)
+        return _claude_stdout_error_detail(stdout_path)
     if agent_stream_format == "gemini-stream-json":
-        return _gemini_stdout_has_error_result(stdout_path)
+        return _gemini_stdout_error_detail(stdout_path)
     if agent_stream_format == "opencode-json":
-        return _opencode_stdout_has_error_result(stdout_path)
-    return False
+        return _opencode_stdout_error_detail(stdout_path)
+    return None
+
+
+def _agent_error_stop_reason(detail: dict) -> str:
+    return "agent_auth_error" if detail.get("kind") == "auth" else "agent_error"
 
 
 def _agent_model_not_found_error(stdout_path: Path, stderr_path: Path) -> bool:
@@ -1534,26 +1559,127 @@ def _tail_file_text(path: Path, max_bytes: int = MAX_AGENT_ERROR_SCAN_BYTES) -> 
 
 
 def _claude_stdout_has_error_result(path: Path) -> bool:
+    return _claude_stdout_error_detail(path) is not None
+
+
+def _claude_stdout_error_detail(path: Path) -> dict | None:
+    retry_status: int | None = None
+    retry_error: str | None = None
     for event in _claude_stream_events(path):
-        if event.get("type") == "result" and event.get("is_error") is True:
-            return True
-    return False
+        if event.get("type") == "system" and event.get("subtype") == "api_retry":
+            status = event.get("error_status")
+            if isinstance(status, int):
+                retry_status = status
+            error = event.get("error")
+            if isinstance(error, str) and error:
+                retry_error = error
+            continue
+
+        if event.get("type") != "result" or event.get("is_error") is not True:
+            continue
+
+        status = event.get("api_error_status")
+        status_int = status if isinstance(status, int) else retry_status
+        message = event.get("result")
+        if not isinstance(message, str) or not message.strip():
+            message = _claude_result_message_from_event(event)
+        if not message:
+            message = retry_error or "Claude Code returned an error result."
+        return _agent_error_payload("Claude Code", message, status_int, retry_error)
+    return None
 
 
 def _gemini_stdout_has_error_result(path: Path) -> bool:
+    return _gemini_stdout_error_detail(path) is not None
+
+
+def _gemini_stdout_error_detail(path: Path) -> dict | None:
     for event in _claude_stream_events(path):
         if event.get("type") == "error":
-            return True
+            message = _gemini_error_message(event) or "Gemini CLI returned an error event."
+            return _agent_error_payload("Gemini CLI", message, None, None)
         if event.get("type") != "result":
             continue
         status = event.get("status")
         if isinstance(status, str) and status.lower() != "success":
-            return True
-    return False
+            message = event.get("error") or event.get("message") or f"status={status}"
+            return _agent_error_payload("Gemini CLI", str(message), None, None)
+    return None
 
 
 def _opencode_stdout_has_error_result(path: Path) -> bool:
-    return any(event.get("type") == "error" for event in _claude_stream_events(path))
+    return _opencode_stdout_error_detail(path) is not None
+
+
+def _opencode_stdout_error_detail(path: Path) -> dict | None:
+    for event in _claude_stream_events(path):
+        if event.get("type") != "error":
+            continue
+        message = _opencode_error_message(event) or "OpenCode returned an error event."
+        return _agent_error_payload("OpenCode", message, None, None)
+    return None
+
+
+def _claude_result_message_from_event(event: dict) -> str:
+    for key in ("error", "message"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _gemini_error_message(event: dict) -> str:
+    for key in ("error", "message", "reason"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _agent_error_payload(
+    harness: str,
+    message: str,
+    status: int | None,
+    error_code: str | None,
+) -> dict:
+    message = _compact_progress_text(message.strip(), 300)
+    kind = "auth" if _is_auth_error(message, status, error_code) else "error"
+    status_text = f" API status {status}" if status is not None else ""
+    if kind == "auth":
+        detail = (
+            f"{harness} authentication failed with{status_text}: {message}"
+            if status_text
+            else f"{harness} authentication failed: {message}"
+        )
+    else:
+        detail = f"{harness} returned an error{status_text}: {message}"
+    payload = {
+        "kind": kind,
+        "harness": harness,
+        "message": message,
+        "detail": detail,
+    }
+    if status is not None:
+        payload["api_error_status"] = status
+    if error_code:
+        payload["error"] = error_code
+    return payload
+
+
+def _is_auth_error(message: str, status: int | None, error_code: str | None) -> bool:
+    if status in {401, 403}:
+        return True
+    haystack = " ".join(part for part in (message, error_code or "") if part).lower()
+    return any(
+        marker in haystack
+        for marker in (
+            "auth",
+            "credential",
+            "api key",
+            "unauthorized",
+            "forbidden",
+        )
+    )
 
 
 def _opencode_progress_line(line: str, state: dict) -> str | None:
@@ -2470,7 +2596,11 @@ def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
 
 
 def _should_append_results_summary(final: FinalResult) -> bool:
-    return final.best_round is not None and final.stop_reason != "agent_model_not_found"
+    return final.best_round is not None and final.stop_reason not in {
+        "agent_auth_error",
+        "agent_error",
+        "agent_model_not_found",
+    }
 
 
 def _openrouter_usage_for_result(config: RunnerConfig, log_dir: Path) -> dict | None:
@@ -2596,6 +2726,16 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             f"Agent reported a model-not-found error{model_text}. "
             "Puzzle Runner stopped immediately without running evaluation."
         )
+    if stop_reason == "agent_auth_error":
+        detail = _last_agent_error_detail(status)
+        if detail:
+            return f"{detail}. Puzzle Runner stopped immediately without running evaluation."
+        return "Agent authentication failed. Puzzle Runner stopped immediately without running evaluation."
+    if stop_reason == "agent_error":
+        detail = _last_agent_error_detail(status)
+        if detail:
+            return f"{detail}. Puzzle Runner stopped immediately without running evaluation."
+        return "Agent returned an error result. Puzzle Runner stopped immediately without running evaluation."
     if stop_reason == "agent_auth_missing":
         problem = status.get("agent_auth_problem")
         if isinstance(problem, dict):
@@ -2633,6 +2773,14 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             return f"Forbidden path guard detected{phase_text}: {summary}."
         return "Forbidden path guard detected edits under configured forbidden_paths."
     return "Run stopped."
+
+
+def _last_agent_error_detail(status: dict) -> str:
+    problem = status.get("last_agent_error")
+    if not isinstance(problem, dict):
+        return ""
+    detail = problem.get("detail")
+    return detail if isinstance(detail, str) else ""
 
 
 def _guard_findings_summary(findings) -> str:
@@ -2705,6 +2853,9 @@ def _status_markdown(status: dict) -> str:
     auth_problem = status.get("agent_auth_problem")
     if isinstance(auth_problem, dict) and auth_problem.get("detail"):
         lines.append(f"- Agent Auth Problem: `{auth_problem.get('detail')}`")
+    agent_error = status.get("last_agent_error")
+    if isinstance(agent_error, dict) and agent_error.get("detail"):
+        lines.append(f"- Agent Error: `{agent_error.get('detail')}`")
     guard_summary = _guard_findings_summary(status.get("guard_findings"))
     if guard_summary:
         lines.append(f"- Forbidden Changes: `{guard_summary}`")

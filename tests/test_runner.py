@@ -1,5 +1,7 @@
-import subprocess
+import contextlib
 import dataclasses
+import io
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +13,7 @@ from puzzle_runner.runner import (
     FinalResult,
     Runner,
     _agent_effort_text,
+    _agent_error_detail,
     _agent_result_is_retryable,
     _apply_agent_effort,
     _apply_agent_model,
@@ -704,6 +707,30 @@ class RunnerTests(unittest.TestCase):
                 "openrouter/moonshotai/kimi-k2.6",
             )
 
+    def test_claude_auth_error_detail_is_explicit(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.claude.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text(
+                '{"type":"system","subtype":"api_retry","error_status":401,'
+                '"error":"authentication_failed"}\n'
+                '{"type":"result","is_error":true,"api_error_status":401,'
+                '"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials"}\n',
+                encoding="utf-8",
+            )
+            stderr.write_text("", encoding="utf-8")
+
+            detail = _agent_error_detail(config, stdout, stderr)
+
+        self.assertIsNotNone(detail)
+        assert detail is not None
+        self.assertEqual(detail["kind"], "auth")
+        self.assertIn("Claude Code authentication failed with API status 401", detail["detail"])
+        self.assertIn("Invalid authentication credentials", detail["detail"])
+
     def test_model_not_found_stops_before_evaluation(self) -> None:
         class ModelNotFoundRunner(Runner):
             def _prepare_workspace(self) -> None:
@@ -759,6 +786,75 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(final.best_score, 0)
             self.assertFalse(config.results_path.exists())
             self.assertTrue(final_result_exists)
+
+    def test_claude_auth_error_stops_before_evaluation_and_prints_detail(self) -> None:
+        class ClaudeAuthErrorRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\nexec python3 ./coil_solver.py\n",
+                    encoding="utf-8",
+                )
+                (self.workspace / "coil_solver.py").write_text(
+                    "print('default')\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                raise AssertionError("evaluation should not run after agent auth error")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            fake_claude = root / "fake_claude.py"
+            fake_claude.write_text(
+                "import json\n"
+                "import sys\n"
+                "print(json.dumps({'type':'system','subtype':'api_retry',"
+                "'error_status':401,'error':'authentication_failed'}), flush=True)\n"
+                "print(json.dumps({'type':'result','is_error':True,'api_error_status':401,"
+                "'result':'Failed to authenticate. API Error: 401 Invalid authentication credentials'}), flush=True)\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=3,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+                agent=dataclasses.replace(
+                    self.config.agent,
+                    name="claude-sonnet-5",
+                    backend="claude-code",
+                    command=[
+                        "python3",
+                        str(fake_claude),
+                        "--output-format",
+                        "stream-json",
+                    ],
+                    model="claude-sonnet-5",
+                ),
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                final = ClaudeAuthErrorRunner(config).run()
+            status_text = (config.status_dir / "status.md").read_text(encoding="utf-8")
+
+        self.assertEqual(final.stop_reason, "agent_auth_error")
+        self.assertEqual(final.best_score, 0)
+        self.assertEqual(final.total_rounds, 1)
+        self.assertIn("API status 401", final.stop_detail)
+        self.assertIn("Invalid authentication credentials", final.stop_detail)
+        self.assertIn("Puzzle Runner agent error:", output.getvalue())
+        self.assertIn("Agent Error:", status_text)
+        self.assertFalse((final.log_dir / "round-001" / "agent_attempt-002.json").exists())
+        self.assertFalse(config.results_path.exists())
 
     def test_auth_preflight_problem_stops_before_agent(self) -> None:
         class AuthMissingRunner(Runner):
