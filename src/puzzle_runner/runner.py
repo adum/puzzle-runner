@@ -32,6 +32,22 @@ from .prompts import ScoreFeedback, compose_prompt
 
 
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
+NON_RETRYABLE_AGENT_ERROR_STATUSES = {400, 401, 402, 403, 404, 422}
+RETRYABLE_AGENT_ERROR_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+RETRYABLE_AGENT_ERROR_MARKERS = (
+    "bad gateway",
+    "connection reset",
+    "econnreset",
+    "gateway timeout",
+    "overloaded",
+    "provider_unavailable",
+    "rate limit",
+    "response payload is not completed",
+    "service unavailable",
+    "temporarily unavailable",
+    "timeout",
+    "timed out",
+)
 CODEX_REASONING_EFFORT_RE = re.compile(
     r"(?:^|\s)model_reasoning_effort\s*=\s*[\"']?([^\"'\s]+)"
 )
@@ -907,7 +923,10 @@ exec python3 ./coil_solver.py
                 elapsed_seconds=result.elapsed_seconds,
             )
 
-            if agent_model_not_found or agent_returned_error:
+            agent_error_retryable = bool(
+                agent_error_detail is not None and agent_error_detail.get("retryable")
+            )
+            if agent_model_not_found or (agent_returned_error and not agent_error_retryable):
                 return result
 
             if not _agent_result_is_retryable(result):
@@ -1642,8 +1661,14 @@ def _agent_error_payload(
     status: int | None,
     error_code: str | None,
 ) -> dict:
+    parsed_status, parsed_error_code = _agent_error_metadata_from_message(message)
+    if status is None:
+        status = parsed_status
+    if error_code is None:
+        error_code = parsed_error_code
     message = _compact_progress_text(message.strip(), 300)
     kind = "auth" if _is_auth_error(message, status, error_code) else "error"
+    retryable = kind != "auth" and _is_retryable_agent_error(message, status, error_code)
     status_text = f" API status {status}" if status is not None else ""
     if kind == "auth":
         detail = (
@@ -1658,12 +1683,45 @@ def _agent_error_payload(
         "harness": harness,
         "message": message,
         "detail": detail,
+        "retryable": retryable,
     }
     if status is not None:
         payload["api_error_status"] = status
     if error_code:
         payload["error"] = error_code
     return payload
+
+
+def _agent_error_metadata_from_message(message: str) -> tuple[int | None, str | None]:
+    try:
+        payload = json.loads(message.strip())
+    except json.JSONDecodeError:
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+
+    status = _int_from_value(payload.get("code") or payload.get("status"))
+    error_code = None
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        value = metadata.get("error_type") or metadata.get("code")
+        if isinstance(value, str) and value.strip():
+            error_code = value.strip()
+    if error_code is None:
+        for key in ("error", "error_type", "type"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                error_code = value.strip()
+                break
+    return status, error_code
+
+
+def _int_from_value(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _is_auth_error(message: str, status: int | None, error_code: str | None) -> bool:
@@ -1680,6 +1738,15 @@ def _is_auth_error(message: str, status: int | None, error_code: str | None) -> 
             "forbidden",
         )
     )
+
+
+def _is_retryable_agent_error(message: str, status: int | None, error_code: str | None) -> bool:
+    if status in NON_RETRYABLE_AGENT_ERROR_STATUSES:
+        return False
+    if status in RETRYABLE_AGENT_ERROR_STATUSES:
+        return True
+    haystack = " ".join(part for part in (message, error_code or "") if part).lower()
+    return any(marker in haystack for marker in RETRYABLE_AGENT_ERROR_MARKERS)
 
 
 def _opencode_progress_line(line: str, state: dict) -> str | None:
@@ -2734,6 +2801,15 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
     if stop_reason == "agent_error":
         detail = _last_agent_error_detail(status)
         if detail:
+            problem = status.get("last_agent_error")
+            retryable = isinstance(problem, dict) and problem.get("retryable") is True
+            retry_count = status.get("agent_retry_count")
+            if retryable and isinstance(retry_count, int) and retry_count > 0:
+                return (
+                    f"{detail}. Puzzle Runner retried eligible failures for up to "
+                    f"agent_failure_retry_limit_seconds="
+                    f"{config.agent_failure_retry_limit_seconds}s without running evaluation."
+                )
             return f"{detail}. Puzzle Runner stopped immediately without running evaluation."
         return "Agent returned an error result. Puzzle Runner stopped immediately without running evaluation."
     if stop_reason == "agent_auth_missing":

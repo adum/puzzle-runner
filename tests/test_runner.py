@@ -4,6 +4,7 @@ import io
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from puzzle_runner.config import load_config
@@ -76,6 +77,23 @@ class RunnerTests(unittest.TestCase):
         )
 
         self.assertEqual(detail, "OpenCode has no OpenRouter credential.")
+
+    def test_explain_retryable_agent_error_mentions_retry_window(self) -> None:
+        detail = explain_stop_reason(
+            "agent_error",
+            self.config,
+            {
+                "agent_retry_count": 2,
+                "last_agent_error": {
+                    "detail": "OpenCode returned an error API status 502: provider unavailable",
+                    "retryable": True,
+                },
+            },
+        )
+
+        self.assertIn("retried eligible failures", detail)
+        self.assertIn("agent_failure_retry_limit_seconds=900s", detail)
+        self.assertIn("without running evaluation", detail)
 
     def test_explain_stale_limit_names_parameter(self) -> None:
         detail = explain_stop_reason("stale_limit", self.config, {})
@@ -855,6 +873,125 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("Agent Error:", status_text)
         self.assertFalse((final.log_dir / "round-001" / "agent_attempt-002.json").exists())
         self.assertFalse(config.results_path.exists())
+
+    def test_opencode_provider_unavailable_error_is_retryable(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text(
+                '{"type":"error","error":{"name":"UnknownError","data":{"message":'
+                '"{\\"code\\":502,\\"message\\":\\"Exception: Response payload is not completed\\",'
+                '\\"metadata\\":{\\"error_type\\":\\"provider_unavailable\\"}}"}}}\n',
+                encoding="utf-8",
+            )
+            stderr.write_text("", encoding="utf-8")
+
+            detail = _agent_error_detail(config, stdout, stderr)
+
+        self.assertIsNotNone(detail)
+        assert detail is not None
+        self.assertEqual(detail["api_error_status"], 502)
+        self.assertEqual(detail["error"], "provider_unavailable")
+        self.assertTrue(detail["retryable"])
+        self.assertIn("API status 502", detail["detail"])
+
+    def test_retryable_opencode_error_uses_exponential_retry_path(self) -> None:
+        class RetryableErrorRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\necho solved\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _agent_auth_preflight_problem(self) -> dict | None:
+                return None
+
+            def _opencode_model_preflight_problem(self) -> dict | None:
+                return None
+
+            def _can_shortcut_default_solver_evaluation(self) -> bool:
+                return False
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                stdout = round_dir / "evaluation.stdout.log"
+                stderr = round_dir / "evaluation.stderr.log"
+                stdout.write_text(
+                    "Level 77 (baseline): PASS (0.00s)\n"
+                    "Level 78 (baseline): FAIL - test stop (0.00s)\n",
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["python3", "evaluate_full.py"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            attempt_file = root / "attempts.txt"
+            fake_opencode = root / "fake_opencode.py"
+            fake_opencode.write_text(
+                "import json\n"
+                "import pathlib\n"
+                "import sys\n"
+                f"attempt_path = pathlib.Path({str(attempt_file)!r})\n"
+                "attempt = int(attempt_path.read_text() or '0') + 1 if attempt_path.exists() else 1\n"
+                "attempt_path.write_text(str(attempt))\n"
+                "if attempt == 1:\n"
+                "    message = json.dumps({'code': 502, 'message': 'Exception: Response payload is not completed', 'metadata': {'error_type': 'provider_unavailable'}})\n"
+                "    print(json.dumps({'type': 'error', 'error': {'name': 'UnknownError', 'data': {'message': message}}}), flush=True)\n"
+                "    sys.exit(1)\n"
+                "print(json.dumps({'type': 'text', 'part': {'type': 'text', 'text': 'done'}}), flush=True)\n",
+                encoding="utf-8",
+            )
+            config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+            opencode_config = load_config(str(config_path), run_id="test-run")
+            config = dataclasses.replace(
+                opencode_config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                agent_failure_retry_limit_seconds=60,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+                agent=dataclasses.replace(
+                    opencode_config.agent,
+                    command=["python3", str(fake_opencode), "--format", "json"],
+                ),
+            )
+
+            output = io.StringIO()
+            with mock.patch("puzzle_runner.runner.time.sleep") as sleep:
+                with contextlib.redirect_stdout(output):
+                    final = RetryableErrorRunner(config).run()
+
+            attempts_text = attempt_file.read_text()
+            events_text = (final.log_dir / "events.jsonl").read_text(encoding="utf-8")
+            second_attempt_exists = (final.log_dir / "round-001" / "agent_attempt-002.json").exists()
+
+        self.assertEqual(final.best_score, 77)
+        self.assertEqual(attempts_text, "2")
+        self.assertIn(mock.call(5.0), sleep.call_args_list)
+        self.assertTrue(second_attempt_exists)
+        self.assertIn("agent_retry_scheduled", events_text)
 
     def test_auth_preflight_problem_stops_before_agent(self) -> None:
         class AuthMissingRunner(Runner):
