@@ -40,3 +40,4 @@
 | 20260628-223303-grok-composer-2-5-fast | grok-composer-2.5-fast | grokbuild |  | 64 | 1 | 1 | agent_failed | 600s | 1h 13m | 4726 | 591 |  |  |  |
 | 20260629-091644-grok-build | grok-build | grokbuild |  | 65 | 1 | 1 | agent_failed | 600s | 53m 9s | 2204 | 208 |  |  |  |
 | 20260629-103458-opencode-openrouter-sakana-fugu-ultra | opencode-openrouter-sakana-fugu-ultra | opencode | high | 171 | 1 | 3 | agent_idle_timeout | 600s | 15h 18m | 26711 | 509 | 253 | $20.174499 | 14814495 |
+| 20260630-161457-claude-sonnet-5 | claude-sonnet-5 | claudecode | xhigh | 195 | 1 | 4 | stale_limit | 600s | 4h 9m | 10054 | 748 |  |  |  |
