@@ -28,7 +28,7 @@ from .openrouter_usage import (
     summarize_openrouter_usage,
 )
 from .process import CommandResult, run_streamed
-from .prompts import ScoreFeedback, compose_prompt
+from .prompts import SENTINEL, ScoreFeedback, compose_prompt
 
 
 AGENT_RETRY_INITIAL_DELAY_SECONDS = 5.0
@@ -1445,8 +1445,11 @@ def _agent_stream_format(config: RunnerConfig) -> str | None:
 
 
 def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], bool] | None:
-    if _agent_stream_format(config) in {"claude-stream-json", "gemini-stream-json"}:
+    stream_format = _agent_stream_format(config)
+    if stream_format in {"claude-stream-json", "gemini-stream-json"}:
         return _is_terminal_stream_result_line
+    if stream_format == "opencode-json":
+        return _is_terminal_opencode_completion_line
     return None
 
 
@@ -1476,6 +1479,49 @@ def _is_terminal_stream_result_line(line: str) -> bool:
     except json.JSONDecodeError:
         return False
     return isinstance(event, dict) and event.get("type") == "result"
+
+
+def _is_terminal_opencode_completion_line(line: str) -> bool:
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(event, dict):
+        return False
+
+    event_type = event.get("type")
+    if event_type == "text":
+        return _contains_sentinel_line(_opencode_event_text(event))
+    if event_type != "tool_use":
+        return False
+
+    part = event.get("part")
+    if not isinstance(part, dict):
+        return False
+    tool = str(part.get("tool") or "").lower()
+    if tool not in {"bash", "shell"}:
+        return False
+    state = part.get("state")
+    if not isinstance(state, dict):
+        return False
+    return any(_contains_sentinel_line(text) for text in _opencode_tool_output_texts(state))
+
+
+def _contains_sentinel_line(text: str) -> bool:
+    return any(line.strip() == SENTINEL for line in text.splitlines())
+
+
+def _opencode_tool_output_texts(state: dict) -> list[str]:
+    texts: list[str] = []
+    for value in (state.get("output"),):
+        if isinstance(value, str):
+            texts.append(value)
+    metadata = state.get("metadata")
+    if isinstance(metadata, dict):
+        value = metadata.get("output")
+        if isinstance(value, str):
+            texts.append(value)
+    return texts
 
 
 def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:

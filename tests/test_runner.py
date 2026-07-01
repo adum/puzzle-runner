@@ -1,6 +1,7 @@
 import contextlib
 import dataclasses
 import io
+import json
 import subprocess
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ from puzzle_runner.runner import (
     _agent_effort_text,
     _agent_error_detail,
     _agent_result_is_retryable,
+    _agent_stdout_completion_predicate,
     _apply_agent_effort,
     _apply_agent_model,
     _claude_stdout_has_error_result,
@@ -549,6 +551,99 @@ class RunnerTests(unittest.TestCase):
             )
 
             self.assertTrue(_opencode_stdout_has_error_result(stdout))
+
+    def test_opencode_json_completion_predicate_detects_done_output(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        predicate = _agent_stdout_completion_predicate(config)
+
+        self.assertIsNotNone(predicate)
+        assert predicate is not None
+
+        self.assertTrue(
+            predicate(
+                json.dumps(
+                    {
+                        "type": "tool_use",
+                        "part": {
+                            "type": "tool",
+                            "tool": "bash",
+                            "state": {
+                                "status": "completed",
+                                "input": {"command": 'echo "PUZZLE_RUNNER_DONE"'},
+                                "output": "PUZZLE_RUNNER_DONE\n",
+                                "metadata": {"output": "PUZZLE_RUNNER_DONE\n"},
+                            },
+                        },
+                    }
+                )
+                + "\n"
+            )
+        )
+        self.assertTrue(
+            predicate(
+                json.dumps(
+                    {
+                        "type": "text",
+                        "part": {
+                            "type": "text",
+                            "text": "Final result:\nPUZZLE_RUNNER_DONE\n",
+                        },
+                    }
+                )
+                + "\n"
+            )
+        )
+        self.assertFalse(
+            predicate(
+                json.dumps(
+                    {
+                        "type": "tool_use",
+                        "part": {
+                            "type": "tool",
+                            "tool": "bash",
+                            "state": {
+                                "status": "completed",
+                                "input": {"command": 'echo "PUZZLE_RUNNER_DONE"'},
+                            },
+                        },
+                    }
+                )
+                + "\n"
+            )
+        )
+        self.assertFalse(
+            predicate(
+                json.dumps(
+                    {
+                        "type": "text",
+                        "part": {
+                            "type": "text",
+                            "text": "I will print PUZZLE_RUNNER_DONE next.",
+                        },
+                    }
+                )
+                + "\n"
+            )
+        )
+        self.assertFalse(
+            predicate(
+                json.dumps(
+                    {
+                        "type": "tool_use",
+                        "part": {
+                            "type": "tool",
+                            "tool": "read",
+                            "state": {
+                                "status": "completed",
+                                "metadata": {"preview": "PUZZLE_RUNNER_DONE\n"},
+                            },
+                        },
+                    }
+                )
+                + "\n"
+            )
+        )
 
     def test_opencode_progress_line_summarizes_human_readable_events(self) -> None:
         state: dict = {}
