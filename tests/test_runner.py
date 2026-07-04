@@ -321,7 +321,7 @@ class RunnerTests(unittest.TestCase):
         old_table = (
             "| Run ID | Agent | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added |\n"
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
-            "| run-1 | claude | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |\n"
+            "| run-1 | claude-fable-5 | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |\n"
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "final_results.md"
@@ -331,8 +331,8 @@ class RunnerTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
 
         self.assertIn("| Run ID | Agent | Harness | Effort | Best Score |", text)
-        self.assertIn("| run-1 | claude | codex |  | 0 |", text)
-        self.assertIn("| run-1 | claude | codex |  | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |  |  |  |", text)
+        self.assertIn("| run-1 | claude-fable-5 | claudecode |  | 0 |", text)
+        self.assertIn("| run-1 | claude-fable-5 | claudecode |  | 0 |  | 1 | agent_idle_timeout | 600s | 30m 13s | 0 | 311 |  |  |  |", text)
         self.assertEqual(text.count("| Run ID | Agent |"), 1)
 
     def test_results_summary_row_includes_openrouter_usage_when_present(self) -> None:

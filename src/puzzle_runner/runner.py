@@ -2701,7 +2701,7 @@ def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
         return "grokbuild"
     if normalized_agent.startswith("opencode-"):
         return "opencode"
-    if normalized_agent.startswith("claude-code-"):
+    if normalized_agent.startswith("claude-code-") or normalized_agent.startswith("claude-"):
         return "claudecode"
     if normalized_agent.startswith("gemini"):
         return "antigravity"

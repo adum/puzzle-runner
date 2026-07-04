@@ -338,7 +338,7 @@ def infer_harness(agent: str) -> str:
         return "grokbuild"
     if normalized.startswith("opencode-"):
         return "opencode"
-    if normalized.startswith("claude-code-"):
+    if normalized.startswith("claude-code-") or normalized.startswith("claude-"):
         return "claudecode"
     if normalized.startswith("gemini"):
         return "antigravity"

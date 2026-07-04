@@ -13,21 +13,21 @@
 | 20260511-082448-opencode-openrouter-x-ai-grok-4-3 | opencode-openrouter-x-ai-grok-4.3 | opencode | high | 47 | 1 | 4 | stale_limit | 600s | 36m 23s | 72 | 25 | 42 | $0.399170 | 636025 |
 | 20260511-112204-opencode-openrouter-mistralai-mistral-medium-3-1 | opencode-openrouter-mistralai-mistral-medium-3.1 | opencode | high | 47 | 1 | 4 | stale_limit | 600s | 3h 43m | 189182 | 192 | 313 | $5.308033 | 16098390 |
 | 20260511-171126-opencode-openrouter-qwen-qwen3-6-plus | opencode-openrouter-qwen-qwen3.6-plus | opencode | high | 68 | 1 | 4 | stale_limit | 600s | 7h 11m | 19780 | 2959 | 336 | $11.398238 | 32433127 |
-| 20260513-135710-claude-sonnet-4-5 | claude-sonnet-4-5 | codex | xhigh | 64 | 3 | 6 | stale_limit | 600s | 4h 28m | 14413 | 2864 |  |  |  |
+| 20260513-135710-claude-sonnet-4-5 | claude-sonnet-4-5 | claudecode | xhigh | 64 | 3 | 6 | stale_limit | 600s | 4h 28m | 14413 | 2864 |  |  |  |
 | 20260513-154703-gpt-5-2 | gpt-5.2 | codex | xhigh | 100 | 1 | 4 | stale_limit | 600s | 12h 9m | 13601515 | 1031 |  |  |  |
-| 20260513-213232-claude-opus-4-5 | claude-opus-4-5 | codex | high | 100 | 1 | 1 | evaluation_failed | 600s | 47m 17s | 2337 | 665 |  |  |  |
-| 20260514-113354-claude-opus-4-5 | claude-opus-4-5 | codex | high | 144 | 5 | 8 | stale_limit | 600s | 15h 19m | 16980 | 1689 |  |  |  |
+| 20260513-213232-claude-opus-4-5 | claude-opus-4-5 | claudecode | high | 100 | 1 | 1 | evaluation_failed | 600s | 47m 17s | 2337 | 665 |  |  |  |
+| 20260514-113354-claude-opus-4-5 | claude-opus-4-5 | claudecode | high | 144 | 5 | 8 | stale_limit | 600s | 15h 19m | 16980 | 1689 |  |  |  |
 | 20260524-123240-gemini-3-5-flash-high | gemini-3.5-flash-high | antigravity |  | 176 | 5 | 8 | stale_limit | 600s | 6h 21m | 15906 | 678 |  |  |  |
 | 20260524-193813-gemini-3-5-flash-high | gemini-3.5-flash-high | antigravity |  | 151 | 1 | 4 | stale_limit | 600s | 2h 51m | 27940 | 1065 |  |  |  |
 | 20260525-101237-gemini-3-5-flash-high | gemini-3.5-flash-high | antigravity |  | 195 | 1 | 4 | stale_limit | 600s | 3h 19m | 34222 | 1314 |  |  |  |
 | 20260527-103344-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | opencode | high | 89 | 3 | 4 | agent_idle_timeout | 600s | 15h 47m | 28354 | 292 | 423 | $4.077197 | 34813443 |
 | 20260528-073107-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | opencode | high | 63 | 1 | 3 | agent_idle_timeout | 600s | 8h 0m | 16866 | 188 | 314 | $5.867184 | 34605071 |
-| 20260528-160434-claude-opus-4-8 | claude-opus-4-8 | codex | xhigh | 262 | 3 | 6 | stale_limit | 600s | 8h 4m | 36000 | 813 |  |  |  |
+| 20260528-160434-claude-opus-4-8 | claude-opus-4-8 | claudecode | xhigh | 262 | 3 | 6 | stale_limit | 600s | 8h 4m | 36000 | 813 |  |  |  |
 | 20260529-153836-opencode-openrouter-z-ai-glm-5-1 | opencode-openrouter-z-ai-glm-5.1 | opencode | high | 104 | 8 | 8 |  | 600s | 18h 40m | 79704 | 1959 |  | $64.8177 |  |
 | 20260531-213945-opencode-openrouter-mistralai-mistral-medium-3-5 | opencode-openrouter-mistralai-mistral-medium-3-5 | opencode | high | 68 | 3 | 6 | stale_limit | 600s | 22h 5m | 214079 | 4675 | 681 | $59.786295 | 40832194 |
 | 20260602-130130-opencode-openrouter-minimax-minimax-m3 | opencode-openrouter-minimax-minimax-m3 | opencode | high | 89 | 2 | 3 |  | 600s | 10h 50m | 631855 | 1942 |  | $7.9823 | 119564526 |
 | 20260609-075824-opencode-openrouter-qwen-qwen3-7-max | opencode-openrouter-qwen-qwen3.7-max | opencode | high | 77 | 2 | 5 | stale_limit | 600s | 4h 44m | 34669 | 700 | 346 | $11.838221 | 27760197 |
-| 20260609-155527-claude-fable-5 | claude-fable-5 | codex | xhigh | 352 | 1 | 4 | stale_limit | 600s | 5h 39m | 7324 | 1259 |  |  |  |
+| 20260609-155527-claude-fable-5 | claude-fable-5 | claudecode | xhigh | 352 | 1 | 4 | stale_limit | 600s | 5h 39m | 7324 | 1259 |  |  |  |
 | 20260615-085613-opencode-openrouter-moonshotai-kimi-k2-7-code | opencode-openrouter-moonshotai-kimi-k2.7-code | opencode | high | 99 | 1 | 3 | agent_idle_timeout | 600s | 11h 51m | 505461 | 2923 | 454 | $15.429768 | 45475119 |
 | 20260616-225849-opencode-openrouter-moonshotai-kimi-k2-5 | opencode-openrouter-moonshotai-kimi-k2.5 | opencode | high | 68 | 2 | 5 | stale_limit | 600s | 8h 21m | 16212 | 264 | 359 | $1.898840 | 18242601 |
 | 20260617-174139-opencode-openrouter-minimax-minimax-m2 | opencode-openrouter-minimax-minimax-m2 | opencode | high | 65 | 3 | 5 | agent_idle_timeout | 600s | 7h 53m | 8688 | 325 | 362 | $3.317071 | 13772479 |
