@@ -344,10 +344,19 @@ class Runner:
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
             if self._status.get("last_agent_returned_error"):
-                stop_reason = str(self._status.get("last_agent_error_stop_reason") or "agent_error")
-                self._update_status(phase="stopping", stop_reason=stop_reason)
-                break
-            if agent_result.returncode != 0 and not agent_idle_timed_out:
+                agent_failure_stop_reason = str(
+                    self._status.get("last_agent_error_stop_reason") or "agent_error"
+                )
+                last_agent_error = self._status.get("last_agent_error")
+                retryable_agent_error = (
+                    isinstance(last_agent_error, dict)
+                    and last_agent_error.get("retryable") is True
+                )
+                if not retryable_agent_error:
+                    stop_reason = agent_failure_stop_reason
+                    self._update_status(phase="stopping", stop_reason=stop_reason)
+                    break
+            elif agent_result.returncode != 0 and not agent_idle_timed_out:
                 agent_failure_stop_reason = (
                     "agent_max_steps"
                     if agent_result.returncode == AGENT_MAX_STEPS_RETURN_CODE
@@ -458,7 +467,11 @@ class Runner:
 
             if agent_failure_stop_reason is not None:
                 stop_reason = agent_failure_stop_reason
-                self._update_status(phase="stopping", stop_reason=stop_reason)
+                self._update_status(
+                    phase="stopping",
+                    stop_reason=stop_reason,
+                    agent_failure_final_evaluation_ran=True,
+                )
                 break
 
             if stale_count >= self.config.stale_limit:
@@ -944,10 +957,12 @@ exec python3 ./coil_solver.py
                 return result
 
             sleep_seconds = min(retry_delay, remaining)
+            total_retry_count = int(self._status.get("agent_total_retry_count") or 0) + 1
             self._event(
                 "agent_retry_scheduled",
                 round=round_number,
                 attempt=attempt,
+                total_retry_count=total_retry_count,
                 delay_seconds=sleep_seconds,
                 remaining_retry_seconds=max(remaining - sleep_seconds, 0),
             )
@@ -957,6 +972,7 @@ exec python3 ./coil_solver.py
                 last_agent_timed_out=result.timed_out,
                 last_agent_timeout_reason=result.timeout_reason,
                 agent_retry_delay_seconds=round(sleep_seconds, 2),
+                agent_total_retry_count=total_retry_count,
                 agent_retry_remaining_seconds=round(max(remaining - sleep_seconds, 0), 2),
             )
             time.sleep(sleep_seconds)
@@ -1184,6 +1200,9 @@ Stale limit: {self.config.stale_limit}
 Agent timeout: {self.config.agent_timeout_seconds}s
 Agent idle timeout: {self.config.agent_idle_timeout_seconds}s
 Agent failure retry limit: {self.config.agent_failure_retry_limit_seconds}s
+Agent retry count: {self._status.get("agent_retry_count") or 0}
+Agent total retry count: {self._status.get("agent_total_retry_count") or 0}
+Agent error count: {self._status.get("agent_error_count") or 0}
 Total rounds: {final.total_rounds}
 Best score: {final.best_score}
 Best round: {final.best_round}
@@ -1264,6 +1283,7 @@ Code lines added: {final.code_lines_added}
                     "last_openrouter_max_tokens_completion_tokens": None,
                     "last_openrouter_max_tokens_reasoning_tokens": None,
                     "agent_retry_count": 0,
+                    "agent_total_retry_count": 0,
                     "agent_retry_delay_seconds": None,
                     "agent_retry_remaining_seconds": None,
                     "stale_count": 0,
@@ -2711,7 +2731,6 @@ def _harness_from_backend_or_agent(backend: str, agent_name: str) -> str:
 def _should_append_results_summary(final: FinalResult) -> bool:
     return final.best_round is not None and final.stop_reason not in {
         "agent_auth_error",
-        "agent_error",
         "agent_model_not_found",
     }
 
@@ -2851,10 +2870,22 @@ def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) ->
             retryable = isinstance(problem, dict) and problem.get("retryable") is True
             retry_count = status.get("agent_retry_count")
             if retryable and isinstance(retry_count, int) and retry_count > 0:
+                evaluation_text = (
+                    "and ran final evaluation before stopping"
+                    if status.get("agent_failure_final_evaluation_ran") is True
+                    else "without running evaluation"
+                )
+                total_retry_count = status.get("agent_total_retry_count")
+                total_retry_text = (
+                    f" ({_retry_count_text(total_retry_count)} total this run)"
+                    if isinstance(total_retry_count, int) and total_retry_count > retry_count
+                    else ""
+                )
                 return (
-                    f"{detail}. Puzzle Runner retried eligible failures for up to "
+                    f"{detail}. Puzzle Runner retried eligible failures "
+                    f"{_retry_count_text(retry_count)}{total_retry_text} for up to "
                     f"agent_failure_retry_limit_seconds="
-                    f"{config.agent_failure_retry_limit_seconds}s without running evaluation."
+                    f"{config.agent_failure_retry_limit_seconds}s {evaluation_text}."
                 )
             return f"{detail}. Puzzle Runner stopped immediately without running evaluation."
         return "Agent returned an error result. Puzzle Runner stopped immediately without running evaluation."
@@ -2903,6 +2934,11 @@ def _last_agent_error_detail(status: dict) -> str:
         return ""
     detail = problem.get("detail")
     return detail if isinstance(detail, str) else ""
+
+
+def _retry_count_text(count: int) -> str:
+    label = "retry" if count == 1 else "retries"
+    return f"{count} {label}"
 
 
 def _guard_findings_summary(findings) -> str:
@@ -2955,6 +2991,8 @@ def _status_markdown(status: dict) -> str:
         f"- Best Round: `{status.get('best_round')}`",
         f"- Scores: `{_score_history_text(status)}`",
         f"- Last Improved: `{status.get('last_improved')}`",
+        f"- Agent Retry Count: `{status.get('agent_retry_count')}`",
+        f"- Agent Total Retry Count: `{status.get('agent_total_retry_count')}`",
         f"- Agent Errors: `{status.get('agent_error_count')}`",
         f"- Agent Model Not Found: `{status.get('last_agent_model_not_found')}`",
         f"- Agent Model Not Found Model: `{status.get('last_agent_model_not_found_model')}`",

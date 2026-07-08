@@ -86,6 +86,7 @@ class RunnerTests(unittest.TestCase):
             self.config,
             {
                 "agent_retry_count": 2,
+                "agent_total_retry_count": 5,
                 "last_agent_error": {
                     "detail": "OpenCode returned an error API status 502: provider unavailable",
                     "retryable": True,
@@ -94,6 +95,8 @@ class RunnerTests(unittest.TestCase):
         )
 
         self.assertIn("retried eligible failures", detail)
+        self.assertIn("2 retries", detail)
+        self.assertIn("5 retries total this run", detail)
         self.assertIn("agent_failure_retry_limit_seconds=900s", detail)
         self.assertIn("without running evaluation", detail)
 
@@ -377,6 +380,23 @@ class RunnerTests(unittest.TestCase):
         )
 
         self.assertFalse(_should_append_results_summary(final))
+
+    def test_results_summary_is_appended_for_agent_error_after_evaluation(self) -> None:
+        final = FinalResult(
+            run_id="run-1",
+            best_score=12,
+            best_round=1,
+            total_rounds=1,
+            stop_reason="agent_error",
+            stop_detail="agent failed after final evaluation",
+            total_wall_seconds=10,
+            agent_output_chars=100,
+            code_lines_added=10,
+            log_dir=Path("/tmp/logs"),
+            workspace=Path("/tmp/workspace"),
+        )
+
+        self.assertTrue(_should_append_results_summary(final))
 
     def test_opencode_openrouter_usage_is_included_for_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1318,6 +1338,108 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(final.best_score, 88)
         self.assertEqual(final.best_round, 1)
         self.assertEqual(final.total_rounds, 1)
+        self.assertTrue(evaluation_result_exists)
+
+    def test_retryable_agent_error_runs_final_evaluation(self) -> None:
+        class RetryableAgentErrorRunner(Runner):
+            def _prepare_workspace(self) -> None:
+                self.workspace.mkdir(parents=True)
+                (self.workspace / "run_solver").write_text(
+                    "#!/usr/bin/env sh\necho solved\n",
+                    encoding="utf-8",
+                )
+
+            def _normalize_workspace_line_endings(self) -> None:
+                pass
+
+            def _ensure_solver_wrapper(self) -> None:
+                pass
+
+            def _can_shortcut_default_solver_evaluation(self) -> bool:
+                return False
+
+            def _run_agent(self, round_number: int, round_dir: Path, prompt: str) -> CommandResult:
+                stdout = round_dir / "agent.stdout.log"
+                stderr = round_dir / "agent.stderr.log"
+                stdout.write_text("partial work before rate limit\n", encoding="utf-8")
+                stderr.write_text("API status 429: rate limit exceeded\n", encoding="utf-8")
+                (self.workspace / "solver.py").write_text("print('changed')\n", encoding="utf-8")
+                self._update_status(
+                    agent_retry_count=4,
+                    agent_total_retry_count=6,
+                    agent_error_count=7,
+                    last_agent_returned_error=True,
+                    last_agent_error={
+                        "detail": "OpenCode returned an error API status 429: rate limit exceeded",
+                        "retryable": True,
+                        "kind": "error",
+                    },
+                    last_agent_error_stop_reason="agent_error",
+                )
+                return CommandResult(
+                    argv=["agent"],
+                    cwd=self.workspace,
+                    returncode=1,
+                    elapsed_seconds=10.0,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+                stdout = round_dir / "evaluation.stdout.log"
+                stderr = round_dir / "evaluation.stderr.log"
+                stdout.write_text(
+                    "Level 77 (baseline): PASS (0.00s)\n"
+                    "Level 78 (baseline): FAIL - test stop (0.00s)\n",
+                    encoding="utf-8",
+                )
+                stderr.write_text("", encoding="utf-8")
+                return CommandResult(
+                    argv=["python3", "evaluate_full.py"],
+                    cwd=self.workspace,
+                    returncode=0,
+                    elapsed_seconds=0.1,
+                    timed_out=False,
+                    timeout_reason=None,
+                    stdout_path=stdout,
+                    stderr_path=stderr,
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = dataclasses.replace(
+                self.config,
+                download_full_levels=False,
+                build_checker=False,
+                max_rounds=1,
+                worktree_root=root / "worktrees",
+                log_root=root / "logs",
+                status_dir=root / "current",
+                results_path=root / "final_results.md",
+            )
+            final = RetryableAgentErrorRunner(config).run()
+            evaluation_result_exists = (
+                final.log_dir / "round-001" / "evaluation_result.json"
+            ).exists()
+            final_result_text = (final.log_dir / "final_result.md").read_text(
+                encoding="utf-8"
+            )
+            results_summary_text = config.results_path.read_text(encoding="utf-8")
+
+        self.assertEqual(final.stop_reason, "agent_error")
+        self.assertEqual(final.best_score, 77)
+        self.assertEqual(final.best_round, 1)
+        self.assertEqual(final.total_rounds, 1)
+        self.assertIn("4 retries", final.stop_detail)
+        self.assertIn("6 retries total this run", final.stop_detail)
+        self.assertIn("ran final evaluation", final.stop_detail)
+        self.assertIn("Agent retry count: 4", final_result_text)
+        self.assertIn("Agent total retry count: 6", final_result_text)
+        self.assertIn("Agent error count: 7", final_result_text)
+        self.assertIn("| test-run |", results_summary_text)
+        self.assertIn("| agent_error |", results_summary_text)
         self.assertTrue(evaluation_result_exists)
 
     def test_unchanged_default_solver_shortcuts_full_evaluation(self) -> None:
