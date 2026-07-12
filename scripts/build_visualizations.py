@@ -7,7 +7,6 @@ import datetime as dt
 import html
 import math
 import re
-import statistics
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -68,6 +67,11 @@ OPEN_WEIGHTS_COLORS = {
 
 HUMAN_BEST_SCORE = 1206
 DEFAULT_BRUTE_FORCE_SCORE = 47
+RESULT_RULE = (
+    "If a model has multiple runs, its reported result is the maximum Best Score "
+    "observed for that normalized model version. Score charts use those max-only "
+    "model results; raw runs remain in Run Details for audit."
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -364,7 +368,20 @@ def model_style_map(runs: list[RunResult]) -> dict[str, dict[str, str]]:
     return styles
 
 
-def aggregate_scores(runs: list[RunResult], key: str) -> list[dict[str, object]]:
+def best_runs_by_version(runs: list[RunResult]) -> list[RunResult]:
+    best_runs: dict[str, RunResult] = {}
+    for run in runs:
+        current = best_runs.get(run.version)
+        if current is None or (run.best_score, run.run_date, run.run_id) > (
+            current.best_score,
+            current.run_date,
+            current.run_id,
+        ):
+            best_runs[run.version] = run
+    return sorted(best_runs.values(), key=lambda run: (run.release_date or run.run_date, run.version, run.run_id))
+
+
+def aggregate_scores(runs: list[RunResult], key: str, count_label: str = "model") -> list[dict[str, object]]:
     buckets: dict[str, list[int]] = defaultdict(list)
     for run in runs:
         buckets[getattr(run, key)].append(run.best_score)
@@ -374,9 +391,8 @@ def aggregate_scores(runs: list[RunResult], key: str) -> list[dict[str, object]]
             {
                 "label": label,
                 "best": max(scores),
-                "average": statistics.mean(scores),
-                "median": statistics.median(scores),
-                "runs": len(scores),
+                "count": len(scores),
+                "count_label": count_label,
             }
         )
     return sorted(rows, key=lambda row: (-float(row["best"]), str(row["label"])))
@@ -393,8 +409,8 @@ def best_by_version(runs: list[RunResult]) -> list[dict[str, object]]:
             {
                 "label": version,
                 "best": best_run.best_score,
-                "average": statistics.mean(run.best_score for run in version_runs),
-                "runs": len(version_runs),
+                "count": len(version_runs),
+                "count_label": "run",
                 "family": best_run.family,
                 "origin": best_run.origin,
             }
@@ -436,6 +452,13 @@ def fmt_duration(seconds: int | None) -> str:
     if minutes:
         return f"{minutes}m {seconds}s"
     return f"{seconds}s"
+
+
+def fmt_count(count: object, singular: object) -> str:
+    count_int = int(count)
+    singular_text = str(singular)
+    suffix = singular_text if count_int == 1 else f"{singular_text}s"
+    return f"{count_int} {suffix}"
 
 
 def nice_max(value: float) -> float:
@@ -912,7 +935,7 @@ def svg_best_bars(rows: list[dict[str, object]], title: str) -> str:
             f'<text class="tick-label" x="{center:.1f}" y="{height - 42}" text-anchor="middle">{html_escape(row["label"])}</text>'
         )
         elements.append(
-            f'<text class="muted-label" x="{center:.1f}" y="{height - 24}" text-anchor="middle">{int(row["runs"])} runs</text>'
+            f'<text class="muted-label" x="{center:.1f}" y="{height - 24}" text-anchor="middle">{html_escape(fmt_count(row["count"], row["count_label"]))}</text>'
         )
     elements.append("</svg>")
     return "\n".join(elements)
@@ -940,7 +963,7 @@ def svg_horizontal_bars(rows: list[dict[str, object]], colors: dict[str, str]) -
         elements.append(f'<rect class="bar-track" x="{left}" y="{y + 7}" width="{plot_w}" height="18" rx="4" />')
         elements.append(
             f'<rect class="bar" x="{left}" y="{y + 7}" width="{width_px:.1f}" height="18" rx="4" fill="{color}">'
-            f"<title>{html_escape(row['label'])}: best {value}, average {fmt_number(float(row['average']))}, {row['runs']} runs</title></rect>"
+            f"<title>{html_escape(row['label'])}: best {value}, {html_escape(fmt_count(row['count'], row['count_label']))}</title></rect>"
         )
         elements.append(f'<text class="value-label" x="{left + width_px + 8:.1f}" y="{y + 22}">{value}</text>')
     elements.append("</svg>")
@@ -1053,7 +1076,7 @@ def data_table(runs: list[RunResult]) -> str:
     <section class="chart-panel">
       <div class="chart-heading">
         <h2>Run Details</h2>
-        <p>Normalized rows used by the generated charts; charts use model release date.</p>
+        <p>Raw run rows used as source data. Score charts collapse repeated model versions to their maximum score and use model release date.</p>
       </div>
       <div class="table-wrap">
         <table>
@@ -1085,8 +1108,9 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     if not runs:
         raise ValueError("no runs to visualize")
 
-    family_colors = color_map([run.family for run in runs])
-    origins = {run.origin for run in runs}
+    result_runs = best_runs_by_version(runs)
+    family_colors = color_map([run.family for run in result_runs])
+    origins = {run.origin for run in result_runs}
     origin_colors = {
         origin: ORIGIN_COLORS.get(origin, "#64748b")
         for origin in ORIGIN_COLORS
@@ -1094,15 +1118,15 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     }
     for origin in sorted(origins - set(origin_colors)):
         origin_colors[origin] = ORIGIN_COLORS.get(origin, "#64748b")
-    origin_rows = aggregate_scores(runs, "origin")
-    family_rows = aggregate_scores(runs, "family")
-    harness_rows = aggregate_scores(runs, "harness")
+    origin_rows = aggregate_scores(result_runs, "origin")
+    family_rows = aggregate_scores(result_runs, "family")
+    harness_rows = aggregate_scores(result_runs, "harness")
     version_rows = best_by_version(runs)
-    family_counts = Counter(run.family for run in runs)
-    effort_counts = Counter(run.effort for run in runs)
+    family_counts = Counter(run.family for run in result_runs)
+    effort_counts = Counter(run.effort for run in result_runs)
     effort_colors = color_map(list(effort_counts))
-    min_date = min(run.release_date for run in runs if run.release_date)
-    max_date = max(run.release_date for run in runs if run.release_date)
+    min_date = min(run.release_date for run in result_runs if run.release_date)
+    max_date = max(run.release_date for run in result_runs if run.release_date)
 
     unmatched_html = ""
     if unmatched:
@@ -1112,35 +1136,35 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     charts = [
         chart_shell(
             "All LLMs By Release Date",
-            "Every benchmark run plotted by public release date and styled by specific model version.",
-            svg_score_over_time(runs),
+            "Each normalized model version plotted once by public release date, using its maximum score across all runs.",
+            svg_score_over_time(result_runs),
         ),
         chart_shell(
             "AI Versus Humans Over Time",
-            "Cumulative best AI score by model release date, compared with the top human score and bundled brute-force solver baseline.",
-            svg_ai_vs_human_over_time(runs),
+            "Cumulative best max-only model result by release date, compared with the top human score and bundled brute-force solver baseline.",
+            svg_ai_vs_human_over_time(result_runs),
         ),
         chart_shell(
             "Family Best Score Over Time",
-            "Cumulative best score each model family has achieved as newer models are released.",
-            svg_family_best_over_time(runs, family_colors),
+            "Cumulative best max-only model result each model family has achieved as newer models are released.",
+            svg_family_best_over_time(result_runs, family_colors),
         ),
         chart_shell(
             "Origin Best Score Over Time",
-            "Cumulative best score each origin has achieved as newer models are released.",
-            svg_origin_best_over_time(runs, origin_colors),
+            "Cumulative best max-only model result each origin has achieved as newer models are released.",
+            svg_origin_best_over_time(result_runs, origin_colors),
         ),
         chart_shell(
             "Open Weights Versus Closed Weights",
-            "Cumulative best score achieved by public-weight and closed-weight models as newer models are released.",
-            svg_open_weights_best_over_time(runs),
+            "Cumulative best max-only model result achieved by public-weight and closed-weight models as newer models are released.",
+            svg_open_weights_best_over_time(result_runs),
         ),
         '<div class="chart-grid">',
         chart_shell(
             "Origin Comparison",
-            "Every benchmark run plotted by model release date and colored by origin.",
+            "Each normalized model version plotted once by model release date, using its maximum score and colored by origin.",
             svg_release_date_scatter(
-                runs,
+                result_runs,
                 origin_colors,
                 "origin",
                 width=650,
@@ -1154,43 +1178,43 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
         ),
         chart_shell(
             "Best Score By Origin",
-            "Best score observed for each origin bucket.",
+            "Best max-only model result observed for each origin bucket.",
             svg_best_bars(origin_rows, "Origin best score comparison"),
         ),
         "</div>",
         '<div class="chart-grid">',
         chart_shell(
             "Model Family Comparison",
-            "Best score observed for each model family.",
+            "Best max-only model result observed for each model family.",
             svg_best_bars(family_rows, "Model family best score comparison"),
         ),
         chart_shell(
-            "Runs By Family",
-            "Run counts show which families have the most benchmark coverage.",
-            svg_count_bars(family_counts, family_colors, "Runs by family"),
+            "Models By Family",
+            "Counts normalized model results by family after repeated runs are collapsed to each model's maximum score.",
+            svg_count_bars(family_counts, family_colors, "Models by family"),
         ),
         "</div>",
         chart_shell(
             "Best Score By Model Version",
-            "Highest score observed for each normalized model version.",
+            "Highest score observed for each normalized model version; repeated raw runs are never averaged.",
             svg_horizontal_bars(version_rows, family_colors),
         ),
         '<div class="chart-grid">',
         chart_shell(
             "Harness Comparison",
-            "Best score observed for each evaluation harness, with run counts shown below each bar.",
+            "Best max-only model result represented by each evaluation harness, with model counts shown below each bar.",
             svg_best_bars(harness_rows, "Harness best score comparison"),
         ),
         chart_shell(
-            "Runs By Effort",
-            "Run counts by requested reasoning effort.",
-            svg_count_bars(effort_counts, effort_colors, "Runs by effort"),
+            "Results By Effort",
+            "Counts max-only model results by the effort setting on the run that produced that model's maximum score.",
+            svg_count_bars(effort_counts, effort_colors, "Results by effort"),
         ),
         "</div>",
         chart_shell(
             "Score Versus Wall Time",
-            "Each point compares a run's best score with total wall-clock duration.",
-            svg_score_vs_wall_time(runs, family_colors),
+            "Each point uses the run that produced a normalized model version's maximum score.",
+            svg_score_vs_wall_time(result_runs, family_colors),
         ),
         data_table(runs),
     ]
@@ -1200,7 +1224,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Puzzle Runner Visualizations</title>
+  <title>Mortal Coil Benchmark Visualizations</title>
   <style>
     :root {{
       color-scheme: light;
@@ -1257,6 +1281,12 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     .subhead {{
       max-width: 760px;
       font-size: 16px;
+    }}
+
+    .rule-note {{
+      max-width: 860px;
+      margin-top: 10px;
+      color: #334155;
     }}
 
     .metrics {{
@@ -1488,8 +1518,9 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
 <body>
   <main>
     <header>
-      <h1>Puzzle Runner Visualizations</h1>
-      <p class="subhead">Static SVG report generated from <code>final_results.md</code> and <code>model_metadata.md</code>. Model releases span {fmt_date(min_date)} through {fmt_date(max_date)}.</p>
+      <h1>Mortal Coil Benchmark Visualizations</h1>
+      <p class="subhead">Static SVG report for Puzzle Runner runs testing Mortal Coil, generated from <code>final_results.md</code> and <code>model_metadata.md</code>. Model releases span {fmt_date(min_date)} through {fmt_date(max_date)}.</p>
+      <p class="rule-note"><strong>Result rule:</strong> {html_escape(RESULT_RULE)}</p>
       {unmatched_html}
     </header>
     {summary_cards(runs)}

@@ -1,3 +1,5 @@
+Result semantics: this table records individual runs. For model-level reporting, the true result for a model is the maximum `Best Score` across all rows that normalize to the same specific model version; repeated runs are never averaged. Visualization score charts apply this max-only rule before plotting.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
