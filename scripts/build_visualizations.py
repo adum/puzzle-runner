@@ -970,18 +970,24 @@ def svg_horizontal_bars(rows: list[dict[str, object]], colors: dict[str, str]) -
     return "\n".join(elements)
 
 
-def svg_count_bars(counts: Counter[str], colors: dict[str, str], title: str) -> str:
+def svg_count_bars(
+    counts: Counter[str],
+    colors: dict[str, str],
+    title: str,
+    *,
+    width: int = 520,
+    left: int = 170,
+    right: int = 48,
+) -> str:
     rows = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-    width = 520
     row_h = 36
     top = 22
     bottom = 24
-    left = 170
-    right = 48
     height = top + bottom + row_h * len(rows)
     plot_w = width - left - right
     max_value = max(counts.values()) if counts else 1
-    elements = [f'<svg class="chart-svg compact" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(title)}">']
+    svg_class = "chart-svg compact" if width <= 650 else "chart-svg"
+    elements = [f'<svg class="{svg_class}" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(title)}">']
     for index, (label, count) in enumerate(rows):
         y = top + index * row_h
         width_px = scale(count, 0, max_value, 0, plot_w)
@@ -1192,6 +1198,8 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     family_counts = Counter(run.family for run in result_runs)
     effort_counts = Counter(run.effort for run in result_runs)
     effort_colors = color_map(list(effort_counts))
+    stop_reason_counts = Counter(run.stop_reason.strip() or "unspecified" for run in runs)
+    stop_reason_colors = color_map(list(stop_reason_counts))
     min_date = min(run.release_date for run in result_runs if run.release_date)
     max_date = max(run.release_date for run in result_runs if run.release_date)
 
@@ -1278,6 +1286,18 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             svg_count_bars(effort_counts, effort_colors, "Results by effort"),
         ),
         "</div>",
+        chart_shell(
+            "Stop Reason Counts",
+            "Raw run counts grouped by final stop reason.",
+            svg_count_bars(
+                stop_reason_counts,
+                stop_reason_colors,
+                "Stop reason counts",
+                width=1180,
+                left=260,
+                right=80,
+            ),
+        ),
         chart_shell(
             "Score Versus Wall Time",
             "Each point uses the run that produced a normalized model version's maximum score.",
