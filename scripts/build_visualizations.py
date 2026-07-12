@@ -1225,6 +1225,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mortal Coil Benchmark Visualizations</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     :root {{
       color-scheme: light;
