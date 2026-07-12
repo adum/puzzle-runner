@@ -5,6 +5,8 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
+from unittest import mock
+from urllib.parse import quote
 
 from puzzle_runner.watch import (
     CLEAR_SCREEN,
@@ -85,6 +87,77 @@ class WatchTests(unittest.TestCase):
 
         self.assertIn("OR max tokens", rendered)
         self.assertIn("2 (last step 14, limit 16,384, out 16,384, reason 14,000)", rendered)
+
+    def test_render_status_includes_agent_turn_limit_from_command(self) -> None:
+        status = {
+            "active": True,
+            "phase": "agent_running",
+            "agent_attempt": 1,
+            "backend": "grok-build",
+            "current_command": ["grok", "--max-turns", "540", "--model", "grok-4.5"],
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Agent turns", rendered)
+        self.assertIn("max 540", rendered)
+
+    def test_render_status_includes_agent_turn_count_and_limit(self) -> None:
+        status = {
+            "active": True,
+            "phase": "agent_running",
+            "agent_attempt": 1,
+            "agent_turn_count": 37,
+            "agent_max_turns": 540,
+            "latest": {},
+        }
+
+        rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Agent turns", rendered)
+        self.assertIn("37/540", rendered)
+
+    def test_render_status_counts_grok_session_turns(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir)
+            workspace = "/tmp/puzzle-workspace"
+            session_root = home / ".grok" / "sessions" / quote(workspace, safe="")
+            primary = session_root / "primary-session"
+            subagent = session_root / "subagent-session"
+            primary.mkdir(parents=True)
+            subagent.mkdir(parents=True)
+            (primary / "summary.json").write_text("{}", encoding="utf-8")
+            (primary / "events.jsonl").write_text(
+                '{"type":"turn_started"}\n'
+                '{"type":"loop_started","loop_index":0}\n'
+                '{"type":"loop_started","loop_index":1}\n'
+                '{"type":"loop_started","loop_index":2}\n',
+                encoding="utf-8",
+            )
+            (subagent / "summary.json").write_text(
+                '{"session_kind":"subagent"}\n',
+                encoding="utf-8",
+            )
+            (subagent / "events.jsonl").write_text(
+                '{"type":"loop_started","loop_index":0}\n' * 9,
+                encoding="utf-8",
+            )
+            status = {
+                "active": True,
+                "phase": "agent_running",
+                "agent_attempt": 1,
+                "backend": "grok-build",
+                "workspace": workspace,
+                "current_command": ["grok", "--max-turns", "540"],
+                "latest": {},
+            }
+
+            with mock.patch("pathlib.Path.home", return_value=home):
+                rendered = render_status(status, status_path=Path("/tmp/status.json"), color=False)
+
+        self.assertIn("Agent turns", rendered)
+        self.assertIn("3/540", rendered)
 
     def test_render_status_includes_agent_output_chars(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

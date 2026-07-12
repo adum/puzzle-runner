@@ -42,3 +42,8 @@
 | 20260629-103458-opencode-openrouter-sakana-fugu-ultra | opencode-openrouter-sakana-fugu-ultra | opencode | high | 171 | 1 | 3 | agent_idle_timeout | 600s | 15h 18m | 26711 | 509 | 253 | $20.174499 | 14814495 |
 | 20260630-161457-claude-sonnet-5 | claude-sonnet-5 | claudecode | xhigh | 195 | 1 | 4 | stale_limit | 600s | 4h 9m | 10054 | 748 |  |  |  |
 | 20260701-144021-opencode-openrouter-nvidia-nemotron-3-ultra-550b-a55b | opencode-openrouter-nvidia-nemotron-3-ultra-550b-a55b | opencode | high | 47 | 2 | 3 | agent_idle_timeout | 600s | 3h 52m | 1815 | 1061 | 510 | $7.042864 | 36511311 |
+| 20260708-075701-opencode-openrouter-tencent-hy3 | opencode-openrouter-tencent-hy3 | opencode | high | 47 | 1 | 1 | agent_idle_timeout | 600s | 30m 22s | 0 | 0 |  |  |  |
+| 20260708-133138-grok-4-5 | grok-4.5 | grokbuild |  | 73 | 1 | 1 | agent_failed | 600s | 1h 15m | 1844 | 960 |  |  |  |
+| 20260708-173920-grok-4-5 | grok-4.5 | grokbuild |  | 131 | 1 | 1 | agent_failed | 600s | 41m 40s | 1645 | 1243 |  |  |  |
+| 20260708-184051-grok-4-5 | grok-4.5 | grokbuild |  | 86 | 2 | 2 | agent_idle_timeout | 600s | 4h 11m | 4045 | 948 |  |  |  |
+| 20260709-075301-grok-4-5 | grok-4.5 | grokbuild |  | 196 | 2 | 3 | agent_idle_timeout | 600s | 7h 46m | 9360 | 2307 |  |  |  |

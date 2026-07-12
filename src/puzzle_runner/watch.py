@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from .config import ConfigError, load_config
 from .openrouter_usage import (
@@ -49,6 +50,7 @@ TESTED_LEVEL_LINE_RE = re.compile(
     r"^Level\s+\d+\s+\([^)]*\):\s+(?:PASS|FAIL|TIMEOUT|ERROR)\b.*$",
     re.MULTILINE,
 )
+GROK_LOOP_STARTED_RE = re.compile(r'"type"\s*:\s*"loop_started"')
 NOISY_WORKSPACE_EXACT_PATHS = {
     "coil_check/check",
     "levels_secret_even.tar.enc",
@@ -295,6 +297,9 @@ def render_status(
         lines.append(_kv("Last agent run", _duration(status.get("last_agent_elapsed_seconds")), color, width))
     if phase in {"agent_running", "agent_retry_wait"} and status.get("agent_attempt") is not None:
         lines.append(_kv("Agent attempt", status.get("agent_attempt"), color, width))
+    agent_turns = _agent_turn_summary(status)
+    if agent_turns is not None:
+        lines.append(_kv("Agent turns", agent_turns, color, width))
     if status.get("agent_error_count") is not None or status.get("last_agent_returned_error") is not None:
         lines.append(_kv("Agent errors", _agent_error_summary(status), color, width))
     if _uses_openrouter(status):
@@ -533,6 +538,88 @@ def _agent_error_summary(status: dict[str, Any]) -> str:
     if status.get("last_agent_returned_error") is True:
         return f"{count} (last turn error)"
     return str(count)
+
+
+def _agent_turn_summary(status: dict[str, Any]) -> str | None:
+    current = _agent_turn_count(status)
+    limit = _agent_turn_limit(status)
+    if current is not None and limit is not None:
+        return f"{current}/{limit}"
+    if current is not None:
+        return str(current)
+    if limit is not None:
+        return f"max {limit}"
+    return None
+
+
+def _agent_turn_count(status: dict[str, Any]) -> int | None:
+    for key in ("agent_turn_count", "agent_current_turn", "agent_turn"):
+        value = _optional_int(status.get(key))
+        if value is not None:
+            return value
+    return _grok_session_turn_count(status)
+
+
+def _grok_session_turn_count(status: dict[str, Any]) -> int | None:
+    backend = status.get("backend")
+    if not isinstance(backend, str) or not (backend == "grok-build" or backend.startswith("grok-")):
+        return None
+
+    workspace = status.get("workspace")
+    if not isinstance(workspace, str) or not workspace:
+        return None
+
+    session_root = Path.home() / ".grok" / "sessions" / quote(workspace, safe="")
+    if not session_root.is_dir():
+        return None
+
+    session_dirs = [path for path in session_root.iterdir() if path.is_dir()]
+    primary_dirs = [path for path in session_dirs if not _grok_session_is_subagent(path)]
+    candidates = primary_dirs or session_dirs
+    event_paths = [path / "events.jsonl" for path in candidates if (path / "events.jsonl").exists()]
+    if not event_paths:
+        return None
+
+    newest_events = max(event_paths, key=lambda path: path.stat().st_mtime)
+    return _count_grok_loop_started(newest_events)
+
+
+def _grok_session_is_subagent(session_dir: Path) -> bool:
+    try:
+        payload = json.loads((session_dir / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return payload.get("session_kind") == "subagent"
+
+
+def _count_grok_loop_started(events_path: Path) -> int | None:
+    try:
+        text = events_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return len(GROK_LOOP_STARTED_RE.findall(text))
+
+
+def _agent_turn_limit(status: dict[str, Any]) -> int | None:
+    for key in ("agent_max_turns", "agent_turn_limit"):
+        value = _optional_int(status.get(key))
+        if value is not None:
+            return value
+
+    command = status.get("current_command")
+    if not isinstance(command, list):
+        return None
+    return _command_option_int([str(part) for part in command], "--max-turns")
+
+
+def _command_option_int(command: list[str], option: str) -> int | None:
+    prefix = f"{option}="
+    for index, part in enumerate(command):
+        if part == option and index + 1 < len(command):
+            return _optional_int(command[index + 1])
+        if part.startswith(prefix):
+            return _optional_int(part[len(prefix) :])
+    return None
 
 
 def _uses_openrouter(status: dict[str, Any]) -> bool:
@@ -1798,6 +1885,13 @@ def _int(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _optional_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _float(value) -> float | None:
