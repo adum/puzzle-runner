@@ -1104,6 +1104,73 @@ def data_table(runs: list[RunResult]) -> str:
     """
 
 
+def model_run_count_table(runs: list[RunResult]) -> str:
+    buckets: dict[str, list[RunResult]] = defaultdict(list)
+    for run in runs:
+        buckets[run.version].append(run)
+
+    rows: list[dict[str, object]] = []
+    for version, version_runs in buckets.items():
+        best_run = max(version_runs, key=lambda run: run.best_score)
+        families = sorted({run.family for run in version_runs})
+        origins = sorted({run.origin for run in version_runs})
+        harnesses = sorted({run.harness for run in version_runs})
+        release_dates = sorted({run.release_date for run in version_runs if run.release_date})
+        rows.append(
+            {
+                "version": version,
+                "family": ", ".join(families),
+                "origin": ", ".join(origins),
+                "release_date": fmt_date(release_dates[0]) if release_dates else "",
+                "harnesses": ", ".join(harnesses),
+                "runs": len(version_runs),
+                "best": best_run.best_score,
+            }
+        )
+
+    rows.sort(key=lambda row: (-int(row["runs"]), str(row["version"]).lower()))
+    body = []
+    for row in rows:
+        body.append(
+            "<tr>"
+            f"<td>{html_escape(row['version'])}</td>"
+            f"<td>{html_escape(row['family'])}</td>"
+            f"<td>{html_escape(row['origin'])}</td>"
+            f"<td>{html_escape(row['release_date'])}</td>"
+            f"<td>{html_escape(row['harnesses'])}</td>"
+            f"<td>{int(row['runs'])}</td>"
+            f"<td>{int(row['best'])}</td>"
+            "</tr>"
+        )
+
+    return f"""
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <h2>Runs By Model</h2>
+        <p>Raw run counts grouped by normalized model version.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model version</th>
+              <th>Model family</th>
+              <th>Origin</th>
+              <th>Release date</th>
+              <th>Harnesses</th>
+              <th>Runs</th>
+              <th>Best score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {''.join(body)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    """
+
+
 def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
     if not runs:
         raise ValueError("no runs to visualize")
@@ -1217,6 +1284,7 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             svg_score_vs_wall_time(result_runs, family_colors),
         ),
         data_table(runs),
+        model_run_count_table(runs),
     ]
 
     return f"""<!doctype html>
