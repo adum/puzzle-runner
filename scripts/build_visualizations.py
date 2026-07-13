@@ -1035,6 +1035,41 @@ def svg_score_vs_wall_time(runs: list[RunResult], family_colors: dict[str, str])
     return "\n".join(elements)
 
 
+def svg_score_vs_code_lines(runs: list[RunResult], family_colors: dict[str, str]) -> str:
+    plotted = [run for run in runs if run.code_lines_added is not None]
+    width = 1180
+    height = 430
+    left = 70
+    right = 42
+    top = 30
+    bottom = 72
+    plot_w = width - left - right
+    plot_h = height - top - bottom
+    max_score = score_axis_max([run.best_score for run in plotted])
+    max_lines = nice_max(max(run.code_lines_added or 0 for run in plotted))
+    elements = [
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Score versus code lines added">',
+        grid_lines(left, top, plot_w, plot_h, max_score),
+        axis_labels(left, top, plot_w, plot_h, "Code lines added", "Best score"),
+    ]
+    for tick_index in range(6):
+        lines = max_lines * tick_index / 5
+        x = scale(lines, 0, max_lines, left, left + plot_w)
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 38}" text-anchor="middle">{fmt_number(lines)}</text>')
+    for run in plotted:
+        lines = run.code_lines_added or 0
+        x = scale(lines, 0, max_lines, left, left + plot_w)
+        y = scale(run.best_score, 0, max_score, top + plot_h, top)
+        color = family_colors.get(run.family, "#64748b")
+        tooltip = f"{run.version}: {run.best_score}, {fmt_number(lines)} code lines added"
+        elements.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{color}" class="data-point">'
+            f"<title>{html_escape(tooltip)}</title></circle>"
+        )
+    elements.append("</svg>")
+    return "\n".join(elements)
+
+
 def summary_cards(runs: list[RunResult]) -> str:
     best_run = max(runs, key=lambda run: run.best_score)
     newest_release = max((run for run in runs if run.release_date), key=lambda run: run.release_date or dt.date.min)
@@ -1302,6 +1337,11 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             "Score Versus Wall Time",
             "Each point uses the run that produced a normalized model version's maximum score.",
             svg_score_vs_wall_time(result_runs, family_colors),
+        ),
+        chart_shell(
+            "Score Versus Code Lines Added",
+            "Each point uses the run that produced a normalized model version's maximum score.",
+            svg_score_vs_code_lines(result_runs, family_colors),
         ),
         data_table(runs),
         model_run_count_table(runs),
