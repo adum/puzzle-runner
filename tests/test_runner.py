@@ -25,6 +25,7 @@ from puzzle_runner.runner import (
     _agent_model_not_found_error,
     _agent_model_not_found_detail,
     _is_terminal_claude_result_line,
+    _is_generic_provider_invalid_request,
     _migrate_results_summary_effort_column,
     _opencode_stdout_has_error_result,
     _opencode_progress_line,
@@ -1012,6 +1013,31 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(detail["error"], "provider_unavailable")
         self.assertTrue(detail["retryable"])
         self.assertIn("API status 502", detail["detail"])
+
+    def test_generic_opencode_provider_invalid_request_gets_single_retry_classification(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.opencode.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text(
+                '{"type":"error","error":{"name":"UnknownError","data":{"message":'
+                '"{\\"code\\":400,\\"message\\":\\"Provider returned error\\",'
+                '\\"metadata\\":{\\"error_type\\":\\"invalid_request\\"}}"}}}\n',
+                encoding="utf-8",
+            )
+            stderr.write_text("", encoding="utf-8")
+
+            detail = _agent_error_detail(config, stdout, stderr)
+
+        self.assertIsNotNone(detail)
+        assert detail is not None
+        self.assertFalse(detail["retryable"])
+        self.assertTrue(_is_generic_provider_invalid_request(detail))
+
+        non_generic_detail = {**detail, "message": "Malformed request body"}
+        self.assertFalse(_is_generic_provider_invalid_request(non_generic_detail))
 
     def test_retryable_opencode_error_uses_exponential_retry_path(self) -> None:
         class RetryableErrorRunner(Runner):

@@ -838,6 +838,7 @@ exec python3 ./coil_solver.py
         attempt = 1
         retry_deadline: float | None = None
         retry_delay = AGENT_RETRY_INITIAL_DELAY_SECONDS
+        retried_generic_provider_invalid_request = False
 
         while True:
             stdout_path, stderr_path = _agent_attempt_log_paths(round_dir, attempt)
@@ -939,10 +940,16 @@ exec python3 ./coil_solver.py
             agent_error_retryable = bool(
                 agent_error_detail is not None and agent_error_detail.get("retryable")
             )
+            generic_provider_invalid_request = bool(
+                agent_error_detail is not None
+                and _is_generic_provider_invalid_request(agent_error_detail)
+                and not retried_generic_provider_invalid_request
+            )
             if agent_model_not_found or (agent_returned_error and not agent_error_retryable):
-                return result
+                if not generic_provider_invalid_request:
+                    return result
 
-            if not _agent_result_is_retryable(result):
+            if not generic_provider_invalid_request and not _agent_result_is_retryable(result):
                 return result
 
             retry_limit = self.config.agent_failure_retry_limit_seconds
@@ -955,6 +962,9 @@ exec python3 ./coil_solver.py
             remaining = retry_deadline - time.monotonic()
             if remaining <= 0:
                 return result
+
+            if generic_provider_invalid_request:
+                retried_generic_provider_invalid_request = True
 
             sleep_seconds = min(retry_delay, remaining)
             total_retry_count = int(self._status.get("agent_total_retry_count") or 0) + 1
@@ -1813,6 +1823,15 @@ def _is_retryable_agent_error(message: str, status: int | None, error_code: str 
         return True
     haystack = " ".join(part for part in (message, error_code or "") if part).lower()
     return any(marker in haystack for marker in RETRYABLE_AGENT_ERROR_MARKERS)
+
+
+def _is_generic_provider_invalid_request(detail: dict) -> bool:
+    if detail.get("harness") != "OpenCode":
+        return False
+    if detail.get("api_error_status") != 400 or detail.get("error") != "invalid_request":
+        return False
+    message = detail.get("message")
+    return isinstance(message, str) and "provider returned error" in message.lower()
 
 
 def _opencode_progress_line(line: str, state: dict) -> str | None:
