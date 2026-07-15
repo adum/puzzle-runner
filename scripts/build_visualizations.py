@@ -758,6 +758,9 @@ def svg_ai_vs_human_metric_over_time(
     progress_title: str,
     human_label: str,
     brute_force_label: str,
+    axis_min_value: int = 0,
+    value_transform: Callable[[float | int], float] = float,
+    grid_values: list[int] | None = None,
 ) -> str:
     points = cumulative_ai_progress(runs)
 
@@ -773,6 +776,12 @@ def svg_ai_vs_human_metric_over_time(
     human_value = metric_for_level(HUMAN_BEST_SCORE)
     brute_force_value = metric_for_level(DEFAULT_BRUTE_FORCE_SCORE)
     max_value = axis_max_for_values([human_value, brute_force_value, *values])
+    axis_min_plot = value_transform(axis_min_value)
+    axis_max_plot = value_transform(max_value)
+
+    def y_position(value: int) -> float:
+        return scale(value_transform(value), axis_min_plot, axis_max_plot, top + plot_h, top)
+
     min_date = min(release_date for release_date, _, _ in points)
     max_date = max(release_date for release_date, _, _ in points)
     total_days = max(1, (max_date - min_date).days)
@@ -785,7 +794,19 @@ def svg_ai_vs_human_metric_over_time(
 
     elements = [
         f'<svg class="chart-svg compact" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(aria_label)}">',
-        grid_lines(left, top, plot_w, plot_h, max_value, tick_formatter),
+        grid_lines(left, top, plot_w, plot_h, max_value, tick_formatter)
+        if grid_values is None
+        else grid_lines_for_values(
+            left,
+            top,
+            plot_w,
+            plot_h,
+            axis_min_value,
+            max_value,
+            grid_values,
+            value_transform,
+            tick_formatter,
+        ),
         axis_labels(left, top, plot_w, plot_h, "Model release date", y_label),
     ]
 
@@ -793,7 +814,7 @@ def svg_ai_vs_human_metric_over_time(
         (human_label, HUMAN_BEST_SCORE, human_value),
         (brute_force_label, DEFAULT_BRUTE_FORCE_SCORE, brute_force_value),
     ]:
-        y = scale(value, 0, max_value, top + plot_h, top)
+        y = y_position(value)
         color = colors[label]
         elements.append(
             f'<line class="reference-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" stroke="{color}">'
@@ -804,7 +825,7 @@ def svg_ai_vs_human_metric_over_time(
     for release_date, level, run in points:
         value = metric_for_level(level)
         x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
-        y = scale(value, 0, max_value, top + plot_h, top)
+        y = y_position(value)
         scaled.append((release_date, level, value, run, x, y))
 
     path_parts: list[str] = []
@@ -879,11 +900,14 @@ def svg_ai_vs_human_board_area_over_time(
         axis_max_for_values,
         fmt_compact_number,
         metric_tooltip,
-        "Largest board (cells)",
-        "Largest Mortal Coil board area solved by AI over model release date versus human and default solver results",
+        "Largest board (cells, log scale)",
+        "Largest Mortal Coil board area solved by AI on a logarithmic cell scale over model release date versus human and default solver results",
         "AI largest board area solved so far by model release date",
         f"Human ({fmt_compact_number(human_area)} cells)",
         f"Brute force ({fmt_compact_number(brute_force_area)} cells)",
+        axis_min_value=1,
+        value_transform=lambda value: math.log10(max(1, value)),
+        grid_values=[1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 4_000_000],
     )
 
 
@@ -1012,6 +1036,31 @@ def grid_lines(
     for index in range(6):
         value = max_value * index / 5
         y = scale(value, 0, max_value, top + plot_h, top)
+        elements.append(f'<line class="grid-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" />')
+        elements.append(f'<text class="tick-label" x="{left - 12}" y="{y + 4:.1f}" text-anchor="end">{value_formatter(value)}</text>')
+    elements.append(f'<line class="axis-line" x1="{left}" x2="{left + plot_w}" y1="{top + plot_h}" y2="{top + plot_h}" />')
+    elements.append(f'<line class="axis-line" x1="{left}" x2="{left}" y1="{top}" y2="{top + plot_h}" />')
+    return "\n".join(elements)
+
+
+def grid_lines_for_values(
+    left: int,
+    top: int,
+    plot_w: int,
+    plot_h: int,
+    min_value: float,
+    max_value: float,
+    tick_values: list[int],
+    value_transform: Callable[[float | int], float],
+    value_formatter: Callable[[float | int], str],
+) -> str:
+    transformed_min = value_transform(min_value)
+    transformed_max = value_transform(max_value)
+    elements: list[str] = []
+    for value in sorted(set(tick_values)):
+        if value < min_value or value > max_value:
+            continue
+        y = scale(value_transform(value), transformed_min, transformed_max, top + plot_h, top)
         elements.append(f'<line class="grid-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" />')
         elements.append(f'<text class="tick-label" x="{left - 12}" y="{y + 4:.1f}" text-anchor="end">{value_formatter(value)}</text>')
     elements.append(f'<line class="axis-line" x1="{left}" x2="{left + plot_w}" y1="{top + plot_h}" y2="{top + plot_h}" />')
