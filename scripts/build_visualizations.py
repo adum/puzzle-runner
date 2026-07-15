@@ -1395,7 +1395,7 @@ def render_html(
         ),
         chart_shell(
             "AI Versus Humans: Largest Board",
-            "The same results translated into the largest board area solved, with missing level dimensions interpolated.",
+            "The same results translated into the largest board area solved.",
             svg_ai_vs_human_board_area_over_time(result_runs, level_dimensions),
         ),
         "</div>",
