@@ -53,3 +53,5 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260713-184225-opencode-openrouter-z-ai-glm-5-2 | opencode-openrouter-z-ai-glm-5.2 | opencode | high | 186 | 2 | 2 | agent_idle_timeout | 600s | 9h 41m | 14144 | 993 | 279 | $8.505415 | 29438342 |
 | 20260714-092026-opencode-openrouter-sakana-fugu-ultra | opencode-openrouter-sakana-fugu-ultra | opencode | high | 152 | 1 | 2 | agent_idle_timeout | 600s | 4h 46m | 15061 | 563 | 154 | $10.959157 | 10011757 |
 | 20260714-144926-opencode-openrouter-moonshotai-kimi-k2-5 | opencode-openrouter-moonshotai-kimi-k2.5 | opencode | high | 64 | 1 | 4 | stale_limit | 600s | 2h 38m | 15546 | 206 | 237 | $2.819872 | 12241973 |
+| 20260714-195310-opencode-openrouter-moonshotai-kimi-k2-7-code | opencode-openrouter-moonshotai-kimi-k2.7-code | opencode | high | 73 | 2 | 2 | agent_idle_timeout | 600s | 1h 35m | 459 | 191 | 89 | $1.013549 | 4415132 |
+| 20260715-000956-opencode-openrouter-moonshotai-kimi-k2-6 | opencode-openrouter-moonshotai-kimi-k2.6 | opencode | high | 86 | 1 | 1 | agent_idle_timeout | 600s | 3h 32m | 473 | 360 | 87 | $2.908970 | 8522341 |
