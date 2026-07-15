@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import bisect
+import csv
 import dataclasses
 import datetime as dt
 import html
@@ -9,6 +11,7 @@ import math
 import re
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from pathlib import Path
 
 
@@ -150,7 +153,55 @@ def parse_args() -> argparse.Namespace:
         default=root / "visualizations.html",
         help="HTML report path. Defaults to visualizations.html.",
     )
+    parser.add_argument(
+        "--level-dimensions",
+        type=Path,
+        default=root / "level_dimensions.csv",
+        help="CSV mapping public level numbers to board dimensions. Missing levels are interpolated.",
+    )
     return parser.parse_args()
+
+
+def load_level_dimensions(path: Path) -> dict[int, tuple[int, int]]:
+    dimensions: dict[int, tuple[int, int]] = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            level = int(row["level"])
+            dimensions[level] = (int(row["width"]), int(row["height"]))
+    if len(dimensions) < 2:
+        raise ValueError(f"at least two level dimensions are required in {path}")
+    return dimensions
+
+
+def board_dimensions_for_level(
+    level: int,
+    dimensions: dict[int, tuple[int, int]],
+) -> tuple[int, int]:
+    if level <= 0:
+        return 0, 0
+    if level in dimensions:
+        return dimensions[level]
+
+    known_levels = sorted(dimensions)
+    index = bisect.bisect_left(known_levels, level)
+    if index == 0:
+        lower, upper = known_levels[0], known_levels[1]
+    elif index == len(known_levels):
+        lower, upper = known_levels[-2], known_levels[-1]
+    else:
+        lower, upper = known_levels[index - 1], known_levels[index]
+
+    fraction = (level - lower) / (upper - lower)
+    lower_width, lower_height = dimensions[lower]
+    upper_width, upper_height = dimensions[upper]
+    width = round(lower_width + (upper_width - lower_width) * fraction)
+    height = round(lower_height + (upper_height - lower_height) * fraction)
+    return max(1, width), max(1, height)
+
+
+def board_area_for_level(level: int, dimensions: dict[int, tuple[int, int]]) -> int:
+    width, height = board_dimensions_for_level(level, dimensions)
+    return width * height
 
 
 def parse_markdown_table(path: Path) -> list[dict[str, str]]:
@@ -442,6 +493,15 @@ def fmt_number(value: float | int | None) -> str:
     return f"{int(value):,}"
 
 
+def fmt_compact_number(value: float | int) -> str:
+    absolute = abs(float(value))
+    if absolute >= 1_000_000:
+        return f"{value / 1_000_000:.1f}".rstrip("0").rstrip(".") + "M"
+    if absolute >= 1_000:
+        return f"{value / 1_000:.1f}".rstrip("0").rstrip(".") + "K"
+    return fmt_number(value)
+
+
 def fmt_duration(seconds: int | None) -> str:
     if seconds is None:
         return ""
@@ -669,7 +729,7 @@ def svg_score_over_time(runs: list[RunResult]) -> str:
     return svg_model_release_date_scatter(runs)
 
 
-def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
+def cumulative_ai_progress(runs: list[RunResult]) -> list[tuple[dt.date, int, RunResult]]:
     release_rows = [run for run in runs if run.release_date]
     by_date: dict[dt.date, list[RunResult]] = defaultdict(list)
     for run in release_rows:
@@ -684,22 +744,39 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
             best_score = day_best.best_score
             best_run = day_best
         points.append((release_date, best_score, best_run))
+    return points
 
-    width = 1180
-    height = 430
-    left = 70
-    right = 250
-    top = 30
-    bottom = 72
+
+def svg_ai_vs_human_metric_over_time(
+    runs: list[RunResult],
+    metric_for_level: Callable[[int], int],
+    axis_max_for_values: Callable[[list[int]], int],
+    tick_formatter: Callable[[float | int], str],
+    metric_tooltip: Callable[[int], str],
+    y_label: str,
+    aria_label: str,
+    progress_title: str,
+    human_label: str,
+    brute_force_label: str,
+) -> str:
+    points = cumulative_ai_progress(runs)
+
+    width = 650
+    height = 360
+    left = 72
+    right = 190
+    top = 34
+    bottom = 70
     plot_w = width - left - right
     plot_h = height - top - bottom
-    max_score = score_axis_max([HUMAN_BEST_SCORE, DEFAULT_BRUTE_FORCE_SCORE, *[score for _, score, _ in points]])
-    min_date = min(by_date)
-    max_date = max(by_date)
+    values = [metric_for_level(level) for _, level, _ in points]
+    human_value = metric_for_level(HUMAN_BEST_SCORE)
+    brute_force_value = metric_for_level(DEFAULT_BRUTE_FORCE_SCORE)
+    max_value = axis_max_for_values([human_value, brute_force_value, *values])
+    min_date = min(release_date for release_date, _, _ in points)
+    max_date = max(release_date for release_date, _, _ in points)
     total_days = max(1, (max_date - min_date).days)
     ai_label = "AI best so far"
-    human_label = f"Human best ({HUMAN_BEST_SCORE})"
-    brute_force_label = f"Bundled brute force ({DEFAULT_BRUTE_FORCE_SCORE})"
     colors = {
         ai_label: "#2563eb",
         human_label: "#7c3aed",
@@ -707,42 +784,46 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
     }
 
     elements = [
-        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="AI benchmark progress by model release date versus human and default solver scores">',
-        grid_lines(left, top, plot_w, plot_h, max_score),
-        axis_labels(left, top, plot_w, plot_h, "Model release date", "Score"),
+        f'<svg class="chart-svg compact" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(aria_label)}">',
+        grid_lines(left, top, plot_w, plot_h, max_value, tick_formatter),
+        axis_labels(left, top, plot_w, plot_h, "Model release date", y_label),
     ]
 
-    for label, score in [(human_label, HUMAN_BEST_SCORE), (brute_force_label, DEFAULT_BRUTE_FORCE_SCORE)]:
-        y = scale(score, 0, max_score, top + plot_h, top)
+    for label, level, value in [
+        (human_label, HUMAN_BEST_SCORE, human_value),
+        (brute_force_label, DEFAULT_BRUTE_FORCE_SCORE, brute_force_value),
+    ]:
+        y = scale(value, 0, max_value, top + plot_h, top)
         color = colors[label]
         elements.append(
             f'<line class="reference-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" stroke="{color}">'
-            f"<title>{html_escape(label)}</title></line>"
+            f"<title>{html_escape(f'{label}: {metric_tooltip(level)}')}</title></line>"
         )
 
-    scaled: list[tuple[dt.date, int, RunResult, float, float]] = []
-    for release_date, score, run in points:
+    scaled: list[tuple[dt.date, int, int, RunResult, float, float]] = []
+    for release_date, level, run in points:
+        value = metric_for_level(level)
         x = scale((release_date - min_date).days, 0, total_days, left, left + plot_w)
-        y = scale(score, 0, max_score, top + plot_h, top)
-        scaled.append((release_date, score, run, x, y))
+        y = scale(value, 0, max_value, top + plot_h, top)
+        scaled.append((release_date, level, value, run, x, y))
 
     path_parts: list[str] = []
-    for index, (_, _, _, x, y) in enumerate(scaled):
+    for index, (_, _, _, _, x, y) in enumerate(scaled):
         if index == 0:
             path_parts.append(f"M {x:.1f} {y:.1f}")
             continue
-        previous_y = scaled[index - 1][4]
+        previous_y = scaled[index - 1][5]
         path_parts.append(f"L {x:.1f} {previous_y:.1f}")
         path_parts.append(f"L {x:.1f} {y:.1f}")
     if path_parts:
         elements.append(
             f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{colors[ai_label]}">'
-            "<title>AI best score so far by model release date</title></path>"
+            f"<title>{html_escape(progress_title)}</title></path>"
         )
 
-    for release_date, score, run, x, y in scaled:
+    for release_date, level, _, run, x, y in scaled:
         tooltip = (
-            f"AI best score so far {score} as of {fmt_date(release_date)} "
+            f"AI best so far {metric_tooltip(level)} as of {fmt_date(release_date)} "
             f"from {run.version} ({run.run_id}, run {fmt_date(run.run_date)})"
         )
         elements.append(
@@ -750,14 +831,60 @@ def svg_ai_vs_human_over_time(runs: list[RunResult]) -> str:
             f"<title>{html_escape(tooltip)}</title></circle>"
         )
 
-    for tick_index in range(5):
-        tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
+    for tick_index in range(3):
+        tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 2))
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
         elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_date(tick_date)}</text>')
 
-    elements.append(svg_legend(colors, width - right + 32, top + 4))
+    elements.append(svg_legend(colors, width - right + 20, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
+
+
+def svg_ai_vs_human_level_over_time(runs: list[RunResult]) -> str:
+    return svg_ai_vs_human_metric_over_time(
+        runs,
+        lambda level: level,
+        score_axis_max,
+        fmt_number,
+        lambda level: f"level {fmt_number(level)}",
+        "Highest level",
+        "AI benchmark progress by model release date versus human and default solver levels",
+        "AI best level so far by model release date",
+        f"Human best ({HUMAN_BEST_SCORE})",
+        f"Bundled brute force ({DEFAULT_BRUTE_FORCE_SCORE})",
+    )
+
+
+def svg_ai_vs_human_board_area_over_time(
+    runs: list[RunResult],
+    dimensions: dict[int, tuple[int, int]],
+) -> str:
+    def metric_for_level(level: int) -> int:
+        return board_area_for_level(level, dimensions)
+
+    def axis_max_for_values(values: list[int]) -> int:
+        return max(1_000_000, math.ceil(max(values) / 1_000_000) * 1_000_000)
+
+    def metric_tooltip(level: int) -> str:
+        width, height = board_dimensions_for_level(level, dimensions)
+        area = width * height
+        return f"level {fmt_number(level)}, {fmt_number(width)} x {fmt_number(height)} ({fmt_number(area)} cells)"
+
+    human_area = metric_for_level(HUMAN_BEST_SCORE)
+    brute_force_area = metric_for_level(DEFAULT_BRUTE_FORCE_SCORE)
+    return svg_ai_vs_human_metric_over_time(
+        runs,
+        metric_for_level,
+        axis_max_for_values,
+        fmt_compact_number,
+        metric_tooltip,
+        "Largest board (cells)",
+        "Largest Mortal Coil board area solved by AI over model release date versus human and default solver results",
+        "AI largest board area solved so far by model release date",
+        f"Human ({fmt_compact_number(human_area)} cells)",
+        f"Brute force ({fmt_compact_number(brute_force_area)} cells)",
+    )
 
 
 def svg_group_best_over_time(
@@ -873,13 +1000,20 @@ def svg_open_weights_best_over_time(runs: list[RunResult]) -> str:
     )
 
 
-def grid_lines(left: int, top: int, plot_w: int, plot_h: int, max_value: float) -> str:
+def grid_lines(
+    left: int,
+    top: int,
+    plot_w: int,
+    plot_h: int,
+    max_value: float,
+    value_formatter: Callable[[float | int], str] = fmt_number,
+) -> str:
     elements: list[str] = []
     for index in range(6):
         value = max_value * index / 5
         y = scale(value, 0, max_value, top + plot_h, top)
         elements.append(f'<line class="grid-line" x1="{left}" x2="{left + plot_w}" y1="{y:.1f}" y2="{y:.1f}" />')
-        elements.append(f'<text class="tick-label" x="{left - 12}" y="{y + 4:.1f}" text-anchor="end">{fmt_number(value)}</text>')
+        elements.append(f'<text class="tick-label" x="{left - 12}" y="{y + 4:.1f}" text-anchor="end">{value_formatter(value)}</text>')
     elements.append(f'<line class="axis-line" x1="{left}" x2="{left + plot_w}" y1="{top + plot_h}" y2="{top + plot_h}" />')
     elements.append(f'<line class="axis-line" x1="{left}" x2="{left}" y1="{top}" y2="{top + plot_h}" />')
     return "\n".join(elements)
@@ -1212,7 +1346,11 @@ def model_run_count_table(runs: list[RunResult]) -> str:
     """
 
 
-def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
+def render_html(
+    runs: list[RunResult],
+    unmatched: list[str],
+    level_dimensions: dict[int, tuple[int, int]],
+) -> str:
     if not runs:
         raise ValueError("no runs to visualize")
 
@@ -1249,11 +1387,18 @@ def render_html(runs: list[RunResult], unmatched: list[str]) -> str:
             "Each normalized model version plotted once by public release date, using its maximum score across all runs.",
             svg_score_over_time(result_runs),
         ),
+        '<div class="chart-grid">',
         chart_shell(
-            "AI Versus Humans Over Time",
-            "Cumulative best max-only model result by release date, compared with the top human score and bundled brute-force solver baseline.",
-            svg_ai_vs_human_over_time(result_runs),
+            "AI Versus Humans: Highest Level",
+            "Cumulative best level reached by release date, compared with the human and bundled brute-force baselines.",
+            svg_ai_vs_human_level_over_time(result_runs),
         ),
+        chart_shell(
+            "AI Versus Humans: Largest Board",
+            "The same results translated into the largest board area solved, with missing level dimensions interpolated.",
+            svg_ai_vs_human_board_area_over_time(result_runs, level_dimensions),
+        ),
+        "</div>",
         chart_shell(
             "Family Best Score Over Time",
             "Cumulative best max-only model result each model family has achieved as newer models are released.",
@@ -1667,7 +1812,8 @@ def main() -> int:
     args = parse_args()
     metadata = load_metadata(args.metadata)
     runs, unmatched = load_results(args.results, metadata)
-    html_output = render_html(runs, unmatched)
+    level_dimensions = load_level_dimensions(args.level_dimensions)
+    html_output = render_html(runs, unmatched, level_dimensions)
     html_output = "\n".join(line.rstrip() for line in html_output.splitlines()) + "\n"
     args.output.write_text(html_output, encoding="utf-8")
 
