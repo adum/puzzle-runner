@@ -50,7 +50,7 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260708-184051-grok-4-5 | grok-4.5 | grokbuild |  | 86 | 2 | 2 | agent_idle_timeout | 600s | 4h 11m | 4045 | 948 |  |  |  |
 | 20260709-075301-grok-4-5 | grok-4.5 | grokbuild |  | 196 | 2 | 3 | agent_idle_timeout | 600s | 7h 46m | 9360 | 2307 |  |  |  |
 | 20260712-075410-gpt-5-6-sol | gpt-5.6-sol | codex | max | 321 | 2 | 5 | stale_limit | 600s | 12h 43m | 53466382 | 1820 |  |  |  |
-| 20260712-221136-gpt-5-6-sol | gpt-5.6-sol | codex | max | 562 | 8 | 8 | system_restart | 600s | 48h 38m | 30963677 | 4434 |  |  |  |
+| 20260712-221136-gpt-5-6-sol | gpt-5.6-sol | codex | max | 576 | 9 | 9 | system_restart | 600s | 48h 38m | 30963677 | 4434 |  |  |  |
 | 20260713-184225-opencode-openrouter-z-ai-glm-5-2 | opencode-openrouter-z-ai-glm-5.2 | opencode | high | 186 | 2 | 2 | agent_idle_timeout | 600s | 9h 41m | 14144 | 993 | 279 | $8.505415 | 29438342 |
 | 20260714-092026-opencode-openrouter-sakana-fugu-ultra | opencode-openrouter-sakana-fugu-ultra | opencode | high | 152 | 1 | 2 | agent_idle_timeout | 600s | 4h 46m | 15061 | 563 | 154 | $10.959157 | 10011757 |
 | 20260714-144926-opencode-openrouter-moonshotai-kimi-k2-5 | opencode-openrouter-moonshotai-kimi-k2.5 | opencode | high | 64 | 1 | 4 | stale_limit | 600s | 2h 38m | 15546 | 206 | 237 | $2.819872 | 12241973 |
