@@ -299,6 +299,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped)
     if stripped.startswith("moonshotai "):
         candidates.append(stripped.removeprefix("moonshotai "))
+    if stripped.startswith("meta llama llama "):
+        candidates.append("llama " + stripped.removeprefix("meta llama llama "))
     if stripped.startswith("x ai "):
         candidates.append(stripped.removeprefix("x ai "))
     if stripped.startswith("openai "):

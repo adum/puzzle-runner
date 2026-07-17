@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: July 12, 2026.
+Last researched: July 17, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -36,6 +36,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Kimi | Kimi K2.5 | January 27, 2026 | China | true |
 | Kimi | Kimi K2.6 | April 20, 2026 | China | true |
 | Kimi | Kimi K2.7 Code | June 12, 2026 | China | true |
+| Kimi | Kimi K3 | July 16, 2026 | China | false |
+| Llama | Llama 4 Maverick | April 5, 2025 | America | true |
 | MiniMax | MiniMax M2 | October 23, 2025 | China | true |
 | MiniMax | MiniMax M3 | May 31, 2026 | China | true |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |
@@ -65,6 +67,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Open weights means public model weights are available now. MiniMax M2 and M3 are true because MiniMax publishes public Hugging Face/GitHub model weights for both.
 - Kimi K2.5 uses OpenRouter's listed release date and is true for open weights because Moonshot's GitHub and Hugging Face pages say the model weights are released under the Modified MIT License.
 - Kimi K2.7 Code uses OpenRouter's listed release date and is true for open weights because the Hugging Face model card says the model weights are released under the Modified MIT License.
+- Kimi K3 uses its first public app and API availability date. It remains false for open weights because Moonshot says the full weights will be released by July 27, 2026, and they are not public yet.
+- Llama 4 Maverick uses Meta's official announcement and model-card release date and is true because Meta made its model weights available for download at launch.
 - Qwen3.6-Plus remains false because it is the hosted API model tested here; Alibaba separately open-sourced Qwen3.6-35B-A3B after the Plus launch.
 - Qwen3 Coder Plus uses OpenRouter's listed release date; it remains false because the tested Plus API model is described as Alibaba's proprietary version of the open-source Qwen3 Coder 480B A35B.
 - Qwen3.7-Max uses OpenRouter's listed release date; it remains false because the tested Max API model is proprietary/hosted.
@@ -82,7 +86,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Sakana AI: [Sakana AI homepage](https://sakana.ai/), [Fugu launch post](https://sakana.ai/fugu-release/), [Fugu product page](https://sakana.ai/fugu/)
 - Tencent Hy: [Hy3 release page](https://hy.tencent.com/research/hy3), [Tencent Hy3 article](https://www.tencent.com/en-us/articles/2202386.html), [Hy3 Hugging Face model card](https://huggingface.co/tencent/Hy3), [OpenRouter Hy3 model page](https://openrouter.ai/tencent/hy3)
 - Z.AI / GLM: [GLM-4.5 technical blog](https://z.ai/blog/glm-4.5), [GLM-4.5 Hugging Face model card](https://huggingface.co/zai-org/GLM-4.5), [OpenRouter GLM-4.5 model page](https://openrouter.ai/z-ai/glm-4.5), [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [GLM-5.1 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.1), [OpenRouter GLM-5.1 model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks), [Z.AI GLM-5.2 docs](https://docs.z.ai/guides/llm/glm-5.2), [GLM-5.2 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.2), [OpenRouter GLM-5.2 model page](https://openrouter.ai/z-ai/glm-5.2)
-- Moonshot AI / Kimi: [Kimi K2.5 GitHub repo](https://github.com/MoonshotAI/Kimi-K2.5), [Kimi K2.5 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.5), [OpenRouter Kimi K2.5 model page](https://openrouter.ai/moonshotai/kimi-k2.5), [Kimi K2.6 model page](https://www.kimi.com/ai-models/kimi-k2-6), [Kimi K2.6 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.6), [Kimi K2.7 Code API docs](https://platform.kimi.ai/docs/guide/kimi-k2-7-code-quickstart), [Kimi K2.7 Code Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.7-Code), [OpenRouter Kimi K2.7 Code model page](https://openrouter.ai/moonshotai/kimi-k2.7-code), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
+- Moonshot AI / Kimi: [Kimi K2.5 GitHub repo](https://github.com/MoonshotAI/Kimi-K2.5), [Kimi K2.5 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.5), [OpenRouter Kimi K2.5 model page](https://openrouter.ai/moonshotai/kimi-k2.5), [Kimi K2.6 model page](https://www.kimi.com/ai-models/kimi-k2-6), [Kimi K2.6 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.6), [Kimi K2.7 Code API docs](https://platform.kimi.ai/docs/guide/kimi-k2-7-code-quickstart), [Kimi K2.7 Code Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.7-Code), [OpenRouter Kimi K2.7 Code model page](https://openrouter.ai/moonshotai/kimi-k2.7-code), [Kimi K3 tech blog](https://www.kimi.com/blog/kimi-k3), [Kimi K3 launch coverage](https://en.people.cn/n3/2026/0717/c90000-20478901.html), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
+- Meta / Llama: [Llama 4 announcement](https://ai.meta.com/blog/llama-4-multimodal-intelligence/), [Llama 4 Maverick model card](https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct)
 - MiniMax: [MiniMax M2 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M2), [MiniMax M2 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M2), [OpenRouter MiniMax M2 model page](https://openrouter.ai/minimax/minimax-m2), [MiniMax M3 launch post](https://www.minimax.io/blog/minimax-m3), [MiniMax M3 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M3), [MiniMax M3 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M3), [OpenRouter MiniMax M3 model page](https://openrouter.ai/minimax/minimax-m3/performance)
 - Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08), [Mistral Medium 3.5 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04), [Mistral Medium 3.5 Hugging Face model card](https://huggingface.co/mistralai/Mistral-Medium-3.5-128B), [Mistral Medium 3.5 launch post](https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5)
 - Alibaba Cloud / Qwen: [Qwen3.6-Plus launch post](https://www.alibabacloud.com/blog/alibaba-unveils-qwen3-6-plus-to-accelerate-agentic-ai-deployment-for-enterprises-and-alibaba%E2%80%99s-ai-applications_603005), [Qwen3.6-35B-A3B open-weights post](https://www.alibabacloud.com/blog/alibaba-open-sources-qwen3-6-35b-a3b-wan2-7-tops-design-arena_603042), [OpenRouter Qwen3 Coder Plus model page](https://openrouter.ai/qwen/qwen3-coder-plus), [Qwen3.7 blog](https://qwen.ai/blog?id=qwen3.7), [OpenRouter Qwen3.7-Max model page](https://openrouter.ai/qwen/qwen3.7-max)
