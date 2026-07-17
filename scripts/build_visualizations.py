@@ -907,9 +907,9 @@ def svg_ai_vs_human_board_area_over_time(
         "AI largest board area solved so far by model release date",
         f"Human ({fmt_compact_number(human_area)} cells)",
         f"Brute force ({fmt_compact_number(brute_force_area)} cells)",
-        axis_min_value=1,
+        axis_min_value=100,
         value_transform=lambda value: math.log10(max(1, value)),
-        grid_values=[1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 4_000_000],
+        grid_values=[100, 1_000, 10_000, 100_000, 1_000_000, 4_000_000],
     )
 
 
