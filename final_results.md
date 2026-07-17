@@ -57,3 +57,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260714-195310-opencode-openrouter-moonshotai-kimi-k2-7-code | opencode-openrouter-moonshotai-kimi-k2.7-code | opencode | high | 73 | 2 | 2 | agent_idle_timeout | 600s | 1h 35m | 459 | 191 | 89 | $1.013549 | 4415132 |
 | 20260715-000956-opencode-openrouter-moonshotai-kimi-k2-6 | opencode-openrouter-moonshotai-kimi-k2.6 | opencode | high | 86 | 1 | 1 | agent_idle_timeout | 600s | 3h 32m | 473 | 360 | 87 | $2.908970 | 8522341 |
 | 20260715-071526-opencode-openrouter-z-ai-glm-5-1 | opencode-openrouter-z-ai-glm-5.1 | opencode | high | 65 | 1 | 4 | stale_limit | 600s | 19h 12m | 116734 | 1494 | 1581 | $37.541033 | 154484394 |
+| 20260716-101358-claude-fable-5 | claude-fable-5 | claudecode | xhigh | 457 | 3 | 6 | stale_limit | 600s | 12h 22m | 10578 | 3755 |  |  |  |
