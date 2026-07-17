@@ -1126,6 +1126,38 @@ def svg_best_bars(rows: list[dict[str, object]], title: str) -> str:
     return "\n".join(elements)
 
 
+def svg_best_horizontal_bars(rows: list[dict[str, object]], title: str) -> str:
+    width = 520
+    row_h = 42
+    top = 18
+    bottom = 18
+    left = 164
+    right = 58
+    height = top + bottom + row_h * len(rows)
+    plot_w = width - left - right
+    max_value = score_axis_max([int(row["best"]) for row in rows])
+
+    elements = [
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(title)}">',
+    ]
+    for index, row in enumerate(rows):
+        y = top + index * row_h
+        value = int(row["best"])
+        width_px = scale(value, 0, max_value, 0, plot_w)
+        label = html_escape(row["label"])
+        count = html_escape(fmt_count(row["count"], row["count_label"]))
+        elements.append(f'<text class="bar-label" x="{left - 12}" y="{y + 17}" text-anchor="end">{label}</text>')
+        elements.append(f'<text class="muted-label" x="{left - 12}" y="{y + 37}" text-anchor="end">{count}</text>')
+        elements.append(f'<rect class="bar-track" x="{left}" y="{y + 10}" width="{plot_w}" height="20" rx="4" />')
+        elements.append(
+            f'<rect class="bar" x="{left}" y="{y + 10}" width="{width_px:.1f}" height="20" rx="4" fill="{SINGLE_SERIES_COLOR}">'
+            f"<title>{label} best: {value}; {count}</title></rect>"
+        )
+        elements.append(f'<text class="value-label" x="{left + width_px + 8:.1f}" y="{y + 25}">{value}</text>')
+    elements.append("</svg>")
+    return "\n".join(elements)
+
+
 def svg_horizontal_bars(rows: list[dict[str, object]], colors: dict[str, str]) -> str:
     width = 1180
     row_h = 34
@@ -1492,7 +1524,7 @@ def render_html(
         chart_shell(
             "Model Family Comparison",
             "Best max-only model result observed for each model family.",
-            svg_best_bars(family_rows, "Model family best score comparison"),
+            svg_best_horizontal_bars(family_rows, "Model family best score comparison"),
         ),
         chart_shell(
             "Models By Family",
