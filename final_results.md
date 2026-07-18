@@ -60,3 +60,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260716-101358-claude-fable-5 | claude-fable-5 | claudecode | xhigh | 457 | 3 | 6 | stale_limit | 600s | 12h 22m | 10578 | 3755 |  |  |  |
 | 20260716-224238-opencode-openrouter-moonshotai-kimi-k3 | opencode-openrouter-moonshotai-kimi-k3 | opencode | high | 64 | 1 | 1 | agent_error | 600s | 1h 6m | 1316 | 257 | 28 | $1.565580 | 874896 |
 | 20260717-085254-opencode-openrouter-meta-llama-llama-4-maverick | opencode-openrouter-meta-llama-llama-4-maverick | opencode | high | 47 | 1 | 4 | stale_limit | 600s | 2m 1s | 5845 | 0 | 8 | $0.014964 | 69612 |
+| 20260717-101650-opencode-openrouter-meta-muse-spark-1-1 | opencode-openrouter-meta-muse-spark-1.1 | opencode | high | 192 | 3 | 3 | runner_terminated | 600s | 22h 14m | 158101 | 8524 |  |  |  |
