@@ -73,13 +73,16 @@ FAMILY_ICON_FILES = {
 
 SINGLE_SERIES_COLOR = "#64748b"
 
-ORIGIN_COLORS = {
-    "America": "#2563eb",
-    "China": "#7c3aed",
-    "Europe": "#059669",
-    "Japan": "#b45309",
-    "Unknown": "#64748b",
+ORIGIN_STYLES = {
+    "America": {"main": "#496987", "accent": "#C8102E"},
+    "China": {"main": "#C74432", "accent": "#E8B923"},
+    "Europe": {"main": "#1646A8", "accent": "#F2C300"},
+    "Japan": {"main": "#41454B", "accent": "#BC002D"},
+    "Unknown": {"main": "#64748b", "accent": "#cbd5e1"},
 }
+
+ORIGIN_COLORS = {origin: style["main"] for origin, style in ORIGIN_STYLES.items()}
+ORIGIN_ACCENTS = {origin: style["accent"] for origin, style in ORIGIN_STYLES.items()}
 
 OPEN_WEIGHTS_COLORS = {
     "Open weights": "#059669",
@@ -713,6 +716,44 @@ def svg_model_legend(
     return "\n".join(elements)
 
 
+def svg_bullseye_marker(
+    x: float,
+    y: float,
+    main_color: str,
+    accent_color: str,
+    title: str | None = None,
+) -> str:
+    title_element = f"<title>{html_escape(title)}</title>" if title else ""
+    return (
+        f'<g class="origin-marker" transform="translate({x:.1f} {y:.1f})">'
+        f"{title_element}"
+        f'<circle r="6" fill="{main_color}" />'
+        '<circle r="4" fill="#ffffff" />'
+        f'<circle r="2.2" fill="{accent_color}" />'
+        "</g>"
+    )
+
+
+def svg_two_color_legend(
+    colors: dict[str, str],
+    accents: dict[str, str],
+    x: int,
+    y: int,
+) -> str:
+    elements = ['<g class="legend origin-legend">']
+    for index, (label, color) in enumerate(colors.items()):
+        row_y = y + index * 24
+        accent = accents.get(label, "#cbd5e1")
+        elements.append(
+            f'<line x1="{x}" x2="{x + 20}" y1="{row_y + 6}" y2="{row_y + 6}" '
+            f'stroke="{color}" stroke-width="3" stroke-linecap="round" />'
+        )
+        elements.append(svg_bullseye_marker(x + 10, row_y + 6, color, accent))
+        elements.append(f'<text x="{x + 30}" y="{row_y + 10}">{html_escape(label)}</text>')
+    elements.append("</g>")
+    return "\n".join(elements)
+
+
 def svg_model_release_date_scatter(
     runs: list[RunResult],
     family_icons: dict[str, str] | None = None,
@@ -814,6 +855,7 @@ def svg_release_date_scatter(
     colors: dict[str, str],
     color_key: str,
     *,
+    accent_colors: dict[str, str] | None = None,
     width: int = 1180,
     height: int = 430,
     left: int = 70,
@@ -822,6 +864,7 @@ def svg_release_date_scatter(
     bottom: int = 72,
     aria_label: str = "Best score by model release date",
 ) -> str:
+    accent_colors = accent_colors or {}
     plotted = [run for run in runs if run.release_date]
     plotted.sort(key=lambda run: (run.release_date or run.run_date, run.version, run.run_id))
     plot_w = width - left - right
@@ -848,17 +891,31 @@ def svg_release_date_scatter(
         color_label = str(getattr(run, color_key))
         color = colors.get(color_label, "#64748b")
         tooltip = f"Released {fmt_date(run.release_date or run.run_date)} - {run.version}: {run.best_score} ({color_label})"
-        elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{color}" class="data-point">'
-            f"<title>{html_escape(tooltip)}</title></circle>"
-        )
+        if color_label in accent_colors:
+            elements.append(
+                svg_bullseye_marker(
+                    x,
+                    y,
+                    color,
+                    accent_colors[color_label],
+                    tooltip,
+                )
+            )
+        else:
+            elements.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{color}" class="data-point">'
+                f"<title>{html_escape(tooltip)}</title></circle>"
+            )
 
     for tick_index in range(5):
         tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
         elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
 
-    elements.append(svg_legend(colors, width - right + 28, top + 4))
+    if accent_colors:
+        elements.append(svg_two_color_legend(colors, accent_colors, width - right + 28, top + 4))
+    else:
+        elements.append(svg_legend(colors, width - right + 28, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
 
@@ -1058,7 +1115,9 @@ def svg_group_best_over_time(
     group_key: str,
     y_label: str,
     aria_label: str,
+    accent_colors: dict[str, str] | None = None,
 ) -> str:
+    accent_colors = accent_colors or {}
     release_rows = [run for run in runs if run.release_date]
     by_group_date: dict[str, dict[dt.date, int]] = defaultdict(dict)
     for run in release_rows:
@@ -1113,24 +1172,31 @@ def svg_group_best_over_time(
             path_parts.append(f"L {x:.1f} {previous_y:.1f}")
             path_parts.append(f"L {x:.1f} {y:.1f}")
         if path_parts:
+            path_class = "progress-line origin-progress-line" if group in accent_colors else "progress-line"
             elements.append(
-                f'<path class="progress-line" d="{" ".join(path_parts)}" stroke="{color}">'
+                f'<path class="{path_class}" d="{" ".join(path_parts)}" stroke="{color}">'
                 f"<title>{html_escape(group)} best score over time</title></path>"
             )
 
         for release_date, score, x, y in scaled:
             tooltip = f"{group}: best score so far {score} as of {fmt_date(release_date)}"
-            elements.append(
-                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" class="progress-point">'
-                f"<title>{html_escape(tooltip)}</title></circle>"
-            )
+            if group in accent_colors:
+                elements.append(svg_bullseye_marker(x, y, color, accent_colors[group], tooltip))
+            else:
+                elements.append(
+                    f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.5" fill="{color}" class="progress-point">'
+                    f"<title>{html_escape(tooltip)}</title></circle>"
+                )
 
     for tick_index in range(5):
         tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
         elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
 
-    elements.append(svg_legend(colors, width - right + 28, top + 4))
+    if accent_colors:
+        elements.append(svg_two_color_legend(colors, accent_colors, width - right + 28, top + 4))
+    else:
+        elements.append(svg_legend(colors, width - right + 28, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
 
@@ -1145,13 +1211,18 @@ def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, st
     )
 
 
-def svg_origin_best_over_time(runs: list[RunResult], origin_colors: dict[str, str]) -> str:
+def svg_origin_best_over_time(
+    runs: list[RunResult],
+    origin_colors: dict[str, str],
+    origin_accents: dict[str, str],
+) -> str:
     return svg_group_best_over_time(
         runs,
         origin_colors,
         "origin",
         "Origin best score so far",
         "Cumulative best score by model origin over release date",
+        origin_accents,
     )
 
 
@@ -1615,6 +1686,10 @@ def render_html(
     }
     for origin in sorted(origins - set(origin_colors)):
         origin_colors[origin] = ORIGIN_COLORS.get(origin, "#64748b")
+    origin_accents = {
+        origin: ORIGIN_ACCENTS.get(origin, "#cbd5e1")
+        for origin in origin_colors
+    }
     origin_rows = aggregate_scores(result_runs, "origin")
     family_rows = aggregate_scores(result_runs, "family")
     harness_rows = aggregate_scores(result_runs, "harness")
@@ -1658,7 +1733,7 @@ def render_html(
         chart_shell(
             "Origin Best Score Over Time",
             "Cumulative best max-only model result each origin has achieved as newer models are released.",
-            svg_origin_best_over_time(result_runs, origin_colors),
+            svg_origin_best_over_time(result_runs, origin_colors, origin_accents),
         ),
         chart_shell(
             "Open Weights Versus Closed Weights",
@@ -1668,11 +1743,12 @@ def render_html(
         '<div class="chart-grid">',
         chart_shell(
             "Origin Comparison",
-            "Each normalized model version plotted once by model release date, using its maximum score and colored by origin.",
+            "Each normalized model version plotted once by model release date, using its maximum score and styled by origin.",
             svg_release_date_scatter(
                 result_runs,
                 origin_colors,
                 "origin",
+                accent_colors=origin_accents,
                 width=650,
                 height=360,
                 left=66,
@@ -1939,6 +2015,10 @@ def render_html(
       stroke-width: 2.4;
       stroke-linejoin: round;
       stroke-linecap: round;
+    }}
+
+    .origin-progress-line {{
+      stroke-width: 3;
     }}
 
     .progress-point {{
