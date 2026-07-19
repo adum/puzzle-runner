@@ -632,22 +632,48 @@ def svg_model_pattern_defs(styles: dict[str, dict[str, str]]) -> str:
     return "\n".join(elements)
 
 
-def family_icon_id(family: str) -> str:
+def family_icon_id(family: str, prefix: str = "family-icon") -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", family.lower()).strip("-")
-    return f"family-icon-{slug}"
+    return f"{prefix}-{slug}"
 
 
-def svg_family_icon_defs(family_icons: dict[str, str]) -> str:
+def svg_family_icon_defs(
+    family_icons: dict[str, str],
+    prefix: str = "family-icon",
+) -> str:
     if not family_icons:
         return ""
     elements = ["<defs>"]
     for family, data_uri in sorted(family_icons.items()):
         elements.append(
-            f'<image id="{family_icon_id(family)}" href="{data_uri}" x="-7.5" y="-7.5" '
+            f'<image id="{family_icon_id(family, prefix)}" href="{data_uri}" x="-7.5" y="-7.5" '
             'width="15" height="15" preserveAspectRatio="xMidYMid meet" />'
         )
     elements.append("</defs>")
     return "\n".join(elements)
+
+
+def html_model_label(
+    label: object,
+    family: str,
+    family_icons: dict[str, str],
+) -> str:
+    escaped_label = html_escape(label)
+    if family not in family_icons:
+        return escaped_label
+    return (
+        '<span class="model-name-with-icon">'
+        f'<span class="model-family-icon {family_icon_id(family)}" aria-hidden="true"></span>'
+        f"<span>{escaped_label}</span>"
+        "</span>"
+    )
+
+
+def html_family_icon_css(family_icons: dict[str, str]) -> str:
+    return "\n".join(
+        f'.{family_icon_id(family)} {{ background-image: url("{data_uri}"); }}'
+        for family, data_uri in sorted(family_icons.items())
+    )
 
 
 def svg_model_legend(
@@ -1271,25 +1297,42 @@ def svg_best_horizontal_bars(rows: list[dict[str, object]], title: str) -> str:
     return "\n".join(elements)
 
 
-def svg_horizontal_bars(rows: list[dict[str, object]], colors: dict[str, str]) -> str:
+def svg_horizontal_bars(
+    rows: list[dict[str, object]],
+    colors: dict[str, str],
+    family_icons: dict[str, str] | None = None,
+) -> str:
+    family_icons = family_icons or {}
     width = 1180
     row_h = 34
     top = 26
     bottom = 44
-    left = 260
+    left = 300
     right = 80
     height = top + bottom + row_h * len(rows)
     plot_w = width - left - right
     max_value = score_axis_max([int(row["best"]) for row in rows])
     elements = [
         f'<svg class="chart-svg tall" viewBox="0 0 {width} {height}" role="img" aria-label="Best score by model version">',
+        svg_family_icon_defs(family_icons, prefix="version-bar-icon"),
     ]
     for index, row in enumerate(rows):
         y = top + index * row_h
         value = int(row["best"])
         width_px = scale(value, 0, max_value, 0, plot_w)
-        color = colors.get(str(row["family"]), "#64748b")
-        elements.append(f'<text class="bar-label" x="{left - 12}" y="{y + 22}" text-anchor="end">{html_escape(row["label"])}</text>')
+        family = str(row["family"])
+        color = colors.get(family, "#64748b")
+        label_x = 38 if family in family_icons else 12
+        if family in family_icons:
+            elements.append(
+                f'<g transform="translate(20 {y + 16})">'
+                '<circle r="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.25" />'
+                f'<use href="#{family_icon_id(family, "version-bar-icon")}" pointer-events="none" />'
+                "</g>"
+            )
+        elements.append(
+            f'<text class="bar-label" x="{label_x}" y="{y + 22}">{html_escape(row["label"])}</text>'
+        )
         elements.append(f'<rect class="bar-track" x="{left}" y="{y + 7}" width="{plot_w}" height="18" rx="4" />')
         elements.append(
             f'<rect class="bar" x="{left}" y="{y + 7}" width="{width_px:.1f}" height="18" rx="4" fill="{color}">'
@@ -1425,13 +1468,17 @@ def summary_cards(runs: list[RunResult]) -> str:
     return '<div class="metrics">' + "\n".join(cards) + "</div>"
 
 
-def data_table(runs: list[RunResult]) -> str:
+def data_table(
+    runs: list[RunResult],
+    family_icons: dict[str, str] | None = None,
+) -> str:
+    family_icons = family_icons or {}
     rows = []
     for run in sorted(runs, key=lambda item: (item.release_date or item.run_date, item.run_date), reverse=True):
         rows.append(
             "<tr>"
             f"<td>{html_escape(fmt_date(run.release_date or run.run_date))}</td>"
-            f"<td>{html_escape(run.version)}</td>"
+            f"<td>{html_model_label(run.version, run.family, family_icons)}</td>"
             f"<td>{html_escape(run.family)}</td>"
             f"<td>{html_escape(run.harness)}</td>"
             f"<td>{html_escape(run.origin)}</td>"
@@ -1475,7 +1522,11 @@ def data_table(runs: list[RunResult]) -> str:
     """
 
 
-def model_run_count_table(runs: list[RunResult]) -> str:
+def model_run_count_table(
+    runs: list[RunResult],
+    family_icons: dict[str, str] | None = None,
+) -> str:
+    family_icons = family_icons or {}
     buckets: dict[str, list[RunResult]] = defaultdict(list)
     for run in runs:
         buckets[run.version].append(run)
@@ -1491,6 +1542,7 @@ def model_run_count_table(runs: list[RunResult]) -> str:
             {
                 "version": version,
                 "family": ", ".join(families),
+                "icon_family": best_run.family,
                 "origin": ", ".join(origins),
                 "release_date": fmt_date(release_dates[0]) if release_dates else "",
                 "harnesses": ", ".join(harnesses),
@@ -1504,7 +1556,7 @@ def model_run_count_table(runs: list[RunResult]) -> str:
     for row in rows:
         body.append(
             "<tr>"
-            f"<td>{html_escape(row['version'])}</td>"
+            f"<td>{html_model_label(row['version'], str(row['icon_family']), family_icons)}</td>"
             f"<td>{html_escape(row['family'])}</td>"
             f"<td>{html_escape(row['origin'])}</td>"
             f"<td>{html_escape(row['release_date'])}</td>"
@@ -1552,6 +1604,7 @@ def render_html(
         raise ValueError("no runs to visualize")
 
     family_icons = family_icons or {}
+    family_icon_css = html_family_icon_css(family_icons)
     result_runs = best_runs_by_version(runs)
     family_colors = color_map([run.family for run in result_runs])
     origins = {run.origin for run in result_runs}
@@ -1650,7 +1703,7 @@ def render_html(
         chart_shell(
             "Best Score By Model Version",
             "Highest score observed for each normalized model version; repeated raw runs are never averaged.",
-            svg_horizontal_bars(version_rows, family_colors),
+            svg_horizontal_bars(version_rows, family_colors, family_icons),
         ),
         '<div class="chart-grid">',
         chart_shell(
@@ -1686,8 +1739,8 @@ def render_html(
             "Each point uses the run that produced a normalized model version's maximum score.",
             svg_score_vs_code_lines(result_runs, family_colors),
         ),
-        data_table(runs),
-        model_run_count_table(runs),
+        data_table(runs, family_icons),
+        model_run_count_table(runs, family_icons),
     ]
 
     return f"""<!doctype html>
@@ -1833,6 +1886,28 @@ def render_html(
     .chart-svg.compact {{
       max-height: 360px;
     }}
+
+    .model-name-with-icon {{
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }}
+
+    .model-family-icon {{
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 50%;
+      background-color: #ffffff;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 14px 14px;
+    }}
+
+    {family_icon_css}
 
     .grid-line {{
       stroke: var(--line);
