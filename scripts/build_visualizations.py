@@ -1299,7 +1299,12 @@ def svg_legend(colors: dict[str, str], x: int, y: int) -> str:
     return "\n".join(elements)
 
 
-def svg_best_bars(rows: list[dict[str, object]], title: str) -> str:
+def svg_best_bars(
+    rows: list[dict[str, object]],
+    title: str,
+    bar_styles: dict[str, dict[str, str]] | None = None,
+) -> str:
+    bar_styles = bar_styles or {}
     width = 650
     height = 360
     left = 64
@@ -1319,15 +1324,33 @@ def svg_best_bars(rows: list[dict[str, object]], title: str) -> str:
     for group_index, row in enumerate(rows):
         center = left + group_w * group_index + group_w / 2
         value = float(row["best"])
+        label = str(row["label"])
         x = center - bar_w / 2
         y = scale(value, 0, max_value, top + plot_h, top)
         height_px = top + plot_h - y
+        style = bar_styles.get(label)
+        if style:
+            white_rail_width = min(7.0, bar_w * 0.22)
+            accent_rail_width = min(3.0, bar_w * 0.1)
+            rail_center = x + bar_w * 0.3
+            elements.append(
+                '<g class="origin-bar">'
+                f"<title>{html_escape(label)} best: {fmt_number(value)}</title>"
+                f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" '
+                f'rx="2" fill="{style["main"]}" />'
+                f'<rect x="{rail_center - white_rail_width / 2:.1f}" y="{y:.1f}" width="{white_rail_width:.1f}" '
+                f'height="{height_px:.1f}" fill="#ffffff" opacity="0.9" />'
+                f'<rect x="{rail_center - accent_rail_width / 2:.1f}" y="{y:.1f}" width="{accent_rail_width:.1f}" '
+                f'height="{height_px:.1f}" fill="{style["accent"]}" />'
+                "</g>"
+            )
+        else:
+            elements.append(
+                f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="{SINGLE_SERIES_COLOR}">'
+                f"<title>{html_escape(label)} best: {fmt_number(value)}</title></rect>"
+            )
         elements.append(
-            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="{SINGLE_SERIES_COLOR}">'
-            f"<title>{html_escape(row['label'])} best: {fmt_number(value)}</title></rect>"
-        )
-        elements.append(
-            f'<text class="tick-label" x="{center:.1f}" y="{height - 42}" text-anchor="middle">{html_escape(row["label"])}</text>'
+            f'<text class="tick-label" x="{center:.1f}" y="{height - 42}" text-anchor="middle">{html_escape(label)}</text>'
         )
         elements.append(
             f'<text class="muted-label" x="{center:.1f}" y="{height - 24}" text-anchor="middle">{html_escape(fmt_count(row["count"], row["count_label"]))}</text>'
@@ -1761,7 +1784,7 @@ def render_html(
         chart_shell(
             "Best Score By Origin",
             "Best max-only model result observed for each origin bucket.",
-            svg_best_bars(origin_rows, "Origin best score comparison"),
+            svg_best_bars(origin_rows, "Origin best score comparison", ORIGIN_STYLES),
         ),
         "</div>",
         '<div class="chart-grid">',
