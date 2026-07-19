@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: July 18, 2026.
+Last researched: July 19, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -47,6 +47,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Qwen | Qwen3 Coder Plus | September 23, 2025 | China | false |
 | Qwen | Qwen3.7-Max | May 21, 2026 | China | false |
 | DeepSeek | DeepSeek R1 | January 20, 2025 | China | true |
+| DeepSeek | DeepSeek V4 Flash | April 24, 2026 | China | true |
 | DeepSeek | DeepSeek V4 Pro | April 24, 2026 | China | true |
 
 ## Notes
@@ -75,6 +76,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Qwen3 Coder Plus uses OpenRouter's listed release date; it remains false because the tested Plus API model is described as Alibaba's proprietary version of the open-source Qwen3 Coder 480B A35B.
 - Qwen3.7-Max uses OpenRouter's listed release date; it remains false because the tested Max API model is proprietary/hosted.
 - DeepSeek R1 uses DeepSeek's public launch date and is true for open weights because DeepSeek publishes the model weights under the MIT License.
+- DeepSeek V4 Flash uses DeepSeek's official API and open-weights release date and is true because DeepSeek published the V4 model weights at launch.
 - GLM-4.5 uses Z.AI technical blog release date and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
