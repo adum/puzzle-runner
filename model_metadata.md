@@ -37,8 +37,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Kimi | Kimi K2.6 | April 20, 2026 | China | true |
 | Kimi | Kimi K2.7 Code | June 12, 2026 | China | true |
 | Kimi | Kimi K3 | July 16, 2026 | China | false |
-| Llama | Llama 4 Maverick | April 5, 2025 | America | true |
-| Muse Spark | Muse Spark 1.1 | July 9, 2026 | America | false |
+| Meta | Llama 4 Maverick | April 5, 2025 | America | true |
+| Meta | Muse Spark 1.1 | July 9, 2026 | America | false |
 | MiniMax | MiniMax M2 | October 23, 2025 | China | true |
 | MiniMax | MiniMax M3 | May 31, 2026 | China | true |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import bisect
 import csv
 import dataclasses
@@ -52,6 +53,23 @@ MODEL_PALETTE = [
 ]
 
 MODEL_PATTERNS = ["solid", "diagonal", "cross", "dots", "vertical", "horizontal"]
+
+FAMILY_ICON_FILES = {
+    "ChatGPT / Codex": "openai.svg",
+    "Claude": "claude.svg",
+    "DeepSeek": "deepseek.svg",
+    "Gemini": "gemini.svg",
+    "GLM": "glm.svg",
+    "Grok": "grok.svg",
+    "Kimi": "kimi.svg",
+    "Meta": "meta.svg",
+    "MiniMax": "minimax.svg",
+    "Mistral": "mistral.svg",
+    "Nemotron": "nemotron.svg",
+    "Qwen": "qwen.svg",
+    "Sakana Fugu": "sakana-fugu.png",
+    "Tencent Hunyuan": "tencent-hunyuan.svg",
+}
 
 SINGLE_SERIES_COLOR = "#64748b"
 
@@ -159,7 +177,31 @@ def parse_args() -> argparse.Namespace:
         default=root / "level_dimensions.csv",
         help="CSV mapping public level numbers to board dimensions. Missing levels are interpolated.",
     )
+    parser.add_argument(
+        "--family-icons",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use model-family icons for large chart markers. Defaults to enabled.",
+    )
+    parser.add_argument(
+        "--family-icon-dir",
+        type=Path,
+        default=root / "assets" / "model-family-icons",
+        help="Directory containing model-family icon assets.",
+    )
     return parser.parse_args()
+
+
+def load_family_icons(path: Path) -> dict[str, str]:
+    icons: dict[str, str] = {}
+    for family, filename in FAMILY_ICON_FILES.items():
+        icon_path = path / filename
+        if not icon_path.is_file():
+            continue
+        mime_type = "image/svg+xml" if icon_path.suffix.lower() == ".svg" else "image/png"
+        payload = base64.b64encode(icon_path.read_bytes()).decode("ascii")
+        icons[family] = f"data:{mime_type};base64,{payload}"
+    return icons
 
 
 def load_level_dimensions(path: Path) -> dict[int, tuple[int, int]]:
@@ -565,6 +607,8 @@ def chart_shell(title: str, subtitle: str, svg: str) -> str:
 
 
 def svg_model_pattern_defs(styles: dict[str, dict[str, str]]) -> str:
+    if not styles:
+        return ""
     elements = ["<defs>"]
     for style in styles.values():
         pattern_id = style["pattern_id"]
@@ -588,7 +632,32 @@ def svg_model_pattern_defs(styles: dict[str, dict[str, str]]) -> str:
     return "\n".join(elements)
 
 
-def svg_model_legend(styles: dict[str, dict[str, str]], x: int, y: int, columns: int = 2) -> str:
+def family_icon_id(family: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", family.lower()).strip("-")
+    return f"family-icon-{slug}"
+
+
+def svg_family_icon_defs(family_icons: dict[str, str]) -> str:
+    if not family_icons:
+        return ""
+    elements = ["<defs>"]
+    for family, data_uri in sorted(family_icons.items()):
+        elements.append(
+            f'<image id="{family_icon_id(family)}" href="{data_uri}" x="-7.5" y="-7.5" '
+            'width="15" height="15" preserveAspectRatio="xMidYMid meet" />'
+        )
+    elements.append("</defs>")
+    return "\n".join(elements)
+
+
+def svg_model_legend(
+    styles: dict[str, dict[str, str]],
+    x: int,
+    y: int,
+    family_by_version: dict[str, str],
+    family_icons: dict[str, str],
+    columns: int = 2,
+) -> str:
     labels = list(styles)
     rows = math.ceil(len(labels) / columns)
     column_width = 190
@@ -600,19 +669,38 @@ def svg_model_legend(styles: dict[str, dict[str, str]], x: int, y: int, columns:
         style = styles[label]
         marker_x = x + column * column_width
         marker_y = y + row * row_height
-        elements.append(
-            f'<circle cx="{marker_x + 6}" cy="{marker_y + 6}" r="6" fill="url(#{style["pattern_id"]})" '
-            f'stroke="{style["color"]}" stroke-width="1.5" />'
-        )
+        family = family_by_version[label]
+        if family in family_icons:
+            elements.append(
+                f'<g transform="translate({marker_x + 6} {marker_y + 6})">'
+                '<circle r="7" fill="#ffffff" stroke="#94a3b8" stroke-width="1.25" />'
+                f'<use href="#{family_icon_id(family)}" transform="scale(0.78)" pointer-events="none" />'
+                "</g>"
+            )
+        else:
+            elements.append(
+                f'<circle cx="{marker_x + 6}" cy="{marker_y + 6}" r="6" fill="url(#{style["pattern_id"]})" '
+                f'stroke="{style["color"]}" stroke-width="1.5" />'
+            )
         elements.append(f'<text x="{marker_x + 18}" y="{marker_y + 10}">{html_escape(label)}</text>')
     elements.append("</g>")
     return "\n".join(elements)
 
 
-def svg_model_release_date_scatter(runs: list[RunResult]) -> str:
+def svg_model_release_date_scatter(
+    runs: list[RunResult],
+    family_icons: dict[str, str] | None = None,
+) -> str:
+    family_icons = family_icons or {}
     plotted = [run for run in runs if run.release_date]
     plotted.sort(key=lambda run: (run.release_date or run.run_date, run.version, run.run_id))
     styles = model_style_map(plotted)
+    family_by_version = {run.version: run.family for run in plotted}
+    fallback_styles = {
+        version: style
+        for version, style in styles.items()
+        if family_by_version[version] not in family_icons
+    }
     width = 1180
     height = 560
     left = 70
@@ -628,7 +716,8 @@ def svg_model_release_date_scatter(runs: list[RunResult]) -> str:
 
     elements = [
         f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Best score by model release date and model version">',
-        svg_model_pattern_defs(styles),
+        svg_model_pattern_defs(fallback_styles),
+        svg_family_icon_defs(family_icons),
         grid_lines(left, top, plot_w, plot_h, max_score),
         axis_labels(left, top, plot_w, plot_h, "Model release date", "Best score"),
     ]
@@ -650,27 +739,46 @@ def svg_model_release_date_scatter(runs: list[RunResult]) -> str:
         x = version_points[0][1]
         y_values = [point[2] for point in version_points]
         style = styles[version]
+        line_color = SINGLE_SERIES_COLOR if family_by_version[version] in family_icons else style["color"]
         elements.append(
             f'<line class="same-model-line" x1="{x:.1f}" x2="{x:.1f}" '
-            f'y1="{min(y_values):.1f}" y2="{max(y_values):.1f}" stroke="{style["color"]}">'
+            f'y1="{min(y_values):.1f}" y2="{max(y_values):.1f}" stroke="{line_color}">'
             f"<title>{html_escape(version)} repeated runs</title></line>"
         )
 
     for run, x, y in points:
         style = styles[run.version]
         tooltip = f"Released {fmt_date(run.release_date or run.run_date)} - {run.version}: {run.best_score} ({run.run_id})"
-        elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="9.5" fill="url(#{style["pattern_id"]})" '
-            f'class="data-point model-point" style="stroke: {style["color"]}; stroke-width: 2.2;">'
-            f"<title>{html_escape(tooltip)}</title></circle>"
-        )
+        if run.family in family_icons:
+            elements.append(
+                f'<g class="data-point model-point model-icon-point" transform="translate({x:.1f} {y:.1f})">'
+                f"<title>{html_escape(tooltip)}</title>"
+                '<circle r="10.5" fill="#ffffff" stroke="#64748b" stroke-width="1.6" />'
+                f'<use href="#{family_icon_id(run.family)}" pointer-events="none" />'
+                "</g>"
+            )
+        else:
+            elements.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="9.5" fill="url(#{style["pattern_id"]})" '
+                f'class="data-point model-point" style="stroke: {style["color"]}; stroke-width: 2.2;">'
+                f"<title>{html_escape(tooltip)}</title></circle>"
+            )
 
     for tick_index in range(5):
         tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 4))
         x = scale((tick_date - min_date).days, 0, total_days, left, left + plot_w)
         elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 34}" text-anchor="middle">{fmt_month_year(tick_date)}</text>')
 
-    elements.append(svg_model_legend(styles, left + plot_w + 30, top + 4, columns=2))
+    elements.append(
+        svg_model_legend(
+            styles,
+            left + plot_w + 30,
+            top + 4,
+            family_by_version,
+            family_icons,
+            columns=2,
+        )
+    )
     elements.append("</svg>")
     return "\n".join(elements)
 
@@ -729,8 +837,11 @@ def svg_release_date_scatter(
     return "\n".join(elements)
 
 
-def svg_score_over_time(runs: list[RunResult]) -> str:
-    return svg_model_release_date_scatter(runs)
+def svg_score_over_time(
+    runs: list[RunResult],
+    family_icons: dict[str, str] | None = None,
+) -> str:
+    return svg_model_release_date_scatter(runs, family_icons)
 
 
 def cumulative_ai_progress(runs: list[RunResult]) -> list[tuple[dt.date, int, RunResult]]:
@@ -1435,10 +1546,12 @@ def render_html(
     runs: list[RunResult],
     unmatched: list[str],
     level_dimensions: dict[int, tuple[int, int]],
+    family_icons: dict[str, str] | None = None,
 ) -> str:
     if not runs:
         raise ValueError("no runs to visualize")
 
+    family_icons = family_icons or {}
     result_runs = best_runs_by_version(runs)
     family_colors = color_map([run.family for run in result_runs])
     origins = {run.origin for run in result_runs}
@@ -1470,7 +1583,7 @@ def render_html(
         chart_shell(
             "All LLMs By Release Date",
             "Each normalized model version plotted once by public release date, using its maximum score across all runs.",
-            svg_score_over_time(result_runs),
+            svg_score_over_time(result_runs, family_icons),
         ),
         '<div class="chart-grid">',
         chart_shell(
@@ -1898,7 +2011,8 @@ def main() -> int:
     metadata = load_metadata(args.metadata)
     runs, unmatched = load_results(args.results, metadata)
     level_dimensions = load_level_dimensions(args.level_dimensions)
-    html_output = render_html(runs, unmatched, level_dimensions)
+    family_icons = load_family_icons(args.family_icon_dir) if args.family_icons else {}
+    html_output = render_html(runs, unmatched, level_dimensions, family_icons)
     html_output = "\n".join(line.rstrip() for line in html_output.splitlines()) + "\n"
     args.output.write_text(html_output, encoding="utf-8")
 
