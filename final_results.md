@@ -63,3 +63,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260717-101650-opencode-openrouter-meta-muse-spark-1-1 | opencode-openrouter-meta-muse-spark-1.1 | opencode | high | 192 | 3 | 3 | runner_terminated | 600s | 22h 14m | 158101 | 8524 |  |  |  |
 | 20260717-033205-opencode-openrouter-moonshotai-kimi-k3 | opencode-openrouter-moonshotai-kimi-k3 | opencode | high | 421 | 4 | 6 | agent_idle_timeout | 600s | 2d 2h | 115948 | 8622 | 1330 | $122.520369 | 281515591 |
 | 20260718-092519-opencode-openrouter-deepseek-deepseek-v4-flash | opencode-openrouter-deepseek-deepseek-v4-flash | opencode | high | 73 | 4 | 4 | agent_idle_timeout | 600s | 8h 7m | 3109 | 437 | 425 | $2.305523 | 39535193 |
+| 20260719-085622-opencode-openrouter-deepseek-deepseek-v4-flash | opencode-openrouter-deepseek-deepseek-v4-flash | opencode | high | 106 | 4 | 7 | stale_limit | 600s | 16h 27m | 11549 | 668 | 620 | $3.099775 | 60902434 |
