@@ -65,3 +65,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260718-092519-opencode-openrouter-deepseek-deepseek-v4-flash | opencode-openrouter-deepseek-deepseek-v4-flash | opencode | high | 73 | 4 | 4 | agent_idle_timeout | 600s | 8h 7m | 3109 | 437 | 425 | $2.305523 | 39535193 |
 | 20260719-085622-opencode-openrouter-deepseek-deepseek-v4-flash | opencode-openrouter-deepseek-deepseek-v4-flash | opencode | high | 106 | 4 | 7 | stale_limit | 600s | 16h 27m | 11549 | 668 | 620 | $3.099775 | 60902434 |
 | 20260720-093442-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | opencode | high | 89 | 3 | 6 | stale_limit | 600s | 17h 15m | 16433 | 5345 | 760 | $6.635062 | 81541374 |
+| 20260721-085825-gpt-5-4 | gpt-5.4 | codex | xhigh | 176 | 5 | 8 | stale_limit | 600s | 12h 0m | 3704327 | 589 |  |  |  |
