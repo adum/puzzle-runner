@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: July 22, 2026.
+Last researched: July 23, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -24,6 +24,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3 Flash Preview | December 17, 2025 | America | false |
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America | false |
 | Gemini | Gemini 3.5 Flash (High) | May 19, 2026 | America | false |
+| Gemini | Gemini 3.6 Flash (High) | July 21, 2026 | America | false |
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok 4.5 | July 8, 2026 | America | false |
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
@@ -58,6 +59,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GPT-5.6 Sol uses OpenAI's official ChatGPT rollout date and remains false because OpenAI has not published public model weights.
 - Claude Opus 4 uses Anthropic's official Claude 4 launch date and remains false because it is a hosted proprietary model.
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
+- Gemini 3.6 Flash uses Google's official public launch date and remains false because Google provides hosted access rather than public model weights.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
 - Grok 4.5 uses xAI's official launch post date and remains false because xAI describes hosted product/API availability, not public model weights.
 - Grok Composer 2.5 Fast and Grok Build use xAI's official Composer 2.5 announcement date. They remain false because xAI describes Composer 2.5 as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
@@ -86,7 +88,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 - OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.4](https://openai.com/index/introducing-gpt-5-4/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/), [GPT-5.6 Sol release notes](https://help.openai.com/en/articles/9624314-model-release-notes), [GPT-5.6](https://openai.com/index/gpt-5-6/)
 - Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5)
-- Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/)
+- Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/), [Gemini 3.6 Flash](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Grok 4.5 announcement](https://x.ai/news/grok-4-5), [OpenRouter Grok 4.5 model page](https://openrouter.ai/x-ai/grok-4.5), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
 - NVIDIA: [Nemotron 3 Ultra model card](https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard), [Nemotron 3 Ultra research page](https://research.nvidia.com/labs/nemotron/Nemotron-3-Ultra/), [OpenRouter Nemotron 3 Ultra model page](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b)
 - Sakana AI: [Sakana AI homepage](https://sakana.ai/), [Fugu launch post](https://sakana.ai/fugu-release/), [Fugu product page](https://sakana.ai/fugu/)
