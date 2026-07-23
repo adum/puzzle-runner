@@ -67,3 +67,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260720-093442-opencode-openrouter-deepseek-deepseek-v4-pro | opencode-openrouter-deepseek-deepseek-v4-pro | opencode | high | 89 | 3 | 6 | stale_limit | 600s | 17h 15m | 16433 | 5345 | 760 | $6.635062 | 81541374 |
 | 20260721-085825-gpt-5-4 | gpt-5.4 | codex | xhigh | 176 | 5 | 8 | stale_limit | 600s | 12h 0m | 3704327 | 589 |  |  |  |
 | 20260722-083108-opencode-openrouter-tencent-hy3 | opencode-openrouter-tencent-hy3 | opencode | high | 196 | 6 | 6 | agent_idle_timeout | 600s | 15h 48m | 64205 | 1300 | 762 | $3.674006 | 82046207 |
+| 20260723-123515-gemini-3-6-flash-high | gemini-3.6-flash-high | antigravity |  | 262 | 3 | 3 | agent_idle_timeout | 600s | 2h 14m | 140862 | 910 |  |  |  |
