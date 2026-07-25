@@ -69,3 +69,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260722-083108-opencode-openrouter-tencent-hy3 | opencode-openrouter-tencent-hy3 | opencode | high | 196 | 6 | 6 | agent_idle_timeout | 600s | 15h 48m | 64205 | 1300 | 762 | $3.674006 | 82046207 |
 | 20260723-123515-gemini-3-6-flash-high | gemini-3.6-flash-high | antigravity |  | 262 | 3 | 3 | agent_idle_timeout | 600s | 2h 14m | 140862 | 910 |  |  |  |
 | 20260723-181446-gemini-3-6-flash-high | gemini-3.6-flash-high | antigravity |  | 262 | 4 | 7 | stale_limit | 600s | 6h 35m | 27024 | 1392 |  |  |  |
+| 20260724-112152-claude-opus-5 | claude-opus-5 | claudecode | xhigh | 287 | 1 | 2 | agent_error | 600s | 8h 51m | 13448 | 962 |  |  |  |
