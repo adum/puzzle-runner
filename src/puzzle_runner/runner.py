@@ -1720,6 +1720,25 @@ def _claude_result_message_from_event(event: dict) -> str:
         value = event.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
+
+    errors = event.get("errors")
+    error_messages = (
+        [value.strip() for value in errors if isinstance(value, str) and value.strip()]
+        if isinstance(errors, list)
+        else []
+    )
+    subtype = event.get("subtype")
+    terminal_reason = event.get("terminal_reason")
+    context = []
+    if isinstance(subtype, str) and subtype.strip():
+        context.append(subtype.strip())
+    if isinstance(terminal_reason, str) and terminal_reason.strip():
+        context.append(f"terminal reason: {terminal_reason.strip()}")
+    if error_messages:
+        prefix = f"{'; '.join(context)}: " if context else ""
+        return prefix + "; ".join(error_messages)
+    if context:
+        return "; ".join(context)
     return ""
 
 

@@ -562,6 +562,29 @@ class RunnerTests(unittest.TestCase):
 
             self.assertTrue(_claude_stdout_has_error_result(stdout))
 
+    def test_claude_structured_error_details_are_displayed(self) -> None:
+        config_path = Path(__file__).resolve().parents[1] / "config.claude.example.toml"
+        config = load_config(str(config_path), run_id="test-run")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stdout = root / "agent.stdout.log"
+            stderr = root / "agent.stderr.log"
+            stdout.write_text(
+                '{"type":"result","subtype":"error_during_execution","is_error":true,'
+                '"terminal_reason":"aborted_streaming",'
+                '"errors":["[ede_diagnostic] result_type=user stop_reason=null"]}\n',
+                encoding="utf-8",
+            )
+            stderr.write_text("", encoding="utf-8")
+
+            detail = _agent_error_detail(config, stdout, stderr)
+
+        self.assertIsNotNone(detail)
+        assert detail is not None
+        self.assertIn("error_during_execution", detail["detail"])
+        self.assertIn("terminal reason: aborted_streaming", detail["detail"])
+        self.assertIn("[ede_diagnostic] result_type=user", detail["detail"])
+
     def test_opencode_error_event_is_detected_from_stdout(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             stdout = Path(temp_dir) / "agent.stdout.log"
