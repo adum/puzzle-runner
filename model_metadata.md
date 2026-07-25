@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: July 23, 2026.
+Last researched: July 24, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -20,6 +20,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Claude | Claude Opus 4.8 | May 28, 2026 | America | false |
 | Claude | Claude Fable 5 | June 9, 2026 | America | false |
 | Claude | Claude Sonnet 5 | June 30, 2026 | America | false |
+| Claude | Claude Opus 5 | July 24, 2026 | America | false |
 | Gemini | Gemini 2.5 Flash | June 17, 2025 | America | false |
 | Gemini | Gemini 3 Flash Preview | December 17, 2025 | America | false |
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America | false |
@@ -69,6 +70,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - MiniMax M2 and M3 use OpenRouter's listed release dates. MiniMax M3's official launch post is dated June 1, 2026, but OpenRouter lists earlier public availability.
 - Claude Fable 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
 - Claude Sonnet 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
+- Claude Opus 5 uses Anthropic's official launch post date and remains false because it is a hosted proprietary model.
 - GPT-5.4 uses OpenAI's official public launch date across ChatGPT, the API, and Codex. It remains false because OpenAI provides hosted access rather than public model weights.
 - Open weights means public model weights are available now. MiniMax M2 and M3 are true because MiniMax publishes public Hugging Face/GitHub model weights for both.
 - Kimi K2.5 uses OpenRouter's listed release date and is true for open weights because Moonshot's GitHub and Hugging Face pages say the model weights are released under the Modified MIT License.
@@ -87,7 +89,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 ## Sources
 
 - OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.4](https://openai.com/index/introducing-gpt-5-4/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/), [GPT-5.6 Sol release notes](https://help.openai.com/en/articles/9624314-model-release-notes), [GPT-5.6](https://openai.com/index/gpt-5-6/)
-- Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5)
+- Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), [Claude Opus 5](https://www.anthropic.com/news/claude-opus-5)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/), [Gemini 3.6 Flash](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Grok 4.5 announcement](https://x.ai/news/grok-4-5), [OpenRouter Grok 4.5 model page](https://openrouter.ai/x-ai/grok-4.5), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
 - NVIDIA: [Nemotron 3 Ultra model card](https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard), [Nemotron 3 Ultra research page](https://research.nvidia.com/labs/nemotron/Nemotron-3-Ultra/), [OpenRouter Nemotron 3 Ultra model page](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b)
