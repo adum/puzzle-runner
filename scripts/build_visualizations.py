@@ -84,6 +84,14 @@ ORIGIN_STYLES = {
 ORIGIN_COLORS = {origin: style["main"] for origin, style in ORIGIN_STYLES.items()}
 ORIGIN_ACCENTS = {origin: style["accent"] for origin, style in ORIGIN_STYLES.items()}
 
+ORIGIN_SCATTER_COLORS = {
+    "America": "#4E79A7",
+    "China": "#E15759",
+    "Europe": "#59A14F",
+    "Japan": "#B07AA1",
+    "Unknown": "#9C9C9C",
+}
+
 OPEN_WEIGHTS_COLORS = {
     "Open weights": "#059669",
     "Closed weights": "#64748b",
@@ -1713,6 +1721,13 @@ def render_html(
         origin: ORIGIN_ACCENTS.get(origin, "#cbd5e1")
         for origin in origin_colors
     }
+    origin_scatter_colors = {
+        origin: ORIGIN_SCATTER_COLORS.get(origin, "#64748b")
+        for origin in ORIGIN_SCATTER_COLORS
+        if origin in origins
+    }
+    for origin in sorted(origins - set(origin_scatter_colors)):
+        origin_scatter_colors[origin] = ORIGIN_SCATTER_COLORS.get(origin, "#64748b")
     origin_rows = aggregate_scores(result_runs, "origin")
     family_rows = aggregate_scores(result_runs, "family")
     harness_rows = aggregate_scores(result_runs, "harness")
@@ -1769,9 +1784,8 @@ def render_html(
             "Each normalized model version plotted once by model release date, using its maximum score and styled by origin.",
             svg_release_date_scatter(
                 result_runs,
-                origin_colors,
+                origin_scatter_colors,
                 "origin",
-                accent_colors=origin_accents,
                 width=650,
                 height=360,
                 left=66,
