@@ -71,3 +71,5 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260723-181446-gemini-3-6-flash-high | gemini-3.6-flash-high | antigravity |  | 262 | 4 | 7 | stale_limit | 600s | 6h 35m | 27024 | 1392 |  |  |  |
 | 20260724-112152-claude-opus-5 | claude-opus-5 | claudecode | xhigh | 287 | 1 | 2 | agent_error | 600s | 8h 51m | 13448 | 962 |  |  |  |
 | 20260724-220723-claude-opus-5 | claude-opus-5 | claudecode | max | 857 | 9 | 11 | agent_error | 600s | 2d 6h | 48682 | 2690 |  |  |  |
+| 20260731-101124-opencode-openrouter-thinkingmachines-inkling | opencode-openrouter-thinkingmachines-inkling | opencode | high | 41 | 1 | 2 | forbidden_edit_detected | 600s | 26m 28s | 934 | 70 | 168 | $3.124063 | 10878098 |
+| 20260731-114224-opencode-openrouter-thinkingmachines-inkling | opencode-openrouter-thinkingmachines-inkling | opencode | high | 86 | 2 | 5 | stale_limit | 600s | 3h 52m | 2076 | 828 | 343 | $5.649575 | 16044294 |
