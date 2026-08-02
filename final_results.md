@@ -73,3 +73,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260724-220723-claude-opus-5 | claude-opus-5 | claudecode | max | 857 | 9 | 11 | agent_error | 600s | 2d 6h | 48682 | 2690 |  |  |  |
 | 20260731-101124-opencode-openrouter-thinkingmachines-inkling | opencode-openrouter-thinkingmachines-inkling | opencode | high | 41 | 1 | 2 | forbidden_edit_detected | 600s | 26m 28s | 934 | 70 | 168 | $3.124063 | 10878098 |
 | 20260731-114224-opencode-openrouter-thinkingmachines-inkling | opencode-openrouter-thinkingmachines-inkling | opencode | high | 86 | 2 | 5 | stale_limit | 600s | 3h 52m | 2076 | 828 | 343 | $5.649575 | 16044294 |
+| 20260731-163007-gpt-5-6-luna | gpt-5.6-luna | codex | max | 495 | 8 | 10 | agent_idle_timeout | 600s | 33h 21m | 135566323 | 4433 |  |  |  |
