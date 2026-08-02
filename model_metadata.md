@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: July 24, 2026.
+Last researched: August 2, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -12,6 +12,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | ChatGPT / Codex | GPT-5.4 | March 5, 2026 | America | false |
 | ChatGPT / Codex | GPT-5.5 (Codex) | April 23, 2026 | America | false |
 | ChatGPT / Codex | GPT-5.6 Sol | July 9, 2026 | America | false |
+| ChatGPT / Codex | GPT-5.6 Luna | July 9, 2026 | America | false |
 | Claude | Claude Opus 4 | May 22, 2025 | America | false |
 | Claude | Claude Sonnet 4.5 | September 29, 2025 | America | false |
 | Claude | Claude Opus 4.5 | November 24, 2025 | America | false |
@@ -31,6 +32,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
 | Grok | Grok Build | June 1, 2026 | America | false |
 | Nemotron | NVIDIA Nemotron 3 Ultra 550B A55B | June 4, 2026 | America | true |
+| Inkling | Inkling | July 15, 2026 | America | true |
 | Sakana Fugu | Fugu Ultra | June 22, 2026 | Japan | false |
 | Tencent Hunyuan | Tencent Hy3 | July 7, 2026 | China | true |
 | GLM | GLM-4.5 | July 28, 2025 | China | true |
@@ -57,7 +59,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 - GPT-4.1 uses OpenAI's official API launch date and remains false because OpenAI has not published public model weights.
 - GPT-5.5 was publicly rolling out in ChatGPT and Codex on April 23, 2026; API availability followed on April 24, 2026.
-- GPT-5.6 Sol uses OpenAI's official ChatGPT rollout date and remains false because OpenAI has not published public model weights.
+- GPT-5.6 Sol and Luna use OpenAI's official general-availability date and remain false because OpenAI has not published public model weights.
 - Claude Opus 4 uses Anthropic's official Claude 4 launch date and remains false because it is a hosted proprietary model.
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Gemini 3.6 Flash uses Google's official public launch date and remains false because Google provides hosted access rather than public model weights.
@@ -65,6 +67,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Grok 4.5 uses xAI's official launch post date and remains false because xAI describes hosted product/API availability, not public model weights.
 - Grok Composer 2.5 Fast and Grok Build use xAI's official Composer 2.5 announcement date. They remain false because xAI describes Composer 2.5 as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
 - NVIDIA Nemotron 3 Ultra 550B A55B uses NVIDIA's listed Build.NVIDIA.com, Hugging Face, and NGC release date. It is true because NVIDIA and OpenRouter describe Nemotron 3 Ultra as an open/open-weights model.
+- Inkling uses Thinking Machines Lab's official release date and is true because the full model weights are published under the Apache 2.0 license.
 - Fugu Ultra uses Sakana AI's official launch date and remains false because Sakana Fugu is available through an API and its model selection and coordination are described as proprietary, not as public model weights.
 - Tencent Hy3 uses Tencent Hy's official Hy3 release date and is true for open weights because Tencent publishes the model weights under the Apache License 2.0.
 - MiniMax M2 and M3 use OpenRouter's listed release dates. MiniMax M3's official launch post is dated June 1, 2026, but OpenRouter lists earlier public availability.
@@ -93,6 +96,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/), [Gemini 3.6 Flash](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/)
 - xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Grok 4.5 announcement](https://x.ai/news/grok-4-5), [OpenRouter Grok 4.5 model page](https://openrouter.ai/x-ai/grok-4.5), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
 - NVIDIA: [Nemotron 3 Ultra model card](https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard), [Nemotron 3 Ultra research page](https://research.nvidia.com/labs/nemotron/Nemotron-3-Ultra/), [OpenRouter Nemotron 3 Ultra model page](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b)
+- Thinking Machines Lab: [Inkling launch post](https://thinkingmachines.ai/news/introducing-inkling/), [Inkling model card](https://thinkingmachines.ai/model-card/inkling/)
 - Sakana AI: [Sakana AI homepage](https://sakana.ai/), [Fugu launch post](https://sakana.ai/fugu-release/), [Fugu product page](https://sakana.ai/fugu/)
 - Tencent Hy: [Hy3 release page](https://hy.tencent.com/research/hy3), [Tencent Hy3 article](https://www.tencent.com/en-us/articles/2202386.html), [Hy3 Hugging Face model card](https://huggingface.co/tencent/Hy3), [OpenRouter Hy3 model page](https://openrouter.ai/tencent/hy3)
 - Z.AI / GLM: [GLM-4.5 technical blog](https://z.ai/blog/glm-4.5), [GLM-4.5 Hugging Face model card](https://huggingface.co/zai-org/GLM-4.5), [OpenRouter GLM-4.5 model page](https://openrouter.ai/z-ai/glm-4.5), [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [GLM-5.1 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.1), [OpenRouter GLM-5.1 model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks), [Z.AI GLM-5.2 docs](https://docs.z.ai/guides/llm/glm-5.2), [GLM-5.2 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.2), [OpenRouter GLM-5.2 model page](https://openrouter.ai/z-ai/glm-5.2)

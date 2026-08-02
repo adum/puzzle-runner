@@ -81,9 +81,6 @@ ORIGIN_STYLES = {
     "Unknown": {"main": "#64748b", "accent": "#cbd5e1"},
 }
 
-ORIGIN_COLORS = {origin: style["main"] for origin, style in ORIGIN_STYLES.items()}
-ORIGIN_ACCENTS = {origin: style["accent"] for origin, style in ORIGIN_STYLES.items()}
-
 ORIGIN_SCATTER_COLORS = {
     "America": "#4E79A7",
     "China": "#E15759",
@@ -374,6 +371,8 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("sakana "))
     if stripped.startswith("deepseek deepseek "):
         candidates.append(stripped.removeprefix("deepseek "))
+    if stripped.startswith("thinkingmachines "):
+        candidates.append(stripped.removeprefix("thinkingmachines "))
 
     if base.startswith("codex "):
         candidates.append("gpt " + base.removeprefix("codex ") + " codex")
@@ -1222,7 +1221,6 @@ def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, st
 def svg_origin_best_over_time(
     runs: list[RunResult],
     origin_colors: dict[str, str],
-    origin_accents: dict[str, str],
 ) -> str:
     return svg_group_best_over_time(
         runs,
@@ -1230,7 +1228,6 @@ def svg_origin_best_over_time(
         "origin",
         "Origin best score so far",
         "Cumulative best score by model origin over release date",
-        origin_accents,
     )
 
 
@@ -1710,17 +1707,6 @@ def render_html(
     result_runs = best_runs_by_version(runs)
     family_colors = color_map([run.family for run in result_runs])
     origins = {run.origin for run in result_runs}
-    origin_colors = {
-        origin: ORIGIN_COLORS.get(origin, "#64748b")
-        for origin in ORIGIN_COLORS
-        if origin in origins
-    }
-    for origin in sorted(origins - set(origin_colors)):
-        origin_colors[origin] = ORIGIN_COLORS.get(origin, "#64748b")
-    origin_accents = {
-        origin: ORIGIN_ACCENTS.get(origin, "#cbd5e1")
-        for origin in origin_colors
-    }
     origin_scatter_colors = {
         origin: ORIGIN_SCATTER_COLORS.get(origin, "#64748b")
         for origin in ORIGIN_SCATTER_COLORS
@@ -1771,7 +1757,7 @@ def render_html(
         chart_shell(
             "Origin Best Score Over Time",
             "Cumulative best max-only model result each origin has achieved as newer models are released.",
-            svg_origin_best_over_time(result_runs, origin_colors, origin_accents),
+            svg_origin_best_over_time(result_runs, origin_scatter_colors),
         ),
         chart_shell(
             "Open Weights Versus Closed Weights",
