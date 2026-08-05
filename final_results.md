@@ -76,3 +76,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260731-163007-gpt-5-6-luna | gpt-5.6-luna | codex | max | 495 | 8 | 10 | agent_idle_timeout | 600s | 33h 21m | 135566323 | 4433 |  |  |  |
 | 20260802-090654-opencode-openrouter-deepseek-deepseek-v4-flash-0731 | opencode-openrouter-deepseek-deepseek-v4-flash-0731 | opencode | high | 99 | 2 | 5 | stale_limit | 600s | 23h 34m | 30902 | 727 | 1110 | $5.223872 | 221768694 |
 | 20260803-094458-opencode-openrouter-deepseek-deepseek-v4-flash-0731 | opencode-openrouter-deepseek-deepseek-v4-flash-0731 | opencode | high | 195 | 2 | 5 | stale_limit | 600s | 20h 29m | 38713 | 495 | 811 | $2.169497 | 85472653 |
+| 20260804-083422-opencode-openrouter-qwen-qwen3-8-max | opencode-openrouter-qwen-qwen3.8-max | opencode | high | 247 | 3 | 3 | agent_idle_timeout | 600s | 15h 4m | 23546 | 477 | 332 | $65.602398 | 52226671 |
