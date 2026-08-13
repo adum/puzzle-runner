@@ -79,3 +79,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260804-083422-opencode-openrouter-qwen-qwen3-8-max | opencode-openrouter-qwen-qwen3.8-max | opencode | high | 247 | 3 | 3 | agent_idle_timeout | 600s | 15h 4m | 23546 | 477 | 332 | $65.602398 | 52226671 |
 | 20260810-095245-opencode-openrouter-meta-muse-spark-1-2 | opencode-openrouter-meta-muse-spark-1.2 | opencode | high | 102 | 1 | 4 | stale_limit | 600s | 17h 43m | 1064 | 3043 | 864 | $71.121938 | 139117343 |
 | 20260812-091101-grok-4-6 | grok-4.6 | grokbuild |  | 222 | 1 | 1 | agent_failed | 600s | 1h 35m | 3345 | 1044 |  |  |  |
+| 20260812-112128-grok-4-6 | grok-4.6 | grokbuild |  | 196 | 2 | 3 | agent_idle_timeout | 600s | 8h 26m | 9464 | 1963 |  |  |  |
