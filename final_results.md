@@ -80,3 +80,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260810-095245-opencode-openrouter-meta-muse-spark-1-2 | opencode-openrouter-meta-muse-spark-1.2 | opencode | high | 102 | 1 | 4 | stale_limit | 600s | 17h 43m | 1064 | 3043 | 864 | $71.121938 | 139117343 |
 | 20260812-091101-grok-4-6 | grok-4.6 | grokbuild |  | 222 | 1 | 1 | agent_failed | 600s | 1h 35m | 3345 | 1044 |  |  |  |
 | 20260812-112128-grok-4-6 | grok-4.6 | grokbuild |  | 196 | 2 | 3 | agent_idle_timeout | 600s | 8h 26m | 9464 | 1963 |  |  |  |
+| 20260813-004140-grok-4-6 | grok-4.6 | grokbuild |  | 262 | 1 | 2 | agent_idle_timeout | 600s | 5h 28m | 5430 | 1902 |  |  |  |
