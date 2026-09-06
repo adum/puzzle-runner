@@ -20,6 +20,11 @@ evaluation_script = "evaluate_full.py"
 evaluation_timeout_seconds = 600
 evaluation_process_timeout_seconds = 0
 
+# Start each evaluation at max(1, this run's best score minus the backtrack).
+# Set to false to evaluate from level 1 every round.
+evaluation_resume_from_best = true
+evaluation_backtrack_levels = 20
+
 # Optional override. Fresh cloned runs generate an ephemeral password when this
 # env var is absent.
 full_eval_password_env = "COIL_FULL_PASSWORD"

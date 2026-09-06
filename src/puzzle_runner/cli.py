@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 
 from .config import ConfigError, load_config
@@ -23,7 +24,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional run id. Defaults to a timestamped id.",
     )
+    parser.add_argument(
+        "--evaluation-resume-from-best",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Start evaluations near this run's best score. Enabled by default; overrides config.",
+    )
+    parser.add_argument(
+        "--evaluation-backtrack-levels",
+        type=_non_negative_int,
+        default=None,
+        help="Levels to backtrack from the best score. Defaults to 20; overrides config.",
+    )
     return parser
+
+
+def _non_negative_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a non-negative integer") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError("must be a non-negative integer")
+    return number
 
 
 def build_watch_parser() -> argparse.ArgumentParser:
@@ -43,6 +66,12 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config, run_id=args.run_id)
+        overrides = {
+            key: value
+            for key in ("evaluation_resume_from_best", "evaluation_backtrack_levels")
+            if (value := getattr(args, key)) is not None
+        }
+        config = dataclasses.replace(config, **overrides)
         result = Runner(config).run()
     except (ConfigError, RunnerError) as exc:
         print(f"puzzle-runner: {exc}", file=sys.stderr)

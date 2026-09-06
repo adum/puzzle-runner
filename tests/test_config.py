@@ -2,10 +2,50 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from puzzle_runner.config import load_config
+from puzzle_runner.config import ConfigError, load_config
 
 
 class ConfigTests(unittest.TestCase):
+    def test_evaluation_resume_settings(self) -> None:
+        source_path = Path(__file__).resolve().parents[1] / "config.example.toml"
+        source = source_path.read_text(encoding="utf-8")
+        source = source.replace("evaluation_resume_from_best = true\n", "")
+        source = source.replace("evaluation_backtrack_levels = 20\n", "")
+        cases = [
+            ("", True, 20),
+            ("evaluation_resume_from_best = false\n", False, 20),
+            ("evaluation_backtrack_levels = 7\n", True, 7),
+            ("evaluation_backtrack_levels = 0\n", True, 0),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "runner.toml"
+            for settings, enabled, backtrack in cases:
+                with self.subTest(settings=settings):
+                    config_path.write_text(settings + source, encoding="utf-8")
+                    config = load_config(str(config_path), run_id="test-run")
+                    self.assertEqual(config.evaluation_resume_from_best, enabled)
+                    self.assertEqual(config.evaluation_backtrack_levels, backtrack)
+
+    def test_invalid_evaluation_resume_settings_are_rejected(self) -> None:
+        source_path = Path(__file__).resolve().parents[1] / "config.example.toml"
+        source = source_path.read_text(encoding="utf-8")
+        source = source.replace("evaluation_resume_from_best = true\n", "")
+        source = source.replace("evaluation_backtrack_levels = 20\n", "")
+        cases = [
+            ("evaluation_resume_from_best", '"false"'),
+            ("evaluation_resume_from_best", "1"),
+            ("evaluation_backtrack_levels", "-1"),
+            ("evaluation_backtrack_levels", "true"),
+            ("evaluation_backtrack_levels", '"20"'),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "runner.toml"
+            for key, value in cases:
+                with self.subTest(key=key, value=value):
+                    config_path.write_text(f"{key} = {value}\n" + source, encoding="utf-8")
+                    with self.assertRaisesRegex(ConfigError, key):
+                        load_config(str(config_path), run_id="test-run")
+
     def test_example_config_loads_agent_retry_defaults(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.example.toml"
 

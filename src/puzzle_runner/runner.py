@@ -378,25 +378,36 @@ class Runner:
                 )
                 break
 
+            evaluation_start_level = 1
             if self._can_shortcut_default_solver_evaluation():
                 self._update_status(
                     phase="evaluation_shortcut",
                     default_solver_evaluation_shortcut=True,
+                    evaluation_start_level=evaluation_start_level,
                 )
                 eval_result = self._write_default_solver_evaluation_result(round_dir)
             else:
+                if self.config.evaluation_resume_from_best:
+                    evaluation_start_level = max(
+                        1, best_score - self.config.evaluation_backtrack_levels
+                    )
                 self._update_status(
                     phase="evaluation_running",
                     default_solver_evaluation_shortcut=False,
+                    evaluation_start_level=evaluation_start_level,
                 )
-                eval_result = self._run_evaluation(round_dir)
+                eval_result = self._run_evaluation(round_dir, start_level=evaluation_start_level)
             self._write_round_command(round_dir, "evaluation_result.json", eval_result)
             self._update_status(
                 phase="evaluation_parsing",
                 last_evaluation_returncode=eval_result.returncode,
                 last_evaluation_timed_out=eval_result.timed_out,
             )
-            parsed = parse_evaluation_output(eval_result.stdout_path, eval_result.stderr_path)
+            parsed = parse_evaluation_output(
+                eval_result.stdout_path,
+                eval_result.stderr_path,
+                start_level=evaluation_start_level,
+            )
             self._write_json_at(round_dir / "evaluation_parse.json", _jsonable(dataclasses.asdict(parsed)))
 
             improved = parsed.highest_passed > best_score
@@ -434,6 +445,7 @@ class Runner:
             self._event(
                 "evaluation_finished",
                 round=round_number,
+                start_level=evaluation_start_level,
                 score=parsed.highest_passed,
                 improved=improved,
                 best_score=best_score,
@@ -1051,7 +1063,7 @@ exec python3 ./coil_solver.py
 
         return update
 
-    def _run_evaluation(self, round_dir: Path) -> CommandResult:
+    def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
         password = self._get_full_eval_password()
 
         argv = [
@@ -1060,8 +1072,10 @@ exec python3 ./coil_solver.py
             "--timeout",
             str(self.config.evaluation_timeout_seconds),
         ]
-        self._update_status(current_command=argv)
-        self._event("evaluation_started", argv=argv)
+        if start_level > 1:
+            argv.extend(["--start", str(start_level)])
+        self._update_status(current_command=argv, evaluation_start_level=start_level)
+        self._event("evaluation_started", argv=argv, start_level=start_level)
         round_dir.mkdir(parents=True, exist_ok=True)
         # Extracted levels retain old archive timestamps, so macOS can delete
         # them during its nightly system-temp cleanup even in an active run.
@@ -1215,6 +1229,8 @@ Workspace: {final.workspace}
 Solver wrapper: ./{self.config.solver_wrapper}
 Evaluation: ./{self.config.evaluation_script}
 Evaluation timeout: {self.config.evaluation_timeout_seconds}s
+Resume evaluations from best: {self.config.evaluation_resume_from_best}
+Evaluation backtrack levels: {self.config.evaluation_backtrack_levels}
 Stale limit: {self.config.stale_limit}
 Agent timeout: {self.config.agent_timeout_seconds}s
 Agent idle timeout: {self.config.agent_idle_timeout_seconds}s

@@ -922,7 +922,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("evaluation should not run after model-not-found")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -960,7 +960,7 @@ class RunnerTests(unittest.TestCase):
             def _normalize_workspace_line_endings(self) -> None:
                 pass
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("evaluation should not run after agent auth error")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1086,7 +1086,7 @@ class RunnerTests(unittest.TestCase):
             def _can_shortcut_default_solver_evaluation(self) -> bool:
                 return False
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1268,7 +1268,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1346,7 +1346,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1436,7 +1436,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1523,7 +1523,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("unchanged default solver should use shortcut")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1586,7 +1586,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(

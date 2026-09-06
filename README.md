@@ -27,6 +27,28 @@ temporary-file cleanup from deleting extracted levels with old archive timestamp
 The runner removes the directory after the evaluation exits, including on failure
 or timeout. Keep `log_root` outside system temporary directories.
 
+By default, later full evaluations start at `max(1, best_score - 20)`, using the
+best score from earlier rounds of the same run. For example, after passing level
+450, the next evaluation starts at 430. The first evaluation starts at 1, and
+regressions do not move the starting point backward. Skipped levels are assumed
+solved; changes that break those earlier levels will not be detected in this mode.
+Scores remain absolute level numbers. A failure at the starting level credits
+the skipped prefix (for example, 429 if level 430 fails); startup errors earn no
+credit.
+
+These optional top-level TOML settings control the behavior:
+
+```toml
+evaluation_resume_from_best = true
+evaluation_backtrack_levels = 20
+```
+
+Set `evaluation_resume_from_best = false` to start every evaluation at level 1.
+You can also override the config with `--no-evaluation-resume-from-best`,
+`--evaluation-resume-from-best`, or `--evaluation-backtrack-levels 20`.
+The backtrack must be non-negative; 0 starts at the best previously passed level.
+The selected starting level is recorded in the run's status and evaluation events.
+
 Optional install:
 
 ```sh
