@@ -21,6 +21,12 @@ Fresh git workspaces are checked out with `core.autocrlf=false` and LF endings b
 
 Fresh cloned runs generate an ephemeral password for `download_full_levels.sh` and `evaluate_full.py`. Set `COIL_FULL_PASSWORD` only when using an existing encrypted level archive.
 
+Each evaluation uses a private temporary directory inside its round's log directory,
+passed through `TMPDIR`, `TMP`, and `TEMP`. This prevents macOS's scheduled
+temporary-file cleanup from deleting extracted levels with old archive timestamps.
+The runner removes the directory after the evaluation exits, including on failure
+or timeout. Keep `log_root` outside system temporary directories.
+
 Optional install:
 
 ```sh

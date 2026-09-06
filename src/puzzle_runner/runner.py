@@ -8,6 +8,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from datetime import datetime, timezone
@@ -1061,23 +1062,31 @@ exec python3 ./coil_solver.py
         ]
         self._update_status(current_command=argv)
         self._event("evaluation_started", argv=argv)
-        return run_streamed(
-            argv,
-            cwd=self.workspace,
-            stdin_text=f"{password}\n",
-            env={
-                self.config.full_eval_password_env: password,
-                "COIL_FULL_PASSWORD": password,
-            },
-            timeout_seconds=(
-                self.config.evaluation_process_timeout_seconds
-                if self.config.evaluation_process_timeout_seconds > 0
-                else None
-            ),
-            stdout_path=round_dir / "evaluation.stdout.log",
-            stderr_path=round_dir / "evaluation.stderr.log",
-            echo=self.config.echo_evaluation_output,
-        )
+        round_dir.mkdir(parents=True, exist_ok=True)
+        # Extracted levels retain old archive timestamps, so macOS can delete
+        # them during its nightly system-temp cleanup even in an active run.
+        # Keep evaluation scratch files with the run and remove them on exit.
+        with tempfile.TemporaryDirectory(prefix="evaluation-tmp-", dir=round_dir.resolve()) as temp_dir:
+            return run_streamed(
+                argv,
+                cwd=self.workspace,
+                stdin_text=f"{password}\n",
+                env={
+                    self.config.full_eval_password_env: password,
+                    "COIL_FULL_PASSWORD": password,
+                    "TMPDIR": temp_dir,
+                    "TMP": temp_dir,
+                    "TEMP": temp_dir,
+                },
+                timeout_seconds=(
+                    self.config.evaluation_process_timeout_seconds
+                    if self.config.evaluation_process_timeout_seconds > 0
+                    else None
+                ),
+                stdout_path=round_dir / "evaluation.stdout.log",
+                stderr_path=round_dir / "evaluation.stderr.log",
+                echo=self.config.echo_evaluation_output,
+            )
 
     def _can_shortcut_default_solver_evaluation(self) -> bool:
         if self._default_solver_baseline is None:
