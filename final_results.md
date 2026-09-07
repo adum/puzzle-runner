@@ -83,3 +83,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260813-004140-grok-4-6 | grok-4.6 | grokbuild |  | 262 | 1 | 2 | agent_idle_timeout | 600s | 5h 28m | 5430 | 1902 |  |  |  |
 | 20260813-111139-grok-4-6 | grok-4.6 | grokbuild | xhigh | 195 | 3 | 6 | stale_limit | 600s | 9h 48m | 18596 | 3364 |  |  |  |
 | 20260904-234622-gpt-6-astra | gpt-6-astra | codex | high | 785 | 6 | 8 | evaluation_failed | 600s | 27h 51m | 1113089 | 73537 |  |  |  |
+| 20260906-140019-gpt-6-astra | gpt-6-astra | codex | xhigh | 1107 | 5 | 8 | stale_limit | 600s | 22h 25m | 8596426 | 181538 |  |  |  |
