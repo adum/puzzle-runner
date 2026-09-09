@@ -309,7 +309,10 @@ class Runner:
                 stale_limit=self.config.stale_limit,
                 round_number=round_number,
             )
-            prompt = compose_prompt(feedback)
+            prompt = compose_prompt(
+                feedback,
+                evaluation_timeout_seconds=self.config.evaluation_timeout_seconds,
+            )
             (round_dir / "prompt.md").write_text(prompt, encoding="utf-8")
             self._update_status(phase="agent_running")
             self._event("agent_started", round=round_number)
