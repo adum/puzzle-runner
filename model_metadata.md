@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: September 6, 2026.
+Last researched: September 9, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -21,6 +21,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Claude | Claude Opus 4.7 | April 16, 2026 | America | false |
 | Claude | Claude Opus 4.8 | May 28, 2026 | America | false |
 | Claude | Claude Fable 5 | June 9, 2026 | America | false |
+| Claude | Claude Fable 5.1 | September 1, 2026 | America | false |
 | Claude | Claude Sonnet 5 | June 30, 2026 | America | false |
 | Claude | Claude Opus 5 | July 24, 2026 | America | false |
 | Gemini | Gemini 2.5 Flash | June 17, 2025 | America | false |
@@ -100,6 +101,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Claude Fable 5.1: [Anthropic model page and release date](https://www.anthropic.com/claude/fable). Available through hosted Claude products and APIs; no public model weights.
 
 - OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.4](https://openai.com/index/introducing-gpt-5-4/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/), [GPT-5.6 Sol release notes](https://help.openai.com/en/articles/9624314-model-release-notes), [GPT-5.6](https://openai.com/index/gpt-5-6/), [GPT-6 Astra](https://openai.com/index/gpt-6-astra/)
 - Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), [Claude Opus 5](https://www.anthropic.com/news/claude-opus-5)
