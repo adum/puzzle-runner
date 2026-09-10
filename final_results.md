@@ -87,3 +87,4 @@ Run `20260907-134703-claude-fable-5-1` was recovered after a computer restart du
 | 20260904-234622-gpt-6-astra | gpt-6-astra | codex | high | 785 | 6 | 8 | evaluation_failed | 600s | 27h 51m | 1113089 | 73537 |  |  |  |
 | 20260906-140019-gpt-6-astra | gpt-6-astra | codex | xhigh | 1107 | 5 | 8 | stale_limit | 600s | 22h 25m | 8596426 | 181538 |  |  |  |
 | 20260907-134703-claude-fable-5-1 | claude-fable-5-1 | claudecode | xhigh | 1115 | 7 | 7 | system_restart | 600s | 35h 12m | 32774 | 2815 |  |  |  |
+| 20260909-064552-gpt-6-astra | gpt-6-astra | codex | xhigh | 1010 | 2 | 5 | stale_limit | 600s | 13h 51m | 12906584 | 163123 |  |  |  |
