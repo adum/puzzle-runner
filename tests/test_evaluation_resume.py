@@ -27,11 +27,16 @@ class EvaluationResumeTests(unittest.TestCase):
             results_path=root / "final_results.md",
         )
 
-    def run_scenario(self, run_id, scores, *, shortcut_first=False, **overrides):
+    def run_scenario(
+        self, run_id, scores, *, shortcut_first=False, clean_evaluation=False,
+        evaluation_returncode=0, evaluation_timed_out=False, **overrides,
+    ):
         class ScenarioRunner(Runner):
             def _prepare_workspace(self) -> None:
                 self.workspace.mkdir(parents=True)
                 (self.workspace / "run_solver").write_text("#!/bin/sh\necho solver\n")
+                if clean_evaluation:
+                    (self.workspace / "clean-evaluation").touch()
                 (self.workspace / self.config.evaluation_script).write_text(
                     textwrap.dedent("""\
                         import argparse
@@ -44,7 +49,8 @@ class EvaluationResumeTests(unittest.TestCase):
                         score = int(Path('target-score').read_text())
                         for level in range(args.start, score + 1):
                             print(f'Level {level} (3x3): PASS (0.01s)')
-                        print(f'Level {max(args.start, score + 1)} (3x3): FAIL (0.01s)')
+                        if not Path('clean-evaluation').exists():
+                            print(f'Level {max(args.start, score + 1)} (3x3): FAIL (0.01s)')
                         """),
                     encoding="utf-8",
                 )
@@ -57,6 +63,12 @@ class EvaluationResumeTests(unittest.TestCase):
 
             def _get_full_eval_password(self) -> str:
                 return "test-password"
+
+            def _run_evaluation(self, round_dir, *, start_level=1):
+                result = super()._run_evaluation(round_dir, start_level=start_level)
+                return dataclasses.replace(
+                    result, returncode=evaluation_returncode, timed_out=evaluation_timed_out,
+                )
 
             def _run_agent(self, round_number, round_dir, prompt):
                 (self.workspace / "target-score").write_text(str(scores[round_number - 1]))
@@ -105,6 +117,38 @@ class EvaluationResumeTests(unittest.TestCase):
         # A new run sharing the same status/results paths still starts from 1.
         _, _, starts = self.run_scenario("fresh", [5, 6])
         self.assertEqual(starts, [1, 1])
+
+    def test_all_levels_solved_stops_immediately_and_records_result(self) -> None:
+        for scores, expected_starts in [([1208, 1208], [1]), ([1190, 1208, 1208], [1, 1170])]:
+            with self.subTest(scores=scores):
+                runner, final, starts = self.run_scenario(
+                    f"solved-{len(scores)}", scores, clean_evaluation=True,
+                )
+                self.assertEqual(starts, expected_starts)
+                self.assertEqual(final.best_score, 1208)
+                self.assertEqual(final.stop_reason, "all_levels_solved")
+                self.assertEqual(runner._status["stop_reason"], "all_levels_solved")
+                self.assertIn("all_levels_solved", runner.config.results_path.read_text())
+                self.assertFalse((final.log_dir / f"round-{final.total_rounds + 1:03d}").exists())
+
+    def test_completion_requires_clean_successful_evaluation(self) -> None:
+        cases = [
+            ("failure", {}, "max_rounds"),
+            ("nonzero", {"clean_evaluation": True, "evaluation_returncode": 1}, "evaluation_failed"),
+            ("timeout", {"clean_evaluation": True, "evaluation_timed_out": True}, "evaluation_timeout"),
+            ("disabled", {"clean_evaluation": True, "evaluation_final_level": 0}, "max_rounds"),
+        ]
+        for run_id, options, reason in cases:
+            with self.subTest(run_id=run_id):
+                _, final, _ = self.run_scenario(run_id, [1208], **options)
+                self.assertEqual(final.stop_reason, reason)
+
+    def test_custom_final_level(self) -> None:
+        _, final, starts = self.run_scenario(
+            "custom-end", [10, 10], clean_evaluation=True, evaluation_final_level=10,
+        )
+        self.assertEqual(starts, [1])
+        self.assertEqual(final.stop_reason, "all_levels_solved")
 
     def test_disabled_resume_starts_every_round_at_one(self) -> None:
         _, final, starts = self.run_scenario(

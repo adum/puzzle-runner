@@ -6,6 +6,20 @@ from puzzle_runner.config import ConfigError, load_config
 
 
 class ConfigTests(unittest.TestCase):
+    def test_evaluation_final_level(self) -> None:
+        source = (Path(__file__).resolve().parents[1] / "config.example.toml").read_text()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "runner.toml"
+            for setting, expected in [("", 1208), ("evaluation_final_level = 10\n", 10), ("evaluation_final_level = 0\n", 0)]:
+                with self.subTest(setting=setting):
+                    path.write_text(setting + source)
+                    self.assertEqual(load_config(str(path)).evaluation_final_level, expected)
+            for value in ["-1", "true", '"1208"']:
+                with self.subTest(value=value):
+                    path.write_text(f"evaluation_final_level = {value}\n" + source)
+                    with self.assertRaises(ConfigError):
+                        load_config(str(path))
+
     def test_evaluation_resume_settings(self) -> None:
         source_path = Path(__file__).resolve().parents[1] / "config.example.toml"
         source = source_path.read_text(encoding="utf-8")

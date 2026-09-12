@@ -106,6 +106,11 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("stale_limit=3", detail)
 
+    def test_explain_all_levels_solved(self) -> None:
+        detail = explain_stop_reason("all_levels_solved", self.config, {})
+        self.assertIn("evaluation_final_level=1208", detail)
+        self.assertIn("No further agent rounds", detail)
+
     def test_explain_agent_max_steps_names_parameter(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
         config = load_config(str(config_path), run_id="test-run")

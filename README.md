@@ -44,6 +44,14 @@ evaluation_backtrack_levels = 20
 ```
 
 Set `evaluation_resume_from_best = false` to start every evaluation at level 1.
+
+The harness stops with `all_levels_solved` as soon as a successful evaluation
+passes the final benchmark level with no failing level or reported error.
+`evaluation_final_level` defaults to `1208`, the last Mortal Coil level. Override
+it for another level set, or set it to `0` to disable this stop condition.
+Resumed evaluations retain the usual trusted-prefix semantics. Completion takes
+precedence over stale-round and agent-failure stops, but never over evaluation
+failures, process timeouts, or forbidden edits.
 You can also override the config with `--no-evaluation-resume-from-best`,
 `--evaluation-resume-from-best`, or `--evaluation-backtrack-levels 20`.
 The backtrack must be non-negative; 0 starts at the best previously passed level.

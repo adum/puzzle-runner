@@ -476,6 +476,16 @@ class Runner:
                 self._update_status(phase="stopping", stop_reason=stop_reason)
                 break
 
+            if (
+                self.config.evaluation_final_level > 0
+                and parsed.highest_passed >= self.config.evaluation_final_level
+                and parsed.first_failing_level is None
+                and parsed.failure_reason is None
+            ):
+                stop_reason = "all_levels_solved"
+                self._update_status(phase="stopping", stop_reason=stop_reason)
+                break
+
             if agent_idle_timed_out:
                 stop_reason = "agent_idle_timeout"
                 self._update_status(phase="stopping", stop_reason=stop_reason)
@@ -2893,6 +2903,12 @@ def _format_duration(seconds: float) -> str:
 
 
 def explain_stop_reason(stop_reason: str, config: RunnerConfig, status: dict) -> str:
+    if stop_reason == "all_levels_solved":
+        return (
+            "Evaluation passed through the final benchmark level "
+            f"(evaluation_final_level={config.evaluation_final_level}) without a failing level. "
+            "No further agent rounds are needed."
+        )
     if stop_reason == "agent_timeout":
         elapsed = _duration_text(status.get("last_agent_elapsed_seconds"))
         return (
