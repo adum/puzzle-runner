@@ -41,9 +41,9 @@ agent_idle_timeout_seconds = 1800
 agent_failure_retry_limit_seconds = 900
 
 build_checker = true
-# Claude streams JSON events to the agent stdout log. Keep runner terminal output
-# quiet and use `puzzle-runner watch` for a readable live view.
+# Keep raw JSON in the log and show readable Claude progress in the terminal.
 echo_agent_output = false
+echo_agent_progress = true
 echo_evaluation_output = true
 
 forbidden_paths = [

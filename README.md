@@ -81,6 +81,11 @@ Per-run logs include:
 
 Top-level final summaries append to `final_results.md`.
 
+Claude stream JSON runs show live assistant text, thinking, tool inputs, and tool
+results in the terminal by default. Full JSON events remain in `agent.stdout.log`.
+Set `echo_agent_progress = false` to silence this readable output, or
+`echo_agent_output = true` to print the raw stream instead.
+
 For stream JSON runs, `Agent Chars` counts assistant text content only, not the
 raw JSON event envelope.
 

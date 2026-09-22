@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from .claude_progress import ClaudeProgress
 from .config import RunnerConfig
 from .evaluation import EvaluationParse, parse_evaluation_output
 from .guard import ForbiddenGuard, GuardFinding
@@ -1534,6 +1535,8 @@ def _agent_stdout_completion_predicate(config: RunnerConfig) -> Callable[[str], 
 def _agent_stdout_line_callback(config: RunnerConfig) -> Callable[[str], None] | None:
     if not config.echo_agent_progress or config.echo_agent_output:
         return None
+    if _agent_stream_format(config) == "claude-stream-json":
+        return ClaudeProgress()
     if _agent_stream_format(config) != "opencode-json":
         return None
 
