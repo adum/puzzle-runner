@@ -15,7 +15,7 @@ class ScoreFeedback:
     round_number: int
 
 
-def compose_prompt(feedback: ScoreFeedback) -> str:
+def compose_prompt(feedback: ScoreFeedback, *, evaluation_timeout_seconds: int = 600) -> str:
     remaining_tries = max(feedback.stale_limit - feedback.stale_count, 0)
     if feedback.last_score is None:
         score_text = (
@@ -40,6 +40,9 @@ def compose_prompt(feedback: ScoreFeedback) -> str:
 
 Read `prompts.txt` and execute it to the best of your ability.
 
+Full-evaluation solver time limit: {evaluation_timeout_seconds} seconds per level ({evaluation_timeout_seconds / 60:g} min).
+Your solver must finish each level within this limit. A timeout stops evaluation.
+
 Full-evaluation score feedback:
 {score_text}
 
@@ -49,7 +52,7 @@ Rules:
 - Do not modify benchmark assets, level files, evaluator scripts, or checker source.
 - Do not inspect, decrypt, print, or expose private level contents.
 - Do not run `evaluate_full.py`; Puzzle Runner owns full evaluation.
-- You may run public development evaluation with `./evaluate.py --start 1`.
+- You may run public development evaluation with `./evaluate.py --start 1 --timeout {evaluation_timeout_seconds}`.
 - The fixed solver entrypoint is `./run_solver`.
 - You may edit `./run_solver` or files it points to, but Puzzle Runner will always evaluate that same entrypoint.
 - When you return control, print `{SENTINEL}` on its own line.

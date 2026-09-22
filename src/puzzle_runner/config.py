@@ -65,6 +65,9 @@ class RunnerConfig:
     echo_evaluation_output: bool
     forbidden_paths: list[str]
     agent: AgentConfig
+    evaluation_resume_from_best: bool = True
+    evaluation_backtrack_levels: int = 20
+    evaluation_final_level: int = 1208
 
 
 def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
@@ -104,6 +107,9 @@ def load_config(path: str, *, run_id: str | None = None) -> RunnerConfig:
         evaluation_script=_str(raw, "evaluation_script", "evaluate_full.py"),
         evaluation_timeout_seconds=_positive_int(raw, "evaluation_timeout_seconds", 600),
         evaluation_process_timeout_seconds=_non_negative_int(raw, "evaluation_process_timeout_seconds", 0),
+        evaluation_resume_from_best=_bool(raw, "evaluation_resume_from_best", True),
+        evaluation_backtrack_levels=_non_negative_int(raw, "evaluation_backtrack_levels", 20),
+        evaluation_final_level=_non_negative_int(raw, "evaluation_final_level", 1208),
         full_eval_password_env=_str(raw, "full_eval_password_env", "COIL_FULL_PASSWORD"),
         generate_full_eval_password=bool(raw.get("generate_full_eval_password", True)),
         stale_limit=_positive_int(raw, "stale_limit", 3),
@@ -314,6 +320,13 @@ def _optional_str(raw: dict[str, Any], key: str, default: str | None = None) -> 
     return value or None
 
 
+def _bool(raw: dict[str, Any], key: str, default: bool) -> bool:
+    value = raw.get(key, default)
+    if not isinstance(value, bool):
+        raise ConfigError(f"{key} must be a boolean")
+    return value
+
+
 def _positive_int(raw: dict[str, Any], key: str, default: int) -> int:
     value = raw.get(key, default)
     if not isinstance(value, int) or value <= 0:
@@ -323,7 +336,7 @@ def _positive_int(raw: dict[str, Any], key: str, default: int) -> int:
 
 def _non_negative_int(raw: dict[str, Any], key: str, default: int) -> int:
     value = raw.get(key, default)
-    if not isinstance(value, int) or value < 0:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ConfigError(f"{key} must be a non-negative integer")
     return value
 

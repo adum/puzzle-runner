@@ -1,5 +1,9 @@
 Result semantics: this table records individual runs. For model-level reporting, the true result for a model is the maximum `Best Score` across all rows that normalize to the same specific model version; repeated runs are never averaged. Visualization score charts apply this max-only rule before plotting.
 
+Run `20260907-134703-claude-fable-5-1` was recovered after a computer restart during round 8. Seven evaluations completed; the last passed level 1115 and timed out at 1116. Round 8 was not evaluated. Wall time is approximate, based on the last saved status; output and code totals were recovered from the surviving logs and workspace.
+
+Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 passed the final level, 1208 (2000 x 2000), and rounds 5 and 6 repeated that score. The run was manually stopped during round 7's evaluation, which did not complete. Six evaluations completed. Wall time is approximate, based on the last saved status; output and code totals include the surviving round 7 work. Effort was recovered from the command's `model_reasoning_effort="max"` setting.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -83,3 +87,8 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260813-004140-grok-4-6 | grok-4.6 | grokbuild |  | 262 | 1 | 2 | agent_idle_timeout | 600s | 5h 28m | 5430 | 1902 |  |  |  |
 | 20260813-111139-grok-4-6 | grok-4.6 | grokbuild | xhigh | 195 | 3 | 6 | stale_limit | 600s | 9h 48m | 18596 | 3364 |  |  |  |
 | 20260820-165407-opencode-openrouter-z-ai-glm-5-3 | opencode-openrouter-z-ai-glm-5.3 | opencode | high | 215 | 3 | 3 | agent_idle_timeout | 600s | 21h 30m | 21430 | 2988 | 513 | $34.142557 | 114820331 |
+| 20260904-234622-gpt-6-astra | gpt-6-astra | codex | high | 785 | 6 | 8 | evaluation_failed | 600s | 27h 51m | 1113089 | 73537 |  |  |  |
+| 20260906-140019-gpt-6-astra | gpt-6-astra | codex | xhigh | 1107 | 5 | 8 | stale_limit | 600s | 22h 25m | 8596426 | 181538 |  |  |  |
+| 20260907-134703-claude-fable-5-1 | claude-fable-5-1 | claudecode | xhigh | 1115 | 7 | 7 | system_restart | 600s | 35h 12m | 32774 | 2815 |  |  |  |
+| 20260909-064552-gpt-6-astra | gpt-6-astra | codex | xhigh | 1010 | 2 | 5 | stale_limit | 600s | 13h 51m | 12906584 | 163123 |  |  |  |
+| 20260910-133036-gpt-6-astra | gpt-6-astra | codex | max | 1208 | 4 | 6 | all_levels_solved | 600s | 34h 59m | 8846380 | 71813 |  |  |  |

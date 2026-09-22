@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: August 5, 2026.
+Last researched: September 9, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -13,6 +13,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | ChatGPT / Codex | GPT-5.5 (Codex) | April 23, 2026 | America | false |
 | ChatGPT / Codex | GPT-5.6 Sol | July 9, 2026 | America | false |
 | ChatGPT / Codex | GPT-5.6 Luna | July 9, 2026 | America | false |
+| ChatGPT / Codex | GPT-6 Astra | September 3, 2026 | America | false |
 | Claude | Claude Opus 4 | May 22, 2025 | America | false |
 | Claude | Claude Sonnet 4.5 | September 29, 2025 | America | false |
 | Claude | Claude Opus 4.5 | November 24, 2025 | America | false |
@@ -20,6 +21,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Claude | Claude Opus 4.7 | April 16, 2026 | America | false |
 | Claude | Claude Opus 4.8 | May 28, 2026 | America | false |
 | Claude | Claude Fable 5 | June 9, 2026 | America | false |
+| Claude | Claude Fable 5.1 | September 1, 2026 | America | false |
 | Claude | Claude Sonnet 5 | June 30, 2026 | America | false |
 | Claude | Claude Opus 5 | July 24, 2026 | America | false |
 | Gemini | Gemini 2.5 Flash | June 17, 2025 | America | false |
@@ -29,6 +31,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3.6 Flash (High) | July 21, 2026 | America | false |
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok 4.5 | July 8, 2026 | America | false |
+| Grok | Grok 4.6 | August 12, 2026 | America | false |
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
 | Grok | Grok Build | June 1, 2026 | America | false |
 | Nemotron | NVIDIA Nemotron 3 Ultra 550B A55B | June 4, 2026 | America | true |
@@ -44,6 +47,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Kimi | Kimi K3 | July 16, 2026 | China | false |
 | Meta | Llama 4 Maverick | April 5, 2025 | America | true |
 | Meta | Muse Spark 1.1 | July 9, 2026 | America | false |
+| Meta | Muse Spark 1.2 | August 5, 2026 | America | false |
 | MiniMax | MiniMax M2 | October 23, 2025 | China | true |
 | MiniMax | MiniMax M3 | May 31, 2026 | China | true |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |
@@ -62,11 +66,13 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GPT-4.1 uses OpenAI's official API launch date and remains false because OpenAI has not published public model weights.
 - GPT-5.5 was publicly rolling out in ChatGPT and Codex on April 23, 2026; API availability followed on April 24, 2026.
 - GPT-5.6 Sol and Luna use OpenAI's official general-availability date and remain false because OpenAI has not published public model weights.
+- GPT-6 Astra uses OpenAI's official first public rollout date and remains false because OpenAI provides hosted access rather than public model weights.
 - Claude Opus 4 uses Anthropic's official Claude 4 launch date and remains false because it is a hosted proprietary model.
 - Gemini 2.5 Flash uses the GA `gemini-2.5-flash` release date, not earlier preview model IDs.
 - Gemini 3.6 Flash uses Google's official public launch date and remains false because Google provides hosted access rather than public model weights.
 - Grok 4.3 uses the first reported public paid beta date. Public reports also cite April 24, 2026 as the move to production and April 30, 2026 as full API availability; recheck this if xAI publishes a canonical release note or model card.
 - Grok 4.5 uses xAI's official launch post date and remains false because xAI describes hosted product/API availability, not public model weights.
+- Grok 4.6 uses xAI's official API launch date and remains false because xAI provides hosted access rather than public model weights.
 - Grok Composer 2.5 Fast and Grok Build use xAI's official Composer 2.5 announcement date. They remain false because xAI describes Composer 2.5 as available inside Grok Build for SuperGrok and X Premium+ users, not as public model weights.
 - NVIDIA Nemotron 3 Ultra 550B A55B uses NVIDIA's listed Build.NVIDIA.com, Hugging Face, and NGC release date. It is true because NVIDIA and OpenRouter describe Nemotron 3 Ultra as an open/open-weights model.
 - Inkling uses Thinking Machines Lab's official release date and is true because the full model weights are published under the Apache 2.0 license.
@@ -83,6 +89,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Kimi K3 uses its first public app and API availability date. It remains false for open weights because Moonshot says the full weights will be released by July 27, 2026, and they are not public yet.
 - Llama 4 Maverick uses Meta's official announcement and model-card release date and is true because Meta made its model weights available for download at launch.
 - Muse Spark 1.1 uses Meta's official public app and API preview launch date. It remains false because Meta announced hosted access but did not release downloadable model weights.
+- Muse Spark 1.2 uses Meta's official Muse Code and Meta Model API launch date. It remains false because the weights had not been released publicly at launch.
 - Qwen3.6-Plus remains false because it is the hosted API model tested here; Alibaba separately open-sourced Qwen3.6-35B-A3B after the Plus launch.
 - Qwen3 Coder Plus uses OpenRouter's listed release date; it remains false because the tested Plus API model is described as Alibaba's proprietary version of the open-source Qwen3 Coder 480B A35B.
 - Qwen3.7-Max uses OpenRouter's listed release date; it remains false because the tested Max API model is proprietary/hosted.
@@ -95,10 +102,12 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 
 ## Sources
 
-- OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.4](https://openai.com/index/introducing-gpt-5-4/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/), [GPT-5.6 Sol release notes](https://help.openai.com/en/articles/9624314-model-release-notes), [GPT-5.6](https://openai.com/index/gpt-5-6/)
+- Claude Fable 5.1: [Anthropic model page and release date](https://www.anthropic.com/claude/fable). Available through hosted Claude products and APIs; no public model weights.
+
+- OpenAI: [GPT-4.1](https://openai.com/index/gpt-4-1/), [GPT-5.2](https://openai.com/index/introducing-gpt-5-2/), [GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/), [GPT-5.4](https://openai.com/index/introducing-gpt-5-4/), [GPT-5.5](https://openai.com/index/introducing-gpt-5-5/), [GPT-5.6 Sol release notes](https://help.openai.com/en/articles/9624314-model-release-notes), [GPT-5.6](https://openai.com/index/gpt-5-6/), [GPT-6 Astra](https://openai.com/index/gpt-6-astra/)
 - Anthropic: [Claude 4](https://www.anthropic.com/news/claude-4), [Claude Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), [Claude Sonnet 4.6](https://www.anthropic.com/news/claude-sonnet-4-6), [Claude Opus 4.7](https://www.anthropic.com/news/claude-opus-4-7), [Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8), [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), [Claude Opus 5](https://www.anthropic.com/news/claude-opus-5)
 - Google / DeepMind: [Gemini 2.5 Flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-flash), [Gemini 3 Flash](https://blog.google/products/gemini/gemini-3-flash/), [Gemini 3.1 Pro](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/), [Gemini 3.5 Flash](https://deepmind.google/models/model-cards/gemini-3-5-flash/), [Gemini 3.6 Flash](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/)
-- xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Grok 4.5 announcement](https://x.ai/news/grok-4-5), [OpenRouter Grok 4.5 model page](https://openrouter.ai/x-ai/grok-4.5), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
+- xAI / Grok: [Grok 4.3 API rollout report](https://www.aibars.net/en/library/ai-news/details/839794306796621824), [Grok 4.3 production rollout report](https://www.theautonomous.net/issue/002-april-29-2026/xai-grok-4-3-multiagent-realtime), [Grok 4.5 announcement](https://x.ai/news/grok-4-5), [OpenRouter Grok 4.5 model page](https://openrouter.ai/x-ai/grok-4.5), [Grok 4.6 announcement](https://x.ai/news/grok-4-6), [Composer 2.5 announcement](https://x.ai/news/composer-2-5)
 - NVIDIA: [Nemotron 3 Ultra model card](https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard), [Nemotron 3 Ultra research page](https://research.nvidia.com/labs/nemotron/Nemotron-3-Ultra/), [OpenRouter Nemotron 3 Ultra model page](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b)
 - Thinking Machines Lab: [Inkling launch post](https://thinkingmachines.ai/news/introducing-inkling/), [Inkling model card](https://thinkingmachines.ai/model-card/inkling/)
 - Sakana AI: [Sakana AI homepage](https://sakana.ai/), [Fugu launch post](https://sakana.ai/fugu-release/), [Fugu product page](https://sakana.ai/fugu/)
@@ -106,7 +115,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Z.AI / GLM: [GLM-4.5 technical blog](https://z.ai/blog/glm-4.5), [GLM-4.5 Hugging Face model card](https://huggingface.co/zai-org/GLM-4.5), [OpenRouter GLM-4.5 model page](https://openrouter.ai/z-ai/glm-4.5), [GLM-5.1 release notes](https://docs.z.ai/release-notes/new-released), [GLM-5.1 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.1), [OpenRouter GLM-5.1 model page](https://openrouter.ai/z-ai/glm-5.1-20260406/benchmarks), [Z.AI GLM-5.2 docs](https://docs.z.ai/guides/llm/glm-5.2), [GLM-5.2 Hugging Face model card](https://huggingface.co/zai-org/GLM-5.2), [OpenRouter GLM-5.2 model page](https://openrouter.ai/z-ai/glm-5.2)
 - Moonshot AI / Kimi: [Kimi K2.5 GitHub repo](https://github.com/MoonshotAI/Kimi-K2.5), [Kimi K2.5 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.5), [OpenRouter Kimi K2.5 model page](https://openrouter.ai/moonshotai/kimi-k2.5), [Kimi K2.6 model page](https://www.kimi.com/ai-models/kimi-k2-6), [Kimi K2.6 Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.6), [Kimi K2.7 Code API docs](https://platform.kimi.ai/docs/guide/kimi-k2-7-code-quickstart), [Kimi K2.7 Code Hugging Face model card](https://huggingface.co/moonshotai/Kimi-K2.7-Code), [OpenRouter Kimi K2.7 Code model page](https://openrouter.ai/moonshotai/kimi-k2.7-code), [Kimi K3 tech blog](https://www.kimi.com/blog/kimi-k3), [Kimi K3 launch coverage](https://en.people.cn/n3/2026/0717/c90000-20478901.html), [Kimi research index](https://www.kimi.com/blog/kimi-k2.5)
 - Meta / Llama: [Llama 4 announcement](https://ai.meta.com/blog/llama-4-multimodal-intelligence/), [Llama 4 Maverick model card](https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct)
-- Meta / Muse: [Muse Spark 1.1 announcement](https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/)
+- Meta / Muse: [Muse Spark 1.1 announcement](https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/), [Muse Spark 1.2 announcement](https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2)
 - MiniMax: [MiniMax M2 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M2), [MiniMax M2 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M2), [OpenRouter MiniMax M2 model page](https://openrouter.ai/minimax/minimax-m2), [MiniMax M3 launch post](https://www.minimax.io/blog/minimax-m3), [MiniMax M3 GitHub repo](https://github.com/MiniMax-AI/MiniMax-M3), [MiniMax M3 Hugging Face model card](https://huggingface.co/MiniMaxAI/MiniMax-M3), [OpenRouter MiniMax M3 model page](https://openrouter.ai/minimax/minimax-m3/performance)
 - Mistral AI: [Mistral Medium 3.1 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-1-25-08), [Mistral Medium 3.5 model card](https://docs.mistral.ai/models/model-cards/mistral-medium-3-5-26-04), [Mistral Medium 3.5 Hugging Face model card](https://huggingface.co/mistralai/Mistral-Medium-3.5-128B), [Mistral Medium 3.5 launch post](https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5)
 - Alibaba Cloud / Qwen: [Qwen3.6-Plus launch post](https://www.alibabacloud.com/blog/alibaba-unveils-qwen3-6-plus-to-accelerate-agentic-ai-deployment-for-enterprises-and-alibaba%E2%80%99s-ai-applications_603005), [Qwen3.6-35B-A3B open-weights post](https://www.alibabacloud.com/blog/alibaba-open-sources-qwen3-6-35b-a3b-wan2-7-tops-design-arena_603042), [OpenRouter Qwen3 Coder Plus model page](https://openrouter.ai/qwen/qwen3-coder-plus), [Qwen3.7 blog](https://qwen.ai/blog?id=qwen3.7), [OpenRouter Qwen3.7-Max model page](https://openrouter.ai/qwen/qwen3.7-max), [Qwen3.8-Max-Preview launch post](https://modelstudio.alibabacloud.com/intl/blog/model-studio-token-plan-individual/)

@@ -17,7 +17,9 @@ class EvaluationParse:
     failure_reason: str | None
 
 
-def parse_evaluation_output(stdout_path: Path, stderr_path: Path) -> EvaluationParse:
+def parse_evaluation_output(
+    stdout_path: Path, stderr_path: Path, *, start_level: int = 1
+) -> EvaluationParse:
     stdout = stdout_path.read_text(encoding="utf-8", errors="replace")
     stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
 
@@ -26,6 +28,10 @@ def parse_evaluation_output(stdout_path: Path, stderr_path: Path) -> EvaluationP
 
     stop_match = STOP_RE.search(stdout)
     first_failing_level = int(stop_match.group(1)) if stop_match else None
+    if not passed and first_failing_level == start_level:
+        # A resumed evaluation trusts the skipped prefix from earlier rounds.
+        # Require a level result so startup errors do not receive that credit.
+        highest = start_level - 1
     stop_status = stop_match.group(2) if stop_match else None
     failure_reason = _extract_failure_reason(stdout, stderr, stop_match)
 

@@ -21,6 +21,42 @@ Fresh git workspaces are checked out with `core.autocrlf=false` and LF endings b
 
 Fresh cloned runs generate an ephemeral password for `download_full_levels.sh` and `evaluate_full.py`. Set `COIL_FULL_PASSWORD` only when using an existing encrypted level archive.
 
+Each evaluation uses a private temporary directory inside its round's log directory,
+passed through `TMPDIR`, `TMP`, and `TEMP`. This prevents macOS's scheduled
+temporary-file cleanup from deleting extracted levels with old archive timestamps.
+The runner removes the directory after the evaluation exits, including on failure
+or timeout. Keep `log_root` outside system temporary directories.
+
+By default, later full evaluations start at `max(1, best_score - 20)`, using the
+best score from earlier rounds of the same run. For example, after passing level
+450, the next evaluation starts at 430. The first evaluation starts at 1, and
+regressions do not move the starting point backward. Skipped levels are assumed
+solved; changes that break those earlier levels will not be detected in this mode.
+Scores remain absolute level numbers. A failure at the starting level credits
+the skipped prefix (for example, 429 if level 430 fails); startup errors earn no
+credit.
+
+These optional top-level TOML settings control the behavior:
+
+```toml
+evaluation_resume_from_best = true
+evaluation_backtrack_levels = 20
+```
+
+Set `evaluation_resume_from_best = false` to start every evaluation at level 1.
+
+The harness stops with `all_levels_solved` as soon as a successful evaluation
+passes the final benchmark level with no failing level or reported error.
+`evaluation_final_level` defaults to `1208`, the last Mortal Coil level. Override
+it for another level set, or set it to `0` to disable this stop condition.
+Resumed evaluations retain the usual trusted-prefix semantics. Completion takes
+precedence over stale-round and agent-failure stops, but never over evaluation
+failures, process timeouts, or forbidden edits.
+You can also override the config with `--no-evaluation-resume-from-best`,
+`--evaluation-resume-from-best`, or `--evaluation-backtrack-levels 20`.
+The backtrack must be non-negative; 0 starts at the best previously passed level.
+The selected starting level is recorded in the run's status and evaluation events.
+
 Optional install:
 
 ```sh

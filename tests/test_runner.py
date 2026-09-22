@@ -107,6 +107,11 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("stale_limit=3", detail)
 
+    def test_explain_all_levels_solved(self) -> None:
+        detail = explain_stop_reason("all_levels_solved", self.config, {})
+        self.assertIn("evaluation_final_level=1208", detail)
+        self.assertIn("No further agent rounds", detail)
+
     def test_explain_agent_max_steps_names_parameter(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config.openrouter.example.toml"
         config = load_config(str(config_path), run_id="test-run")
@@ -923,7 +928,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("evaluation should not run after model-not-found")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -961,7 +966,7 @@ class RunnerTests(unittest.TestCase):
             def _normalize_workspace_line_endings(self) -> None:
                 pass
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("evaluation should not run after agent auth error")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1087,7 +1092,7 @@ class RunnerTests(unittest.TestCase):
             def _can_shortcut_default_solver_evaluation(self) -> bool:
                 return False
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1269,7 +1274,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1347,7 +1352,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1437,7 +1442,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(
@@ -1524,7 +1529,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 raise AssertionError("unchanged default solver should use shortcut")
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1587,7 +1592,7 @@ class RunnerTests(unittest.TestCase):
                     stderr_path=stderr,
                 )
 
-            def _run_evaluation(self, round_dir: Path) -> CommandResult:
+            def _run_evaluation(self, round_dir: Path, *, start_level: int = 1) -> CommandResult:
                 stdout = round_dir / "evaluation.stdout.log"
                 stderr = round_dir / "evaluation.stderr.log"
                 stdout.write_text(

@@ -6,6 +6,25 @@ from puzzle_runner.evaluation import parse_evaluation_output
 
 
 class EvaluationParseTests(unittest.TestCase):
+    def test_resumed_evaluation_scores(self) -> None:
+        cases = [
+            ("Level 430 (3x3): PASS (0.01s)\nLevel 451 (4x4): PASS (0.02s)\n", 451),
+            ("Level 430 (3x3): FAIL (0.01s)\n", 429),
+            ("Level 430 (3x3): TIMEOUT - Exceeded 600s limit (600.01s)\n", 429),
+            ("Level 430 (3x3): ERROR (0.01s): solver unavailable\n", 429),
+            ("Missing encrypted even-level archive\n", 0),
+            ("", 0),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = Path(temp_dir) / "stdout.log"
+            stderr = Path(temp_dir) / "stderr.log"
+            stderr.write_text("", encoding="utf-8")
+            for output, expected_score in cases:
+                with self.subTest(output=output):
+                    stdout.write_text(output, encoding="utf-8")
+                    parsed = parse_evaluation_output(stdout, stderr, start_level=430)
+                    self.assertEqual(parsed.highest_passed, expected_score)
+
     def test_parse_pass_and_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)
