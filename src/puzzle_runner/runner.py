@@ -359,7 +359,7 @@ class Runner:
             elif agent_result.returncode != 0 and not agent_idle_timed_out:
                 agent_failure_stop_reason = (
                     "agent_max_steps"
-                    if agent_result.returncode == AGENT_MAX_STEPS_RETURN_CODE
+                    if _agent_result_reached_step_limit(agent_result)
                     else "agent_failed"
                 )
 
@@ -1452,9 +1452,19 @@ def _agent_result_is_retryable(result: CommandResult) -> bool:
     return (
         result.returncode != 0
         and result.returncode != AGENT_CONFIG_ERROR_RETURN_CODE
-        and result.returncode != AGENT_MAX_STEPS_RETURN_CODE
+        and not _agent_result_reached_step_limit(result)
         and not result.timed_out
     )
+
+
+def _agent_result_reached_step_limit(result: CommandResult) -> bool:
+    if result.returncode == AGENT_MAX_STEPS_RETURN_CODE:
+        return True
+    for path in (result.stderr_path, result.stdout_path):
+        output = _tail_file_text(path)
+        if "max turns reached" in output.lower():
+            return True
+    return False
 
 
 def _agent_stream_format(config: RunnerConfig) -> str | None:

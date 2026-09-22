@@ -52,6 +52,8 @@ forbidden_paths = [
 backend = "grok-build"
 prompt_mode = "file"
 model = "composer-2.5-fast"
+# Optional; can also be supplied as `puzzle-runner --effort high`.
+# effort = "high"
 command = [
   "grok",
   "--prompt-file",
@@ -62,5 +64,5 @@ command = [
   "bypassPermissions",
   "--always-approve",
   "--max-turns",
-  "40",
+  "512",
 ]

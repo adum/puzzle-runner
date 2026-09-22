@@ -82,3 +82,4 @@ Result semantics: this table records individual runs. For model-level reporting,
 | 20260812-112128-grok-4-6 | grok-4.6 | grokbuild |  | 196 | 2 | 3 | agent_idle_timeout | 600s | 8h 26m | 9464 | 1963 |  |  |  |
 | 20260813-004140-grok-4-6 | grok-4.6 | grokbuild |  | 262 | 1 | 2 | agent_idle_timeout | 600s | 5h 28m | 5430 | 1902 |  |  |  |
 | 20260813-111139-grok-4-6 | grok-4.6 | grokbuild | xhigh | 195 | 3 | 6 | stale_limit | 600s | 9h 48m | 18596 | 3364 |  |  |  |
+| 20260820-165407-opencode-openrouter-z-ai-glm-5-3 | opencode-openrouter-z-ai-glm-5.3 | opencode | high | 215 | 3 | 3 | agent_idle_timeout | 600s | 21h 30m | 21430 | 2988 | 513 | $34.142557 | 114820331 |

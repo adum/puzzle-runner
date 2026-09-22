@@ -115,6 +115,8 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("{prompt_path}", config.agent.command)
         self.assertIn("--permission-mode", config.agent.command)
         self.assertIn("bypassPermissions", config.agent.command)
+        max_turns_index = config.agent.command.index("--max-turns")
+        self.assertEqual(config.agent.command[max_turns_index + 1], "512")
         self.assertEqual(config.agent_idle_timeout_seconds, 1800)
         self.assertTrue(config.echo_agent_output)
 

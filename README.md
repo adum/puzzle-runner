@@ -191,6 +191,13 @@ cp config.grok-build.example.toml runner.grok-build.toml
 PYTHONPATH=src python3 -m puzzle_runner --config runner.grok-build.toml
 ```
 
+Pass an effort value for a run with `--effort`; Puzzle Runner displays the
+resolved value at startup and passes it to Grok Build as `--effort`:
+
+```sh
+PYTHONPATH=src python3 -m puzzle_runner --config runner.grok-build.toml --effort high
+```
+
 Watch that run with:
 
 ```sh
@@ -200,7 +207,7 @@ PYTHONPATH=src python3 -m puzzle_runner watch --config runner.grok-build.toml
 The Grok Build config passes Puzzle Runner's prompt file to:
 
 ```sh
-grok --prompt-file <round-dir>/prompt.md --output-format plain --permission-mode bypassPermissions --always-approve --max-turns 40 --model composer-2.5-fast
+grok --prompt-file <round-dir>/prompt.md --output-format plain --permission-mode bypassPermissions --always-approve --max-turns 512 --effort high --model composer-2.5-fast
 ```
 
 Puzzle Runner records this harness as `grokbuild` in `final_results.md`.

@@ -17,6 +17,7 @@ from puzzle_runner.runner import (
     _agent_effort_text,
     _agent_error_detail,
     _agent_result_is_retryable,
+    _agent_result_reached_step_limit,
     _agent_stdout_completion_predicate,
     _apply_agent_effort,
     _apply_agent_model,
@@ -1311,7 +1312,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(final.total_rounds, 1)
         self.assertTrue(evaluation_result_exists)
 
-    def test_agent_failure_runs_final_evaluation(self) -> None:
+    def test_agent_max_turns_runs_final_evaluation(self) -> None:
         class AgentFailedRunner(Runner):
             def _prepare_workspace(self) -> None:
                 self.workspace.mkdir(parents=True)
@@ -1383,7 +1384,7 @@ class RunnerTests(unittest.TestCase):
                 final.log_dir / "round-001" / "evaluation_result.json"
             ).exists()
 
-        self.assertEqual(final.stop_reason, "agent_failed")
+        self.assertEqual(final.stop_reason, "agent_max_steps")
         self.assertEqual(final.best_score, 88)
         self.assertEqual(final.best_round, 1)
         self.assertEqual(final.total_rounds, 1)
@@ -1652,6 +1653,26 @@ class RunnerTests(unittest.TestCase):
         )
 
         self.assertFalse(_agent_result_is_retryable(result))
+
+    def test_grok_max_turns_is_a_non_retryable_step_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stderr_path = Path(temp_dir) / "stderr.log"
+            stdout_path = Path(temp_dir) / "stdout.log"
+            stderr_path.write_text("Max turns reached\nError: max turns reached\n", encoding="utf-8")
+            stdout_path.write_text("", encoding="utf-8")
+            result = CommandResult(
+                argv=["grok", "--max-turns", "512"],
+                cwd=Path(temp_dir),
+                returncode=1,
+                elapsed_seconds=0.1,
+                timed_out=False,
+                timeout_reason=None,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+            )
+
+            self.assertTrue(_agent_result_reached_step_limit(result))
+            self.assertFalse(_agent_result_is_retryable(result))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 
 from .config import ConfigError, load_config
@@ -23,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional run id. Defaults to a timestamped id.",
     )
+    parser.add_argument(
+        "--effort",
+        default=None,
+        help="Override agent effort for this run (for example: low, high, or max).",
+    )
     return parser
 
 
@@ -43,6 +49,17 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config, run_id=args.run_id)
+        if args.effort is not None:
+            config = dataclasses.replace(
+                config,
+                agent=dataclasses.replace(config.agent, effort=args.effort),
+            )
+        effort = config.agent.effort or "unspecified"
+        print(
+            f"Running agent: {config.agent.name} "
+            f"(backend: {config.agent.backend}, effort: {effort})",
+            flush=True,
+        )
         result = Runner(config).run()
     except (ConfigError, RunnerError) as exc:
         print(f"puzzle-runner: {exc}", file=sys.stderr)
