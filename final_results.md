@@ -92,3 +92,4 @@ Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 pa
 | 20260907-134703-claude-fable-5-1 | claude-fable-5-1 | claudecode | xhigh | 1115 | 7 | 7 | system_restart | 600s | 35h 12m | 32774 | 2815 |  |  |  |
 | 20260909-064552-gpt-6-astra | gpt-6-astra | codex | xhigh | 1010 | 2 | 5 | stale_limit | 600s | 13h 51m | 12906584 | 163123 |  |  |  |
 | 20260910-133036-gpt-6-astra | gpt-6-astra | codex | max | 1208 | 4 | 6 | all_levels_solved | 600s | 34h 59m | 8846380 | 71813 |  |  |  |
+| 20260927-200506-claude-opus-5-5 | claude-opus-5-5 | claudecode | max | 1208 | 8 | 8 | all_levels_solved | 600s | 2d 2h | 49489 | 14346 |  |  |  |
