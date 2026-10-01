@@ -95,6 +95,7 @@ OPEN_WEIGHTS_COLORS = {
 }
 
 HUMAN_BEST_SCORE = 1206
+BENCHMARK_FINAL_LEVEL = 1208
 DEFAULT_BRUTE_FORCE_SCORE = 47
 RESULT_RULE = (
     "If a model has multiple runs, its reported result is the maximum Best Score "
@@ -783,7 +784,7 @@ def svg_model_release_date_scatter(
     bottom = 72
     plot_w = width - left - right
     plot_h = height - top - bottom
-    max_score = score_axis_max([run.best_score for run in plotted])
+    max_score = BENCHMARK_FINAL_LEVEL
     min_date = min(run.release_date for run in plotted if run.release_date)
     max_date = max(run.release_date for run in plotted if run.release_date)
     total_days = max(1, (max_date - min_date).days)
@@ -792,8 +793,15 @@ def svg_model_release_date_scatter(
         f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Best score by model release date and model version">',
         svg_model_pattern_defs(fallback_styles),
         svg_family_icon_defs(family_icons),
-        grid_lines(left, top, plot_w, plot_h, max_score),
+        grid_lines_for_values(
+            left, top, plot_w, plot_h, 0, max_score,
+            [0, 200, 400, 600, 800, 1000, max_score], float, fmt_number,
+        ),
         axis_labels(left, top, plot_w, plot_h, "Model release date", "Best score"),
+        f'<line class="benchmark-ceiling" x1="{left}" x2="{left + plot_w}" '
+        f'y1="{top}" y2="{top}" stroke="#527568" stroke-width="1.5" stroke-dasharray="5 4" />',
+        f'<text x="{left + 8}" y="{top - 12}" fill="#527568" font-size="12">'
+        f'All levels solved ({fmt_number(BENCHMARK_FINAL_LEVEL)})</text>',
     ]
 
     points: list[tuple[RunResult, float, float]] = []
@@ -823,6 +831,13 @@ def svg_model_release_date_scatter(
     for run, x, y in points:
         style = styles[run.version]
         tooltip = f"Released {fmt_date(run.release_date or run.run_date)} - {run.version}: {run.best_score} ({run.run_id})"
+        if run.best_score == BENCHMARK_FINAL_LEVEL:
+            tooltip += " - All levels solved; maximum possible score"
+            elements.append(
+                f'<circle class="completed-model-ring" cx="{x:.1f}" cy="{y:.1f}" '
+                'r="14" fill="none" stroke="#527568" stroke-width="2">'
+                f'<title>{html_escape(run.version)}: all levels solved; maximum possible score</title></circle>'
+            )
         if run.family in family_icons:
             elements.append(
                 f'<g class="data-point model-point model-icon-point" transform="translate({x:.1f} {y:.1f})">'
