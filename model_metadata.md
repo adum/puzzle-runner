@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: September 9, 2026.
+Last researched: September 30, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -24,6 +24,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Claude | Claude Fable 5.1 | September 1, 2026 | America | false |
 | Claude | Claude Sonnet 5 | June 30, 2026 | America | false |
 | Claude | Claude Opus 5 | July 24, 2026 | America | false |
+| Claude | Claude Opus 5.5 | September 22, 2026 | America | false |
 | Gemini | Gemini 2.5 Flash | June 17, 2025 | America | false |
 | Gemini | Gemini 3 Flash Preview | December 17, 2025 | America | false |
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America | false |
@@ -41,6 +42,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | GLM | GLM-4.5 | July 28, 2025 | China | true |
 | GLM | GLM-5.1 | April 7, 2026 | China | true |
 | GLM | GLM-5.2 | June 16, 2026 | China | true |
+| GLM | GLM-5.3 | August 14, 2026 | China | true |
 | Kimi | Kimi K2.5 | January 27, 2026 | China | true |
 | Kimi | Kimi K2.6 | April 20, 2026 | China | true |
 | Kimi | Kimi K2.7 Code | June 12, 2026 | China | true |
@@ -101,6 +103,9 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Claude Opus 5.5: [Anthropic launch announcement](https://www.anthropic.com/claude-opus-5-5). Uses the September 22 public launch date; hosted access, not public model weights.
+- GLM-5.3: [Z.AI launch announcement](https://z.ai/blog/glm-5.3), [official model weights](https://huggingface.co/zai-org/GLM-5.3). Uses the August 14 first public release, rather than OpenRouter's August 18 listing. Open weights are available now under the GLM-5.3 license; their release followed the initial hosted launch.
 
 - Claude Fable 5.1: [Anthropic model page and release date](https://www.anthropic.com/claude/fable). Available through hosted Claude products and APIs; no public model weights.
 
