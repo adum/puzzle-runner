@@ -57,7 +57,8 @@ forbidden_paths = [
 backend = "opencode"
 prompt_mode = "stdin"
 model = "openrouter/google/gemini-3-flash-preview"
-# Passed to OpenCode as --variant. Use provider-supported values such as low,
+# Passed as --variant on v1 or a #variant model suffix on v2 by scripts/opencode.
+# Use provider-supported values such as low,
 # medium, high, max, or minimal.
 effort = "high"
 command = [

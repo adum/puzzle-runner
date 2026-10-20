@@ -5,7 +5,44 @@ NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 SELF_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s\n' "${BASH_SOURCE[0]}")"
 
 run_opencode() {
-  exec "$1" "${@:2}"
+  local executable="$1"
+  shift
+  local version
+  version="$("$executable" --version 2>/dev/null)" || version=""
+  if [[ "$version" =~ ^(opencode[[:space:]]+)?v?([2-9]|[1-9][0-9]+)\. ]] && [[ "${1:-}" == "run" ]]; then
+    local -a args=()
+    local variant="" model="" model_index=-1
+    while (( $# )); do
+      case "$1" in
+        --dangerously-skip-permissions) args+=(--auto); shift ;;
+        --variant)
+          if (( $# < 2 )); then break; fi
+          variant="$2"; shift 2 ;;
+        --variant=*) variant="${1#*=}"; shift ;;
+        --model|-m)
+          if (( $# < 2 )); then break; fi
+          args+=("$1"); model_index=${#args[@]}; model="$2"
+          args+=("$2"); shift 2 ;;
+        --model=*|-m=*)
+          model="${1#*=}"; args+=(--model)
+          model_index=${#args[@]}; args+=("$model"); shift ;;
+        --) args+=("$@"); shift "$#" ;;
+        *) args+=("$1"); shift ;;
+      esac
+    done
+    if [[ -n "$variant" ]]; then
+      if (( model_index < 0 )); then
+        printf '%s\n' 'Puzzle Runner: OpenCode v2 requires an explicit model when setting a variant.' >&2
+        exit 2
+      fi
+      # An explicit model suffix takes precedence over the configured effort.
+      if [[ "$model" != *'#'* ]]; then
+        args[model_index]="$model#$variant"
+      fi
+    fi
+    exec "$executable" "${args[@]}" "$@"
+  fi
+  exec "$executable" "$@"
 }
 
 is_self() {

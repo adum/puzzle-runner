@@ -221,7 +221,7 @@ The OpenCode config pipes Puzzle Runner's prompt to:
 opencode run --title <run-id> --format json --dangerously-skip-permissions --model openrouter/google/gemini-3-flash-preview --variant high
 ```
 
-The command goes through `scripts/opencode`, which sources `nvm` first when available. OpenCode agent output is raw JSON events in the logs; use the watcher for a readable live view. Edit `model` and `effort` in `[agent]` when desired.
+The command goes through `scripts/opencode`, which sources `nvm` first when available. The wrapper supports OpenCode v1 and v2; on v2 it translates the permission flag to `--auto` and the model/effort to `--model openrouter/google/gemini-3-flash-preview#high`. Model preflight uses `opencode models`, supported by both versions. OpenCode agent output is raw JSON events in the logs; use the watcher for a readable live view. Edit `model` and `effort` in `[agent]` when desired.
 
 ## Grok Build
 

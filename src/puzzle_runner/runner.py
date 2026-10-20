@@ -802,8 +802,7 @@ exec python3 ./coil_solver.py
     def _opencode_models_command(self, provider: str | None) -> list[str]:
         command = self._render_command(self.config.agent.command, self.log_dir)
         executable = command[0] if command else "opencode"
-        if provider:
-            return [executable, "models", provider]
+        # Both CLI generations list all models; v2 no longer accepts a provider.
         return [executable, "models"]
 
     def _agent_auth_preflight_problem(self) -> dict | None:
@@ -2260,7 +2259,7 @@ def _opencode_model_problem_from_listing(
     if not model:
         return None
 
-    command_text = f"opencode models {provider}" if provider else "opencode models"
+    command_text = "opencode models"
     if timed_out:
         detail = (
             f"OpenCode model preflight timed out while running `{command_text}`. "
