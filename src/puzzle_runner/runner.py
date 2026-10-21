@@ -1609,6 +1609,12 @@ def _agent_returned_error(config: RunnerConfig, stdout_path: Path) -> bool:
 
 
 def _agent_error_detail(config: RunnerConfig, stdout_path: Path, stderr_path: Path) -> dict | None:
+    if _is_antigravity_backend(config):
+        # Only inspect AGY's diagnostic stream, not arbitrary assistant text.
+        for line in _tail_file_text(stderr_path).splitlines():
+            if re.match(r"^AGY_ERROR(?:[:\s]|$)", line):
+                message = line.removeprefix("AGY_ERROR").lstrip(": ")
+                return _agent_error_payload("Antigravity CLI", message, None, None)
     agent_stream_format = _agent_stream_format(config)
     if agent_stream_format == "claude-stream-json":
         return _claude_stdout_error_detail(stdout_path)
@@ -2186,7 +2192,7 @@ def _apply_agent_effort(config: RunnerConfig, command: list[str]) -> list[str]:
         if _command_has_option(command, "--variant"):
             return command
         return [*command, "--variant", effort]
-    if _is_grok_backend(config):
+    if _is_grok_backend(config) or _is_antigravity_backend(config):
         if _command_has_option(command, "--effort"):
             return command
         return [*command, "--effort", effort]

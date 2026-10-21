@@ -169,13 +169,16 @@ it does not mutate your normal Antigravity session settings.
 The command goes through `scripts/antigravity-cli`, which:
 
 - passes stdin prompts into `agy --print`
-- sets AGY's print-mode timeout to 30 minutes by default
+- disables AGY's separate print-mode timeout (`0`), leaving the runner's configured wall-clock and idle limits in control
 - applies the configured model by writing a temporary `settings.json`
 - adds the benchmark workspace to `trustedWorkspaces`
 - keeps auth in sync by copying the local Antigravity login state into that
   temporary runtime
 
-Edit the model value in `[agent]` when desired.
+Edit the model value in `[agent]` when desired. With AGY 1.4.4 or newer, optional
+`effort` values are `low`, `medium`, `high`, `xhigh`, or `max`. Headless
+`AGY_ERROR` diagnostics on stderr use the runner's shared authentication and
+transient-error classification.
 
 ## Legacy Gemini CLI
 

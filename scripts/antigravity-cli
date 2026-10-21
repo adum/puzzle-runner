@@ -53,7 +53,7 @@ if [[ ! -t 0 && "${has_print_prompt}" == false ]]; then
 fi
 
 if [[ -z "${print_timeout}" ]]; then
-  print_timeout="${AGY_PRINT_TIMEOUT:-30m}"
+  print_timeout="${AGY_PRINT_TIMEOUT:-0}"
   agy_args=("--print-timeout" "${print_timeout}" "${agy_args[@]}")
 fi
 

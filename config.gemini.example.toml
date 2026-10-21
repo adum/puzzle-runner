@@ -61,9 +61,11 @@ name = "gemini-3.5-flash-high"
 backend = "antigravity-cli"
 prompt_mode = "stdin"
 model = "Gemini 3.5 Flash (High)"
+# Optional AGY reasoning effort: low, medium, high, xhigh, or max.
+# effort = "high"
 command = [
   "{config_dir}/scripts/antigravity-cli",
   "--dangerously-skip-permissions",
   "--print-timeout",
-  "30m",
+  "0",
 ]
