@@ -93,3 +93,5 @@ Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 pa
 | 20260909-064552-gpt-6-astra | gpt-6-astra | codex | xhigh | 1010 | 2 | 5 | stale_limit | 600s | 13h 51m | 12906584 | 163123 |  |  |  |
 | 20260910-133036-gpt-6-astra | gpt-6-astra | codex | max | 1208 | 4 | 6 | all_levels_solved | 600s | 34h 59m | 8846380 | 71813 |  |  |  |
 | 20260927-200506-claude-opus-5-5 | claude-opus-5-5 | claudecode | max | 1208 | 8 | 8 | all_levels_solved | 600s | 2d 2h | 49489 | 14346 |  |  |  |
+| 20261004-151552-opencode-openrouter-stealth-space-bunny-alpha | opencode-openrouter-stealth-space-bunny-alpha | opencode | high | 176 | 1 | 2 | agent_idle_timeout | 600s | 5h 26m | 3919 | 689 | 167 | $0.000000 | 29486464 |
+| 20261019-172841-opencode-openrouter-deepseek-deepseek-v4-1-flash-1017 | opencode-openrouter-deepseek-deepseek-v4.1-flash-1017 | opencode | high | 247 | 2 | 5 | stale_limit | 600s | 35h 19m | 9964 | 385 | 946 | $2.334633 | 157617338 |
