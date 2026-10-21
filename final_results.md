@@ -4,6 +4,8 @@ Run `20260907-134703-claude-fable-5-1` was recovered after a computer restart du
 
 Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 passed the final level, 1208 (2000 x 2000), and rounds 5 and 6 repeated that score. The run was manually stopped during round 7's evaluation, which did not complete. Six evaluations completed. Wall time is approximate, based on the last saved status; output and code totals include the surviving round 7 work. Effort was recovered from the command's `model_reasoning_effort="max"` setting.
 
+Run `20261021-093144-gemini-4-argon-low` stopped with `stale_limit` after four rounds, with a best score of 47 and no code lines added. The observed failure was a Gemini filter block: AGY reported `status: SUCCESS`, but its response said the request was blocked by Gemini's filters. The supplied terminal result identifies conversation `421abaab-7a20-41f3-a0dd-5a07c56b228a`. This records a filter-blocked run rather than establishing the model's solver capability.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -95,3 +97,4 @@ Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 pa
 | 20260927-200506-claude-opus-5-5 | claude-opus-5-5 | claudecode | max | 1208 | 8 | 8 | all_levels_solved | 600s | 2d 2h | 49489 | 14346 |  |  |  |
 | 20261004-151552-opencode-openrouter-stealth-space-bunny-alpha | opencode-openrouter-stealth-space-bunny-alpha | opencode | high | 176 | 1 | 2 | agent_idle_timeout | 600s | 5h 26m | 3919 | 689 | 167 | $0.000000 | 29486464 |
 | 20261019-172841-opencode-openrouter-deepseek-deepseek-v4-1-flash-1017 | opencode-openrouter-deepseek-deepseek-v4.1-flash-1017 | opencode | high | 247 | 2 | 5 | stale_limit | 600s | 35h 19m | 9964 | 385 | 946 | $2.334633 | 157617338 |
+| 20261021-093144-gemini-4-argon-low | gemini-4-argon-low | antigravity | low | 47 | 1 | 4 | stale_limit | 600s | 1h 27m | 660006 | 0 |  |  |  |
