@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: September 30, 2026.
+Last researched: October 21, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -30,6 +30,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3.1 Pro Preview | February 19, 2026 | America | false |
 | Gemini | Gemini 3.5 Flash (High) | May 19, 2026 | America | false |
 | Gemini | Gemini 3.6 Flash (High) | July 21, 2026 | America | false |
+| Gemini | Gemini 4 Argon | October 13, 2026 | America | false |
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok 4.5 | July 8, 2026 | America | false |
 | Grok | Grok 4.6 | August 12, 2026 | America | false |
@@ -52,6 +53,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Meta | Muse Spark 1.2 | August 5, 2026 | America | false |
 | MiniMax | MiniMax M2 | October 23, 2025 | China | true |
 | MiniMax | MiniMax M3 | May 31, 2026 | China | true |
+| MiniMax | Space Bunny Alpha | September 23, 2026 | China | false |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |
 | Mistral | Mistral Medium 3.5 | April 29, 2026 | Europe | true |
 | Qwen | Qwen3.6-Plus | April 2, 2026 | China | false |
@@ -62,6 +64,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | DeepSeek | DeepSeek V4 Flash | April 24, 2026 | China | true |
 | DeepSeek | DeepSeek V4 Pro | April 24, 2026 | China | true |
 | DeepSeek | DeepSeek V4 Flash 0731 | July 31, 2026 | China | true |
+| DeepSeek | DeepSeek V4.1 Flash 1017 | October 17, 2026 | China | true |
 
 ## Notes
 
@@ -103,6 +106,10 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Gemini 4 Argon: [Google public availability announcement](https://blog.google/innovation-and-ai/technology/developers-tools/build-with-gemini-4-argon/). October 13 public launch; hosted model without public weights. Low and medium effort runs normalize to the same model version.
+- Space Bunny Alpha: [OpenRouter release listing](https://openrouter.ai/stealth/space-bunny-alpha), [MiniMax identity confirmation](https://www.minimax.io/blog/minimax-m31f). September 23 preview release; MiniMax confirms it was an early M3.1 Flash version. Kept separate from the final M3.1 Flash release. No public weights for this preview; MiniMax says M3.1 Flash weights will follow later.
+- DeepSeek V4.1 Flash 1017: [OpenRouter snapshot date](https://openrouter.ai/deepseek/deepseek-v4.1-flash-1017), [official MIT-licensed weights](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017). October 17 public snapshot, with downloadable model weights.
 
 - Claude Opus 5.5: [Anthropic launch announcement](https://www.anthropic.com/claude-opus-5-5). Uses the September 22 public launch date; hosted access, not public model weights.
 - GLM-5.3: [Z.AI launch announcement](https://z.ai/blog/glm-5.3), [official model weights](https://huggingface.co/zai-org/GLM-5.3). Uses the August 14 first public release, rather than OpenRouter's August 18 listing. Open weights are available now under the GLM-5.3 license; their release followed the initial hosted launch.

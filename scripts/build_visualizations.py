@@ -374,6 +374,10 @@ def candidate_model_keys(agent: str) -> list[str]:
         candidates.append(stripped.removeprefix("deepseek "))
     if stripped.startswith("thinkingmachines "):
         candidates.append(stripped.removeprefix("thinkingmachines "))
+    if stripped.startswith("stealth "):
+        candidates.append(stripped.removeprefix("stealth "))
+    if base in {"gemini 4 argon low", "gemini 4 argon medium", "gemini 4 argon high"}:
+        candidates.append("gemini 4 argon")
 
     if base.startswith("codex "):
         candidates.append("gpt " + base.removeprefix("codex ") + " codex")
