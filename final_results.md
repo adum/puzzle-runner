@@ -98,3 +98,4 @@ Run `20261021-093144-gemini-4-argon-low` stopped with `stale_limit` after four r
 | 20261004-151552-opencode-openrouter-stealth-space-bunny-alpha | opencode-openrouter-stealth-space-bunny-alpha | opencode | high | 176 | 1 | 2 | agent_idle_timeout | 600s | 5h 26m | 3919 | 689 | 167 | $0.000000 | 29486464 |
 | 20261019-172841-opencode-openrouter-deepseek-deepseek-v4-1-flash-1017 | opencode-openrouter-deepseek-deepseek-v4.1-flash-1017 | opencode | high | 247 | 2 | 5 | stale_limit | 600s | 35h 19m | 9964 | 385 | 946 | $2.334633 | 157617338 |
 | 20261021-093144-gemini-4-argon-low | gemini-4-argon-low | antigravity | low | 47 | 1 | 4 | stale_limit | 600s | 1h 27m | 660006 | 0 |  |  |  |
+| 20261021-123454-gemini-4-argon-medium | gemini-4-argon-medium | antigravity | medium | 618 | 2 | 3 | agent_idle_timeout | 600s | 5h 44m | 1425255 | 1544 |  |  |  |
