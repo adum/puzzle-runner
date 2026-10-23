@@ -6,6 +6,8 @@ Run `20260910-133036-gpt-6-astra` is recorded as `all_levels_solved`: round 4 pa
 
 Run `20261021-093144-gemini-4-argon-low` stopped with `stale_limit` after four rounds, with a best score of 47 and no code lines added. The observed failure was a Gemini filter block: AGY reported `status: SUCCESS`, but its response said the request was blocked by Gemini's filters. The supplied terminal result identifies conversation `421abaab-7a20-41f3-a0dd-5a07c56b228a`. This records a filter-blocked run rather than establishing the model's solver capability.
 
+Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a manual final evaluation of its saved solver after a provider error (`finish_reason: error`) followed by an agent idle timeout caused the runner to skip evaluation. The end code is `agent_error`, preserving the provider failure that ended agent work; the recovered evaluation passed through level 262 and failed level 263 with “No solution found” after 585 seconds. Evaluation started at level 1 with the usual 600-second per-level limit. Wall time includes the original run and manual recovery work, excluding the gap between them.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -101,3 +103,4 @@ Run `20261021-093144-gemini-4-argon-low` stopped with `stale_limit` after four r
 | 20261021-123454-gemini-4-argon-medium | gemini-4-argon-medium | antigravity | medium | 618 | 2 | 3 | agent_idle_timeout | 600s | 5h 44m | 1425255 | 1544 |  |  |  |
 | 20261021-190935-gemini-4-argon-high | gemini-4-argon-high | antigravity | high | 430 | 2 | 4 | agent_idle_timeout | 600s | 9h 41m | 2050018 | 1449 |  |  |  |
 | 20261022-091840-gemini-4-argon-high | gemini-4-argon-high | antigravity | high | 1005 | 4 | 5 | agent_idle_timeout | 600s | 11h 55m | 2533965 | 1962 |  |  |  |
+| 20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0 | opencode-openrouter-mistralai-mistral-large-4-0 | opencode | high | 262 | 1 | 1 | agent_error | 600s | 4h 37m | 6009 | 1467 | 155 | $7.867113 | 35163622 |
