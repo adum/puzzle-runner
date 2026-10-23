@@ -95,6 +95,8 @@ OPEN_WEIGHTS_COLORS = {
 HUMAN_BEST_SCORE = 1206
 BENCHMARK_FINAL_LEVEL = 1208
 DEFAULT_BRUTE_FORCE_SCORE = 47
+HUMAN_COLOR = "#7c3aed"
+BRUTE_FORCE_COLOR = "#ea580c"
 RESULT_RULE = (
     "If a model has multiple runs, its reported result is the maximum Best Score "
     "observed for that normalized model version. Score charts use those max-only "
@@ -459,6 +461,11 @@ def infer_harness(agent: str) -> str:
     return "codex"
 
 
+def tint(color: str, amount: float) -> str:
+    channels = (int(color[index : index + 2], 16) for index in (1, 3, 5))
+    return "#" + "".join(f"{round(channel + (255 - channel) * amount):02x}" for channel in channels)
+
+
 def family_color_map(families: list[str], named_families: list[str]) -> dict[str, str]:
     return {family: FAMILY_COLORS[family] if family in named_families else OTHER_COLOR for family in families}
 
@@ -519,21 +526,29 @@ def aggregate_scores(runs: list[RunResult], key: str, count_label: str = "model"
     return sorted(rows, key=lambda row: (-float(row["best"]), str(row["label"])))
 
 
-def best_by_version(runs: list[RunResult]) -> list[dict[str, object]]:
-    buckets: dict[str, list[RunResult]] = defaultdict(list)
+def setting_label(run: RunResult, include_harness: bool) -> str:
+    if not include_harness:
+        return run.effort
+    return run.harness if run.effort == "unspecified" else f"{run.harness} · {run.effort}"
+
+
+def leaderboard_rows(runs: list[RunResult]) -> list[dict[str, object]]:
+    best_by_setting: dict[str, dict[tuple[str, str], RunResult]] = defaultdict(dict)
     for run in runs:
-        buckets[run.version].append(run)
+        setting = (run.harness, run.effort)
+        current = best_by_setting[run.version].get(setting)
+        if current is None or run.best_score > current.best_score:
+            best_by_setting[run.version][setting] = run
     rows: list[dict[str, object]] = []
-    for version, version_runs in buckets.items():
-        best_run = max(version_runs, key=lambda run: run.best_score)
+    for version, setting_runs in best_by_setting.items():
+        ordered = sorted(setting_runs.values(), key=lambda run: (-run.best_score, run.effort))
+        include_harness = len({run.harness for run in ordered}) > 1
         rows.append(
             {
                 "label": version,
-                "best": best_run.best_score,
-                "count": len(version_runs),
-                "count_label": "run",
-                "family": best_run.family,
-                "origin": best_run.origin,
+                "family": ordered[0].family,
+                "best": ordered[0].best_score,
+                "settings": [(setting_label(run, include_harness), run.best_score) for run in ordered],
             }
         )
     return sorted(rows, key=lambda row: (-int(row["best"]), str(row["label"])))
@@ -1016,8 +1031,8 @@ def svg_ai_vs_human_metric_over_time(
     ai_label = "AI best so far"
     colors = {
         ai_label: "#2563eb",
-        human_label: "#7c3aed",
-        brute_force_label: "#ea580c",
+        human_label: HUMAN_COLOR,
+        brute_force_label: BRUTE_FORCE_COLOR,
     }
 
     elements = [
@@ -1459,50 +1474,110 @@ def svg_best_horizontal_bars(rows: list[dict[str, object]], title: str) -> str:
     return "\n".join(elements)
 
 
-def svg_horizontal_bars(
+def svg_leaderboard_part(
     rows: list[dict[str, object]],
     colors: dict[str, str],
-    family_icons: dict[str, str] | None = None,
+    family_icons: dict[str, str],
+    max_value: int,
+    first: bool,
 ) -> str:
-    family_icons = family_icons or {}
     width = 1180
     row_h = 34
-    top = 26
-    bottom = 44
-    left = 300
+    setting_h = 20
+    top = 44 if first else 6
+    bottom = 10
+    left = 330
     right = 80
-    height = top + bottom + row_h * len(rows)
     plot_w = width - left - right
-    max_value = score_axis_max([int(row["best"]) for row in rows])
-    elements = [
-        f'<svg class="chart-svg tall" viewBox="0 0 {width} {height}" role="img" aria-label="Best score by model version">',
-        svg_family_icon_defs(family_icons, prefix="version-bar-icon"),
-    ]
-    for index, row in enumerate(rows):
-        y = top + index * row_h
-        value = int(row["best"])
-        width_px = scale(value, 0, max_value, 0, plot_w)
+    height = top + bottom + sum(row_h + setting_h * (len(row["settings"]) - 1) for row in rows)
+    tracks: list[str] = []
+    bars: list[str] = []
+    labels: list[str] = []
+    y = top
+    for row in rows:
+        label = str(row["label"])
         family = str(row["family"])
-        color = colors.get(family, "#64748b")
-        label_x = 38 if family in family_icons else 12
+        color = colors.get(family, OTHER_COLOR)
+        (best_setting, best), *other_settings = row["settings"]
         if family in family_icons:
-            elements.append(
-                f'<g transform="translate(20 {y + 16})">'
-                '<circle r="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.25" />'
-                f'<use href="#{family_icon_id(family, "version-bar-icon")}" pointer-events="none" />'
-                "</g>"
-            )
-        elements.append(
-            f'<text class="bar-label" x="{label_x}" y="{y + 22}">{html_escape(row["label"])}</text>'
+            icon = f'<use href="#{family_icon_id(family, "leaderboard-icon")}" pointer-events="none" />'
+        else:
+            icon = f'<text class="icon-initial" y="4" text-anchor="middle">{html_escape(family[:1])}</text>'
+        labels.append(
+            f'<g transform="translate(20 {y + 16})">'
+            '<circle r="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.25" />'
+            f"{icon}</g>"
         )
-        elements.append(f'<rect class="bar-track" x="{left}" y="{y + 7}" width="{plot_w}" height="18" rx="4" />')
-        elements.append(
+        labels.append(f'<text class="bar-label" x="38" y="{y + 22}">{html_escape(label)}</text>')
+        labels.append(
+            f'<text class="setting-label" x="{left - 10}" y="{y + 21}" text-anchor="end">{html_escape(best_setting)}</text>'
+        )
+        width_px = scale(best, 0, max_value, 0, plot_w)
+        tracks.append(f'<rect class="bar-track" x="{left}" y="{y + 7}" width="{plot_w}" height="18" rx="4" />')
+        bars.append(
             f'<rect class="bar" x="{left}" y="{y + 7}" width="{width_px:.1f}" height="18" rx="4" fill="{color}">'
-            f"<title>{html_escape(row['label'])}: best {value}, {html_escape(fmt_count(row['count'], row['count_label']))}</title></rect>"
+            f"<title>{html_escape(label)}: best {best} ({html_escape(best_setting)})</title></rect>"
         )
-        elements.append(f'<text class="value-label" x="{left + width_px + 8:.1f}" y="{y + 22}">{value}</text>')
-    elements.append("</svg>")
-    return "\n".join(elements)
+        labels.append(f'<text class="value-label" x="{left + width_px + 8:.1f}" y="{y + 22}">{best}</text>')
+        for index, (setting, value) in enumerate(other_settings):
+            setting_y = y + row_h + index * setting_h
+            width_px = scale(value, 0, max_value, 0, plot_w)
+            bars.append(
+                f'<rect class="bar" x="{left}" y="{setting_y + 2}" width="{width_px:.1f}" height="8" rx="3" '
+                f'fill="{tint(color, 0.5)}"><title>{html_escape(label)} at {html_escape(setting)}: best {value}</title></rect>'
+            )
+            labels.append(
+                f'<text class="setting-label" x="{left - 10}" y="{setting_y + 10}" text-anchor="end">{html_escape(setting)}</text>'
+            )
+            labels.append(f'<text class="setting-label" x="{left + width_px + 8:.1f}" y="{setting_y + 10}">{value}</text>')
+        y += row_h + setting_h * len(other_settings)
+
+    references: list[str] = []
+    for name, value, color, anchor in [
+        ("Brute force", DEFAULT_BRUTE_FORCE_SCORE, BRUTE_FORCE_COLOR, "start"),
+        ("Human best", HUMAN_BEST_SCORE, HUMAN_COLOR, "end"),
+    ]:
+        x = left + scale(value, 0, max_value, 0, plot_w)
+        references.append(
+            f'<line class="reference-line" x1="{x:.1f}" x2="{x:.1f}" y1="{top - 6}" y2="{height - bottom}" '
+            f'stroke="{color}"><title>{name}: {value}</title></line>'
+        )
+        if first:
+            label_x = x + 6 if anchor == "start" else x - 6
+            labels.append(
+                f'<text class="reference-label" x="{label_x:.1f}" y="{top - 16}" text-anchor="{anchor}">{name} ({value})</text>'
+            )
+    if first:
+        labels.append(f'<text class="reference-label" x="{left - 10}" y="{top - 16}" text-anchor="end">Setting</text>')
+
+    aria_label = "Leaderboard: best score by model version" if first else "Leaderboard: remaining models"
+    return "\n".join(
+        [
+            f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{aria_label}">',
+            svg_family_icon_defs(family_icons, prefix="leaderboard-icon") if first else "",
+            *tracks,
+            *references,
+            *bars,
+            *labels,
+            "</svg>",
+        ]
+    )
+
+
+def html_leaderboard(
+    rows: list[dict[str, object]],
+    colors: dict[str, str],
+    family_icons: dict[str, str],
+    visible_rows: int = 20,
+) -> str:
+    max_value = score_axis_max([int(row["best"]) for row in rows])
+    html_output = svg_leaderboard_part(rows[:visible_rows], colors, family_icons, max_value, first=True)
+    if len(rows) > visible_rows:
+        rest = svg_leaderboard_part(rows[visible_rows:], colors, family_icons, max_value, first=False)
+        html_output += (
+            f'<details class="leaderboard-more"><summary>{len(rows) - visible_rows} more models</summary>{rest}</details>'
+        )
+    return html_output
 
 
 def svg_count_bars(
@@ -1806,7 +1881,6 @@ def render_html(
     family_legend_colors = family_legend(family_rows, list(FAMILY_COLORS))
     scatter_legend_colors = family_legend(family_rows, SCATTER_FAMILIES)
     harness_rows = aggregate_scores(result_runs, "harness")
-    version_rows = best_by_version(runs)
     family_counts = Counter(run.family for run in result_runs)
     effort_counts = Counter(run.effort for run in result_runs)
     stop_reason_counts = Counter(run.stop_reason.strip() or "unspecified" for run in runs)
@@ -1819,6 +1893,11 @@ def render_html(
         unmatched_html = f'<p class="warning">Metadata missing for: {html_escape(unmatched_list)}</p>'
 
     charts = [
+        chart_shell(
+            "Leaderboard",
+            "Each model's best score. Models run at more than one setting get a thinner row for each other setting's best.",
+            html_leaderboard(leaderboard_rows(runs), family_colors, family_icons),
+        ),
         chart_shell(
             "All LLMs By Release Date",
             "Each normalized model version plotted once by public release date, using its maximum score across all runs.",
@@ -1886,11 +1965,6 @@ def render_html(
             svg_count_bars(family_counts, "Models by family"),
         ),
         "</div>",
-        chart_shell(
-            "Best Score By Model Version",
-            "Highest score observed for each normalized model version; repeated raw runs are never averaged.",
-            svg_horizontal_bars(version_rows, family_colors, family_icons),
-        ),
         '<div class="chart-grid">',
         chart_shell(
             "Harness Comparison",
@@ -2199,6 +2273,28 @@ def render_html(
       stroke: #ffffff;
       stroke-width: 3px;
       stroke-linejoin: round;
+    }}
+
+    .setting-label,
+    .icon-initial {{
+      fill: var(--muted);
+      font-size: 11px;
+    }}
+
+    .icon-initial {{
+      font-weight: 700;
+    }}
+
+    .reference-label {{
+      fill: var(--muted);
+      font-size: 12px;
+    }}
+
+    .leaderboard-more summary {{
+      margin: 6px 0;
+      color: var(--accent);
+      font-weight: 650;
+      cursor: pointer;
     }}
 
     .warning {{
