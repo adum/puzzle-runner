@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: October 21, 2026.
+Last researched: October 23, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -56,6 +56,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | MiniMax | Space Bunny Alpha | September 23, 2026 | China | false |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |
 | Mistral | Mistral Medium 3.5 | April 29, 2026 | Europe | true |
+| Mistral | Mistral Large 4.0 | October 6, 2026 | Europe | false |
 | Qwen | Qwen3.6-Plus | April 2, 2026 | China | false |
 | Qwen | Qwen3 Coder Plus | September 23, 2025 | China | false |
 | Qwen | Qwen3.7-Max | May 21, 2026 | China | false |
@@ -106,6 +107,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Mistral Large 4.0: [official public-preview launch](https://mistral.ai/news/mistral-large-4/), [model documentation](https://docs.mistral.ai/models/mistral-large-4-0), [upcoming weights](https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B). October 6 public API release. Open weights remains false as of October 23: weights are announced for later in October, not yet available. The version matches the tested `mistral-large-4-0` API identifier.
 
 - Gemini 4 Argon: [Google public availability announcement](https://blog.google/innovation-and-ai/technology/developers-tools/build-with-gemini-4-argon/). October 13 public launch; hosted model without public weights. Low and medium effort runs normalize to the same model version.
 - Space Bunny Alpha: [OpenRouter release listing](https://openrouter.ai/stealth/space-bunny-alpha), [MiniMax identity confirmation](https://www.minimax.io/blog/minimax-m31f). September 23 preview release; MiniMax confirms it was an early M3.1 Flash version. Kept separate from the final M3.1 Flash release. No public weights for this preview; MiniMax says M3.1 Flash weights will follow later.
