@@ -16,19 +16,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 
-PALETTE = [
-    "#2563eb",
-    "#64748b",
-    "#16a34a",
-    "#9333ea",
-    "#ea580c",
-    "#0891b2",
-    "#9f6b7d",
-    "#4f46e5",
-    "#65a30d",
-    "#ca8a04",
-]
-
 MODEL_PALETTE = [
     "#1d4ed8",
     "#64748b",
@@ -73,20 +60,31 @@ FAMILY_ICON_FILES = {
 
 SINGLE_SERIES_COLOR = "#64748b"
 
-ORIGIN_STYLES = {
-    "America": {"main": "#496987", "accent": "#C8102E"},
-    "China": {"main": "#C74432", "accent": "#E8B923"},
-    "Europe": {"main": "#1646A8", "accent": "#F2C300"},
-    "Japan": {"main": "#41454B", "accent": "#BC002D"},
-    "Unknown": {"main": "#64748b", "accent": "#cbd5e1"},
+# Fixed per family and capped at eight colorblind-validated slots; any other family shares
+# OTHER_COLOR and is identified by its icon, label, or tooltip.
+FAMILY_COLORS = {
+    "Gemini": "#2a78d6",
+    "Claude": "#eb6834",
+    "ChatGPT / Codex": "#1baf7a",
+    "GLM": "#eda100",
+    "Kimi": "#e87ba4",
+    "DeepSeek": "#008300",
+    "Qwen": "#6250d6",
+    "Grok": "#e34948",
 }
 
-ORIGIN_SCATTER_COLORS = {
-    "America": "#4E79A7",
-    "China": "#E15759",
-    "Europe": "#59A14F",
-    "Japan": "#B07AA1",
-    "Unknown": "#9C9C9C",
+# In a scatter plot any two points can sit side by side; only the first three slots stay distinct then.
+SCATTER_FAMILIES = list(FAMILY_COLORS)[:3]
+
+OTHER_COLOR = "#a8b1bd"
+OTHER_FAMILIES_LABEL = "Other families"
+
+ORIGIN_COLORS = {
+    "America": "#2a78d6",
+    "China": "#eda100",
+    "Europe": "#008300",
+    "Japan": "#e87ba4",
+    "Unknown": OTHER_COLOR,
 }
 
 OPEN_WEIGHTS_COLORS = {
@@ -461,8 +459,19 @@ def infer_harness(agent: str) -> str:
     return "codex"
 
 
-def color_map(labels: list[str]) -> dict[str, str]:
-    return {label: PALETTE[index % len(PALETTE)] for index, label in enumerate(sorted(set(labels)))}
+def family_color_map(families: list[str], named_families: list[str]) -> dict[str, str]:
+    return {family: FAMILY_COLORS[family] if family in named_families else OTHER_COLOR for family in families}
+
+
+def family_legend(family_rows: list[dict[str, object]], named_families: list[str]) -> dict[str, str]:
+    legend = {
+        str(row["label"]): FAMILY_COLORS[str(row["label"])]
+        for row in family_rows
+        if row["label"] in named_families
+    }
+    if any(row["label"] not in named_families for row in family_rows):
+        legend[OTHER_FAMILIES_LABEL] = OTHER_COLOR
+    return legend
 
 
 def model_style_map(runs: list[RunResult]) -> dict[str, dict[str, str]]:
@@ -582,20 +591,15 @@ def fmt_count(count: object, singular: object) -> str:
     return f"{count_int} {suffix}"
 
 
-def nice_max(value: float) -> float:
-    if value <= 0:
-        return 1
-    magnitude = 10 ** math.floor(math.log10(value))
-    normalized = value / magnitude
-    if normalized <= 1:
-        nice = 1
-    elif normalized <= 2:
-        nice = 2
-    elif normalized <= 5:
-        nice = 5
-    else:
-        nice = 10
-    return nice * magnitude
+def linear_ticks(max_value: float, max_intervals: int = 8) -> list[float]:
+    if max_value <= 0:
+        return [0, 1]
+    magnitude = 10 ** math.floor(math.log10(max_value / max_intervals))
+    for multiple in (1, 2, 2.5, 5, 10):
+        step = multiple * magnitude
+        if math.ceil(max_value / step) <= max_intervals:
+            break
+    return [step * index for index in range(math.ceil(max_value / step) + 1)]
 
 
 def score_axis_max(scores: list[int]) -> int:
@@ -1066,7 +1070,8 @@ def svg_ai_vs_human_metric_over_time(
             f"<title>{html_escape(progress_title)}</title></path>"
         )
 
-    for release_date, level, _, run, x, y in scaled:
+    records = [point for index, point in enumerate(scaled) if index == 0 or point[1] > scaled[index - 1][1]]
+    for release_date, level, _, run, x, y in records:
         tooltip = (
             f"AI best so far {metric_tooltip(level)} as of {fmt_date(release_date)} "
             f"from {run.version} ({run.run_id}, run {fmt_date(run.run_date)})"
@@ -1075,6 +1080,19 @@ def svg_ai_vs_human_metric_over_time(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5.8" fill="{colors[ai_label]}" class="progress-point">'
             f"<title>{html_escape(tooltip)}</title></circle>"
         )
+    step_boxes: list[tuple[float, float, float, float]] = []
+    for (*_, x0, y0), (*_, x1, y1) in zip(scaled, scaled[1:]):
+        step_boxes.append((x0 - 1, y0 - 1, x1 + 1, y0 + 1))
+        step_boxes.append((x1 - 1, min(y0, y1) - 1, x1 + 1, max(y0, y1) + 1))
+    step_boxes.extend((x - 7, y - 7, x + 7, y + 7) for *_, x, y in records)
+    elements.append(
+        svg_point_labels(
+            [(x, y, run.version) for _, _, _, run, x, y in sorted(records, key=lambda point: -point[1])],
+            (left, top - 20, left + plot_w, top + plot_h),
+            sides=("left",),
+            obstacles=step_boxes,
+        )
+    )
 
     for tick_index in range(3):
         tick_date = min_date + dt.timedelta(days=round(total_days * tick_index / 2))
@@ -1142,8 +1160,10 @@ def svg_group_best_over_time(
     y_label: str,
     aria_label: str,
     accent_colors: dict[str, str] | None = None,
+    legend_colors: dict[str, str] | None = None,
 ) -> str:
     accent_colors = accent_colors or {}
+    legend_colors = legend_colors or colors
     release_rows = [run for run in runs if run.release_date]
     by_group_date: dict[str, dict[dt.date, int]] = defaultdict(dict)
     for run in release_rows:
@@ -1180,7 +1200,7 @@ def svg_group_best_over_time(
         axis_labels(left, top, plot_w, plot_h, "Model release date", y_label),
     ]
 
-    for group in sorted(group_points):
+    for group in sorted(group_points, key=lambda group: (group in legend_colors, group)):
         points = group_points[group]
         color = colors.get(group, "#64748b")
         scaled: list[tuple[dt.date, int, float, float]] = []
@@ -1204,7 +1224,9 @@ def svg_group_best_over_time(
                 f"<title>{html_escape(group)} best score over time</title></path>"
             )
 
-        for release_date, score, x, y in scaled:
+        for index, (release_date, score, x, y) in enumerate(scaled):
+            if index > 0 and score <= scaled[index - 1][1]:
+                continue
             tooltip = f"{group}: best score so far {score} as of {fmt_date(release_date)}"
             if group in accent_colors:
                 elements.append(svg_bullseye_marker(x, y, color, accent_colors[group], tooltip))
@@ -1222,18 +1244,23 @@ def svg_group_best_over_time(
     if accent_colors:
         elements.append(svg_two_color_legend(colors, accent_colors, width - right + 28, top + 4))
     else:
-        elements.append(svg_legend(colors, width - right + 28, top + 4))
+        elements.append(svg_legend(legend_colors, width - right + 28, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
 
 
-def svg_family_best_over_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
+def svg_family_best_over_time(
+    runs: list[RunResult],
+    family_colors: dict[str, str],
+    legend_colors: dict[str, str],
+) -> str:
     return svg_group_best_over_time(
         runs,
         family_colors,
         "family",
         "Family best score so far",
         "Cumulative best score by model family over release date",
+        legend_colors=legend_colors,
     )
 
 
@@ -1323,12 +1350,45 @@ def svg_legend(colors: dict[str, str], x: int, y: int) -> str:
     return "\n".join(elements)
 
 
+def svg_point_labels(
+    candidates: list[tuple[float, float, str]],
+    bounds: tuple[float, float, float, float],
+    sides: tuple[str, ...] = ("right", "left"),
+    obstacles: list[tuple[float, float, float, float]] | None = None,
+) -> str:
+    char_width = 6.8
+    min_x, min_y, max_x, max_y = bounds
+    placed = list(obstacles or [])
+    elements = ['<g class="point-labels">']
+    for x, y, text in candidates:
+        text_width = len(text) * char_width
+        for side in sides:
+            anchor_x = x + 10 if side == "right" else x - 10
+            box_left = anchor_x if side == "right" else anchor_x - text_width
+            box = (box_left, y - 9, box_left + text_width, y + 7)
+            inside = min_x <= box[0] and box[2] <= max_x and min_y <= box[1] and box[3] <= max_y
+            clear = all(
+                box[2] < other[0] or other[2] < box[0] or box[3] < other[1] or other[3] < box[1]
+                for other in placed
+            )
+            if inside and clear:
+                placed.append(box)
+                anchor = "start" if side == "right" else "end"
+                elements.append(
+                    f'<text class="point-label" x="{anchor_x:.1f}" y="{y + 4:.1f}" '
+                    f'text-anchor="{anchor}">{html_escape(text)}</text>'
+                )
+                break
+    elements.append("</g>")
+    return "\n".join(elements)
+
+
 def svg_best_bars(
     rows: list[dict[str, object]],
     title: str,
-    bar_styles: dict[str, dict[str, str]] | None = None,
+    bar_colors: dict[str, str] | None = None,
 ) -> str:
-    bar_styles = bar_styles or {}
+    bar_colors = bar_colors or {}
     width = 650
     height = 360
     left = 64
@@ -1352,27 +1412,11 @@ def svg_best_bars(
         x = center - bar_w / 2
         y = scale(value, 0, max_value, top + plot_h, top)
         height_px = top + plot_h - y
-        style = bar_styles.get(label)
-        if style:
-            white_rail_width = min(7.0, bar_w * 0.22)
-            accent_rail_width = min(3.0, bar_w * 0.1)
-            rail_center = x + bar_w * 0.3
-            elements.append(
-                '<g class="origin-bar">'
-                f"<title>{html_escape(label)} best: {fmt_number(value)}</title>"
-                f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" '
-                f'rx="2" fill="{style["main"]}" />'
-                f'<rect x="{rail_center - white_rail_width / 2:.1f}" y="{y:.1f}" width="{white_rail_width:.1f}" '
-                f'height="{height_px:.1f}" fill="#ffffff" opacity="0.9" />'
-                f'<rect x="{rail_center - accent_rail_width / 2:.1f}" y="{y:.1f}" width="{accent_rail_width:.1f}" '
-                f'height="{height_px:.1f}" fill="{style["accent"]}" />'
-                "</g>"
-            )
-        else:
-            elements.append(
-                f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="{SINGLE_SERIES_COLOR}">'
-                f"<title>{html_escape(label)} best: {fmt_number(value)}</title></rect>"
-            )
+        color = bar_colors.get(label, SINGLE_SERIES_COLOR)
+        elements.append(
+            f'<rect class="bar" x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{height_px:.1f}" fill="{color}">'
+            f"<title>{html_escape(label)} best: {fmt_number(value)}</title></rect>"
+        )
         elements.append(
             f'<text class="tick-label" x="{center:.1f}" y="{height - 42}" text-anchor="middle">{html_escape(label)}</text>'
         )
@@ -1463,7 +1507,6 @@ def svg_horizontal_bars(
 
 def svg_count_bars(
     counts: Counter[str],
-    colors: dict[str, str],
     title: str,
     *,
     width: int = 520,
@@ -1477,109 +1520,136 @@ def svg_count_bars(
     height = top + bottom + row_h * len(rows)
     plot_w = width - left - right
     max_value = max(counts.values()) if counts else 1
-    svg_class = "chart-svg compact" if width <= 650 else "chart-svg"
-    elements = [f'<svg class="{svg_class}" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(title)}">']
+    elements = [f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(title)}">']
     for index, (label, count) in enumerate(rows):
         y = top + index * row_h
         width_px = scale(count, 0, max_value, 0, plot_w)
-        color = colors.get(label, "#64748b")
         elements.append(f'<text class="bar-label" x="{left - 10}" y="{y + 23}" text-anchor="end">{html_escape(label)}</text>')
         elements.append(f'<rect class="bar-track" x="{left}" y="{y + 8}" width="{plot_w}" height="18" rx="4" />')
-        elements.append(f'<rect class="bar" x="{left}" y="{y + 8}" width="{width_px:.1f}" height="18" rx="4" fill="{color}" />')
+        elements.append(f'<rect class="bar" x="{left}" y="{y + 8}" width="{width_px:.1f}" height="18" rx="4" fill="{SINGLE_SERIES_COLOR}" />')
         elements.append(f'<text class="value-label" x="{left + width_px + 8:.1f}" y="{y + 23}">{count}</text>')
     elements.append("</svg>")
     return "\n".join(elements)
 
 
-def svg_score_vs_wall_time(runs: list[RunResult], family_colors: dict[str, str]) -> str:
-    plotted = [run for run in runs if run.wall_seconds]
+def svg_score_scatter(
+    points: list[tuple[RunResult, float]],
+    x_fraction: Callable[[float], float],
+    x_ticks: list[float],
+    x_tick_formatter: Callable[[float | int], str],
+    x_label: str,
+    aria_label: str,
+    point_detail: Callable[[RunResult], str],
+    colors: dict[str, str],
+    legend_colors: dict[str, str],
+    label_count: int = 8,
+) -> str:
     width = 1180
     height = 430
     left = 70
-    right = 42
+    right = 190
     top = 30
     bottom = 72
     plot_w = width - left - right
     plot_h = height - top - bottom
-    max_score = score_axis_max([run.best_score for run in plotted])
-    max_hours = nice_max(max((run.wall_seconds or 0) / 3600 for run in plotted))
+    max_score = score_axis_max([run.best_score for run, _ in points])
     elements = [
-        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Score versus wall time">',
+        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html_escape(aria_label)}">',
         grid_lines(left, top, plot_w, plot_h, max_score),
-        axis_labels(left, top, plot_w, plot_h, "Wall time (hours)", "Best score"),
+        axis_labels(left, top, plot_w, plot_h, x_label, "Best score"),
     ]
-    for tick_index in range(6):
-        hours = max_hours * tick_index / 5
-        x = scale(hours, 0, max_hours, left, left + plot_w)
-        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 38}" text-anchor="middle">{fmt_number(hours)}</text>')
-    for run in plotted:
-        hours = (run.wall_seconds or 0) / 3600
-        x = scale(hours, 0, max_hours, left, left + plot_w)
-        y = scale(run.best_score, 0, max_score, top + plot_h, top)
-        color = family_colors.get(run.family, "#64748b")
-        tooltip = f"{run.version}: {run.best_score}, {fmt_duration(run.wall_seconds)}"
+    for tick in x_ticks:
+        x = left + x_fraction(tick) * plot_w
+        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 38}" text-anchor="middle">{x_tick_formatter(tick)}</text>')
+    scaled = [
+        (run, left + x_fraction(value) * plot_w, scale(run.best_score, 0, max_score, top + plot_h, top))
+        for run, value in points
+    ]
+    for run, x, y in sorted(scaled, key=lambda point: point[0].family in legend_colors):
+        tooltip = f"{run.version}: {run.best_score}, {point_detail(run)}"
         elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{color}" class="data-point">'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{colors.get(run.family, OTHER_COLOR)}" class="data-point">'
             f"<title>{html_escape(tooltip)}</title></circle>"
         )
+    elements.append(
+        svg_point_labels(
+            [(x, y, run.version) for run, x, y in sorted(scaled, key=lambda point: -point[0].best_score)[:label_count]],
+            (left, top - 20, left + plot_w, top + plot_h),
+            obstacles=[(x - 8, y - 8, x + 8, y + 8) for _, x, y in scaled],
+        )
+    )
+    elements.append(svg_legend(legend_colors, width - right + 28, top + 4))
     elements.append("</svg>")
     return "\n".join(elements)
 
 
-def svg_score_vs_code_lines(runs: list[RunResult], family_colors: dict[str, str]) -> str:
-    plotted = [run for run in runs if run.code_lines_added is not None]
-    width = 1180
-    height = 430
-    left = 70
-    right = 42
-    top = 30
-    bottom = 72
-    plot_w = width - left - right
-    plot_h = height - top - bottom
-    max_score = score_axis_max([run.best_score for run in plotted])
-    max_lines = nice_max(max(run.code_lines_added or 0 for run in plotted))
-    elements = [
-        f'<svg class="chart-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Score versus code lines added">',
-        grid_lines(left, top, plot_w, plot_h, max_score),
-        axis_labels(left, top, plot_w, plot_h, "Code lines added", "Best score"),
-    ]
-    for tick_index in range(6):
-        lines = max_lines * tick_index / 5
-        x = scale(lines, 0, max_lines, left, left + plot_w)
-        elements.append(f'<text class="tick-label" x="{x:.1f}" y="{height - 38}" text-anchor="middle">{fmt_number(lines)}</text>')
-    for run in plotted:
-        lines = run.code_lines_added or 0
-        x = scale(lines, 0, max_lines, left, left + plot_w)
-        y = scale(run.best_score, 0, max_score, top + plot_h, top)
-        color = family_colors.get(run.family, "#64748b")
-        tooltip = f"{run.version}: {run.best_score}, {fmt_number(lines)} code lines added"
-        elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6.5" fill="{color}" class="data-point">'
-            f"<title>{html_escape(tooltip)}</title></circle>"
-        )
-    elements.append("</svg>")
-    return "\n".join(elements)
+def svg_score_vs_wall_time(
+    runs: list[RunResult],
+    colors: dict[str, str],
+    legend_colors: dict[str, str],
+) -> str:
+    points = [(run, (run.wall_seconds or 0) / 3600) for run in runs if run.wall_seconds]
+    ticks = linear_ticks(max(hours for _, hours in points))
+    return svg_score_scatter(
+        points,
+        lambda hours: hours / ticks[-1],
+        ticks,
+        fmt_number,
+        "Wall time (hours)",
+        "Score versus wall time",
+        lambda run: fmt_duration(run.wall_seconds),
+        colors,
+        legend_colors,
+    )
+
+
+def svg_score_vs_code_lines(
+    runs: list[RunResult],
+    colors: dict[str, str],
+    legend_colors: dict[str, str],
+) -> str:
+    points = [(run, float(run.code_lines_added or 0)) for run in runs if run.code_lines_added is not None]
+    decades = max(1, math.ceil(math.log10(max(lines for _, lines in points) or 1)))
+    ticks = [0, *(10**power for power in range(1, decades + 1))]
+    return svg_score_scatter(
+        points,
+        lambda lines: math.log10(1 + lines) / math.log10(1 + ticks[-1]),
+        ticks,
+        fmt_compact_number,
+        "Code lines added (log scale)",
+        "Score versus code lines added on a log scale",
+        lambda run: f"{fmt_number(run.code_lines_added)} code lines added",
+        colors,
+        legend_colors,
+    )
 
 
 def summary_cards(runs: list[RunResult]) -> str:
     best_run = max(runs, key=lambda run: run.best_score)
     newest_release = max((run for run in runs if run.release_date), key=lambda run: run.release_date or dt.date.min)
-    total_cost = sum(run.openrouter_cost or 0 for run in runs)
+    cost_runs = [run for run in runs if run.openrouter_cost is not None]
+    total_cost = sum(run.openrouter_cost or 0 for run in cost_runs)
+    cost_harnesses = sorted({run.harness for run in cost_runs})
+    cost_note = f"{len(cost_runs)} of {len(runs)} runs"
+    if len(cost_harnesses) == 1:
+        cost_note += f", {cost_harnesses[0]} only"
     metrics = [
-        ("Runs", len(runs)),
-        ("Models", len({run.version for run in runs})),
-        ("Top score", best_run.best_score),
-        ("Newest release", fmt_date(newest_release.release_date or newest_release.run_date)),
-        ("Origins", len({run.origin for run in runs})),
-        ("OpenRouter cost", f"${total_cost:,.2f}" if total_cost else "$0.00"),
+        ("Runs", len(runs), ""),
+        ("Models", len({run.version for run in runs}), ""),
+        ("Top score", best_run.best_score, ""),
+        ("Newest release", fmt_date(newest_release.release_date or newest_release.run_date), ""),
+        ("Origins", len({run.origin for run in runs}), ""),
+        ("OpenRouter cost", f"${total_cost:,.2f}" if total_cost else "$0.00", cost_note),
     ]
     cards = []
-    for label, value in metrics:
+    for label, value, note in metrics:
+        note_html = f"<small>{html_escape(note)}</small>" if note else ""
         cards.append(
             f"""
             <div class="metric">
               <span>{html_escape(label)}</span>
               <strong>{html_escape(value)}</strong>
+              {note_html}
             </div>
             """
         )
@@ -1724,24 +1794,22 @@ def render_html(
     family_icons = family_icons or {}
     family_icon_css = html_family_icon_css(family_icons)
     result_runs = best_runs_by_version(runs)
-    family_colors = color_map([run.family for run in result_runs])
+    families = sorted({run.family for run in result_runs})
+    family_colors = family_color_map(families, list(FAMILY_COLORS))
+    scatter_colors = family_color_map(families, SCATTER_FAMILIES)
     origins = {run.origin for run in result_runs}
-    origin_scatter_colors = {
-        origin: ORIGIN_SCATTER_COLORS.get(origin, "#64748b")
-        for origin in ORIGIN_SCATTER_COLORS
-        if origin in origins
-    }
-    for origin in sorted(origins - set(origin_scatter_colors)):
-        origin_scatter_colors[origin] = ORIGIN_SCATTER_COLORS.get(origin, "#64748b")
+    origin_colors = {origin: color for origin, color in ORIGIN_COLORS.items() if origin in origins}
+    for origin in sorted(origins - set(origin_colors)):
+        origin_colors[origin] = OTHER_COLOR
     origin_rows = aggregate_scores(result_runs, "origin")
     family_rows = aggregate_scores(result_runs, "family")
+    family_legend_colors = family_legend(family_rows, list(FAMILY_COLORS))
+    scatter_legend_colors = family_legend(family_rows, SCATTER_FAMILIES)
     harness_rows = aggregate_scores(result_runs, "harness")
     version_rows = best_by_version(runs)
     family_counts = Counter(run.family for run in result_runs)
     effort_counts = Counter(run.effort for run in result_runs)
-    effort_colors = color_map(list(effort_counts))
     stop_reason_counts = Counter(run.stop_reason.strip() or "unspecified" for run in runs)
-    stop_reason_colors = color_map(list(stop_reason_counts))
     min_date = min(run.release_date for run in result_runs if run.release_date)
     max_date = max(run.release_date for run in result_runs if run.release_date)
 
@@ -1771,12 +1839,12 @@ def render_html(
         chart_shell(
             "Family Best Score Over Time",
             "Cumulative best max-only model result each model family has achieved as newer models are released.",
-            svg_family_best_over_time(result_runs, family_colors),
+            svg_family_best_over_time(result_runs, family_colors, family_legend_colors),
         ),
         chart_shell(
             "Origin Best Score Over Time",
             "Cumulative best max-only model result each origin has achieved as newer models are released.",
-            svg_origin_best_over_time(result_runs, origin_scatter_colors),
+            svg_origin_best_over_time(result_runs, origin_colors),
         ),
         chart_shell(
             "Open Weights Versus Closed Weights",
@@ -1789,7 +1857,7 @@ def render_html(
             "Each normalized model version plotted once by model release date, using its maximum score and styled by origin.",
             svg_release_date_scatter(
                 result_runs,
-                origin_scatter_colors,
+                origin_colors,
                 "origin",
                 width=650,
                 height=360,
@@ -1803,7 +1871,7 @@ def render_html(
         chart_shell(
             "Best Score By Origin",
             "Best max-only model result observed for each origin bucket.",
-            svg_best_bars(origin_rows, "Origin best score comparison", ORIGIN_STYLES),
+            svg_best_bars(origin_rows, "Origin best score comparison", origin_colors),
         ),
         "</div>",
         '<div class="chart-grid">',
@@ -1815,7 +1883,7 @@ def render_html(
         chart_shell(
             "Models By Family",
             "Counts normalized model results by family after repeated runs are collapsed to each model's maximum score.",
-            svg_count_bars(family_counts, family_colors, "Models by family"),
+            svg_count_bars(family_counts, "Models by family"),
         ),
         "</div>",
         chart_shell(
@@ -1832,7 +1900,7 @@ def render_html(
         chart_shell(
             "Results By Effort",
             "Counts max-only model results by the effort setting on the run that produced that model's maximum score.",
-            svg_count_bars(effort_counts, effort_colors, "Results by effort"),
+            svg_count_bars(effort_counts, "Results by effort"),
         ),
         "</div>",
         chart_shell(
@@ -1840,7 +1908,6 @@ def render_html(
             "Raw run counts grouped by final stop reason.",
             svg_count_bars(
                 stop_reason_counts,
-                stop_reason_colors,
                 "Stop reason counts",
                 width=1180,
                 left=260,
@@ -1850,12 +1917,12 @@ def render_html(
         chart_shell(
             "Score Versus Wall Time",
             "Each point uses the run that produced a normalized model version's maximum score.",
-            svg_score_vs_wall_time(result_runs, family_colors),
+            svg_score_vs_wall_time(result_runs, scatter_colors, scatter_legend_colors),
         ),
         chart_shell(
             "Score Versus Code Lines Added",
             "Each point uses the run that produced a normalized model version's maximum score.",
-            svg_score_vs_code_lines(result_runs, family_colors),
+            svg_score_vs_code_lines(result_runs, scatter_colors, scatter_legend_colors),
         ),
         data_table(runs, family_icons),
         model_run_count_table(runs, family_icons),
@@ -1963,6 +2030,13 @@ def render_html(
       margin-top: 4px;
       font-size: 23px;
       line-height: 1.1;
+    }}
+
+    .metric small {{
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
     }}
 
     .chart-panel {{
@@ -2116,6 +2190,15 @@ def render_html(
     .value-label {{
       fill: #0f172a;
       font-weight: 700;
+    }}
+
+    .point-label {{
+      font-size: 12px;
+      fill: #334155;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 3px;
+      stroke-linejoin: round;
     }}
 
     .warning {{
