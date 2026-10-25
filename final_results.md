@@ -105,3 +105,4 @@ Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a
 | 20261022-091840-gemini-4-argon-high | gemini-4-argon-high | antigravity | high | 1005 | 4 | 5 | agent_idle_timeout | 600s | 11h 55m | 2533965 | 1962 |  |  |  |
 | 20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0 | opencode-openrouter-mistralai-mistral-large-4-0 | opencode | high | 262 | 1 | 1 | agent_error | 600s | 4h 37m | 6009 | 1467 | 155 | $7.867113 | 35163622 |
 | 20261023-102433-opencode-openrouter-mistralai-mistral-large-4-0 | opencode-openrouter-mistralai-mistral-large-4-0 | opencode | high | 86 | 1 | 1 | agent_idle_timeout | 600s | 5h 30m | 9157 | 605 | 203 | $10.060589 | 49891362 |
+| 20261024-201925-grok-4-7 | grok-4.7 | grokbuild |  | 179 | 1 | 1 | agent_idle_timeout | 600s | 1h 2m | 736 | 823 |  |  |  |
