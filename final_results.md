@@ -107,3 +107,4 @@ Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a
 | 20261023-102433-opencode-openrouter-mistralai-mistral-large-4-0 | opencode-openrouter-mistralai-mistral-large-4-0 | opencode | high | 86 | 1 | 1 | agent_idle_timeout | 600s | 5h 30m | 9157 | 605 | 203 | $10.060589 | 49891362 |
 | 20261024-201925-grok-4-7 | grok-4.7 | grokbuild |  | 179 | 1 | 1 | agent_idle_timeout | 600s | 1h 2m | 736 | 823 |  |  |  |
 | 20261025-082820-grok-4-7 | grok-4.7 | grokbuild |  | 195 | 1 | 1 | agent_idle_timeout | 600s | 3h 2m | 2446 | 1867 |  |  |  |
+| 20261025-234233-grok-4-7 | grok-4.7 | grokbuild |  | 264 | 2 | 5 | stale_limit | 600s | 14h 5m | 42046023 | 2500 |  |  |  |
