@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: October 23, 2026.
+Last researched: October 26, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -34,6 +34,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok 4.5 | July 8, 2026 | America | false |
 | Grok | Grok 4.6 | August 12, 2026 | America | false |
+| Grok | Grok 4.7 | September 20, 2026 | America | false |
 | Grok | Grok Composer 2.5 Fast | June 1, 2026 | America | false |
 | Grok | Grok Build | June 1, 2026 | America | false |
 | Nemotron | NVIDIA Nemotron 3 Ultra 550B A55B | June 4, 2026 | America | true |
@@ -107,6 +108,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Grok 4.7: [Grok Build release history](https://x.ai/changelog/build), [launch announcement](https://x.ai/news/grok-4-7), [API release notes](https://docs.x.ai/developers/release-notes). Uses September 20, when Grok Build 1.0.40 listed public availability, rather than the September 21 announcement/API date. Hosted model without public model weights.
 
 - Mistral Large 4.0: [official public-preview launch](https://mistral.ai/news/mistral-large-4/), [model documentation](https://docs.mistral.ai/models/mistral-large-4-0), [upcoming weights](https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B). October 6 public API release. Open weights remains false as of October 23: weights are announced for later in October, not yet available. The version matches the tested `mistral-large-4-0` API identifier.
 
