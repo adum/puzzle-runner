@@ -32,6 +32,7 @@ agent_idle_timeout_seconds = 1800
 agent_failure_retry_limit_seconds = 900
 
 build_checker = true
+# Stream tool activity as well as assistant text so active work resets the idle timer.
 echo_agent_output = true
 echo_evaluation_output = true
 
@@ -59,7 +60,7 @@ command = [
   "--prompt-file",
   "{prompt_path}",
   "--output-format",
-  "plain",
+  "streaming-json",
   "--permission-mode",
   "bypassPermissions",
   "--always-approve",

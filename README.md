@@ -251,8 +251,11 @@ PYTHONPATH=src python3 -m puzzle_runner watch --config runner.grok-build.toml
 The Grok Build config passes Puzzle Runner's prompt file to:
 
 ```sh
-grok --prompt-file <round-dir>/prompt.md --output-format plain --permission-mode bypassPermissions --always-approve --max-turns 512 --effort high --model composer-2.5-fast
+grok --prompt-file <round-dir>/prompt.md --output-format streaming-json --permission-mode bypassPermissions --always-approve --max-turns 512 --effort high --model composer-2.5-fast
 ```
+
+Grok emits raw NDJSON session updates, including tool activity, so ongoing work
+resets the runner’s output-idle timer even when there is no assistant text.
 
 Puzzle Runner records this harness as `grokbuild` in `final_results.md`.
 
