@@ -25,9 +25,9 @@ max_rounds = 20
 # Wall-clock cap for a single OpenCode call.
 agent_timeout_seconds = 86400
 
-# OpenCode emits JSON events while active, so this catches truly quiet/stuck calls.
+# Allow six hours of silence because background tools may not stream progress.
 # Set to 0 to disable.
-agent_idle_timeout_seconds = 1800
+agent_idle_timeout_seconds = 21600
 
 # Retry window for non-timeout agent process failures. Retries use exponential
 # backoff starting at 5s and doubling each time. Set to 0 to disable.
