@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: October 26, 2026.
+Last researched: November 4, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -48,7 +48,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Kimi | Kimi K2.5 | January 27, 2026 | China | true |
 | Kimi | Kimi K2.6 | April 20, 2026 | China | true |
 | Kimi | Kimi K2.7 Code | June 12, 2026 | China | true |
-| Kimi | Kimi K3 | July 16, 2026 | China | false |
+| Kimi | Kimi K3 | July 16, 2026 | China | true |
+| Kimi | Kimi K3.1 Pro | October 24, 2026 | China | true |
 | Meta | Llama 4 Maverick | April 5, 2025 | America | true |
 | Meta | Muse Spark 1.1 | July 9, 2026 | America | false |
 | Meta | Muse Spark 1.2 | August 5, 2026 | America | false |
@@ -93,7 +94,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Open weights means public model weights are available now. MiniMax M2 and M3 are true because MiniMax publishes public Hugging Face/GitHub model weights for both.
 - Kimi K2.5 uses OpenRouter's listed release date and is true for open weights because Moonshot's GitHub and Hugging Face pages say the model weights are released under the Modified MIT License.
 - Kimi K2.7 Code uses OpenRouter's listed release date and is true for open weights because the Hugging Face model card says the model weights are released under the Modified MIT License.
-- Kimi K3 uses its first public app and API availability date. It remains false for open weights because Moonshot says the full weights will be released by July 27, 2026, and they are not public yet.
+- Kimi K3 uses its first public app and API availability date. Its open-weights status was rechecked on November 4: Moonshot now publishes the model weights on Hugging Face.
 - Llama 4 Maverick uses Meta's official announcement and model-card release date and is true because Meta made its model weights available for download at launch.
 - Muse Spark 1.1 uses Meta's official public app and API preview launch date. It remains false because Meta announced hosted access but did not release downloadable model weights.
 - Muse Spark 1.2 uses Meta's official Muse Code and Meta Model API launch date. It remains false because the weights had not been released publicly at launch.
@@ -108,6 +109,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Kimi K3.1 Pro: [official October 24 launch](https://www.kimi.com/news/kimi-k3-1-pro), [technical announcement](https://www.kimi.com/en/blog/kimi-k3-1-pro), [public weights](https://huggingface.co/moonshotai/Kimi-K3.1-Pro). Full weights are publicly downloadable as of November 4. The older [Kimi K3 weights](https://huggingface.co/moonshotai/Kimi-K3) were also verified as available on that date.
 
 - Grok 4.7: [Grok Build release history](https://x.ai/changelog/build), [launch announcement](https://x.ai/news/grok-4-7), [API release notes](https://docs.x.ai/developers/release-notes). Uses September 20, when Grok Build 1.0.40 listed public availability, rather than the September 21 announcement/API date. Hosted model without public model weights.
 
