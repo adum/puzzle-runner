@@ -8,6 +8,8 @@ Run `20261021-093144-gemini-4-argon-low` stopped with `stale_limit` after four r
 
 Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a manual final evaluation of its saved solver after a provider error (`finish_reason: error`) followed by an agent idle timeout caused the runner to skip evaluation. The end code is `agent_error`, preserving the provider failure that ended agent work; the recovered evaluation passed through level 262 and failed level 263 with “No solution found” after 585 seconds. Evaluation started at level 1 with the usual 600-second per-level limit. Wall time includes the original run and manual recovery work, excluding the gap between them.
 
+Run `20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash` was recovered after an interruption during round 6. Five evaluations completed, with scores 171, 150, 150, 857, and 857; the best score was first reached in round 4. Round 4 passed through level 857 and timed out at level 858; round 5 confirmed 857 and found no solution for 858. Round 6 was not evaluated. Wall time is approximate, based on the last saved status (November 6, 2026, 20:20:05 UTC); output, code, and OpenRouter totals include surviving round 6 work. The completed evaluations count as a valid result.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -111,3 +113,4 @@ Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a
 | 20261026-212721-opencode-openrouter-moonshotai-kimi-k3-1-pro | opencode-openrouter-moonshotai-kimi-k3.1-pro | opencode | high | 222 | 1 | 2 | agent_idle_timeout | 600s | 3h 40m | 8025 | 502 | 269 | $5.435044 | 20531493 |
 | 20261027-115922-opencode-openrouter-moonshotai-kimi-k3-1-pro | opencode-openrouter-moonshotai-kimi-k3.1-pro | opencode | high | 302 | 3 | 6 | stale_limit | 600s | 15h 59m | 5109 | 786 | 629 | $15.041992 | 41425332 |
 | 20261104-125207-opencode-openrouter-moonshotai-kimi-k3-1-pro | opencode-openrouter-moonshotai-kimi-k3.1-pro | opencode | high | 353 | 4 | 7 | stale_limit | 600s | 18h 2m | 35234 | 1119 | 1515 | $50.775301 | 192402028 |
+| 20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 857 | 4 | 5 | interrupted | 600s | 24h 47m | 9588 | 2943 | 649 | $1.551244 | 120679784 |
