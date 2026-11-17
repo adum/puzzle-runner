@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: November 4, 2026.
+Last researched: November 16, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -56,6 +56,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | MiniMax | MiniMax M2 | October 23, 2025 | China | true |
 | MiniMax | MiniMax M3 | May 31, 2026 | China | true |
 | MiniMax | Space Bunny Alpha | September 23, 2026 | China | false |
+| MiniMax | MiniMax M3.1 Flash | October 19, 2026 | China | true |
 | Mistral | Mistral Medium 3.1 | August 12, 2025 | Europe | false |
 | Mistral | Mistral Medium 3.5 | April 29, 2026 | Europe | true |
 | Mistral | Mistral Large 4.0 | October 6, 2026 | Europe | false |
@@ -117,7 +118,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - Mistral Large 4.0: [official public-preview launch](https://mistral.ai/news/mistral-large-4/), [model documentation](https://docs.mistral.ai/models/mistral-large-4-0), [upcoming weights](https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B). October 6 public API release. Open weights remains false as of October 23: weights are announced for later in October, not yet available. The version matches the tested `mistral-large-4-0` API identifier.
 
 - Gemini 4 Argon: [Google public availability announcement](https://blog.google/innovation-and-ai/technology/developers-tools/build-with-gemini-4-argon/). October 13 public launch; hosted model without public weights. Low and medium effort runs normalize to the same model version.
-- Space Bunny Alpha: [OpenRouter release listing](https://openrouter.ai/stealth/space-bunny-alpha), [MiniMax identity confirmation](https://www.minimax.io/blog/minimax-m31f). September 23 preview release; MiniMax confirms it was an early M3.1 Flash version. Kept separate from the final M3.1 Flash release. No public weights for this preview; MiniMax says M3.1 Flash weights will follow later.
+- Space Bunny Alpha: [OpenRouter release listing](https://openrouter.ai/stealth/space-bunny-alpha), [MiniMax identity confirmation](https://www.minimax.io/blog/minimax-m31f). September 23 preview release; MiniMax confirms it was an early M3.1 Flash version. No public weights for this preview.
+- MiniMax M3.1 Flash: [October 19 public launch](https://www.minimax.io/blog/minimax-m31f), [official downloadable weights](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash). The final release is reported separately from Space Bunny Alpha; its weights were verified public on November 16.
 - DeepSeek V4.1 Flash 1017: [OpenRouter snapshot date](https://openrouter.ai/deepseek/deepseek-v4.1-flash-1017), [official MIT-licensed weights](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017). October 17 public snapshot, with downloadable model weights.
 
 - Claude Opus 5.5: [Anthropic launch announcement](https://www.anthropic.com/claude-opus-5-5). Uses the September 22 public launch date; hosted access, not public model weights.
