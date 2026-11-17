@@ -114,3 +114,4 @@ Run `20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash` was recover
 | 20261027-115922-opencode-openrouter-moonshotai-kimi-k3-1-pro | opencode-openrouter-moonshotai-kimi-k3.1-pro | opencode | high | 302 | 3 | 6 | stale_limit | 600s | 15h 59m | 5109 | 786 | 629 | $15.041992 | 41425332 |
 | 20261104-125207-opencode-openrouter-moonshotai-kimi-k3-1-pro | opencode-openrouter-moonshotai-kimi-k3.1-pro | opencode | high | 353 | 4 | 7 | stale_limit | 600s | 18h 2m | 35234 | 1119 | 1515 | $50.775301 | 192402028 |
 | 20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 857 | 4 | 5 | interrupted | 600s | 24h 47m | 9588 | 2943 | 649 | $1.551244 | 120679784 |
+| 20261114-051732-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 287 | 4 | 7 | stale_limit | 600s | 37h 25m | 22030 | 36 | 1546 | $6.837456 | 329493098 |
