@@ -10,6 +10,8 @@ Run `20261022-213202-opencode-openrouter-mistralai-mistral-large-4-0` received a
 
 Run `20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash` was recovered after an interruption during round 6. Five evaluations completed, with scores 171, 150, 150, 857, and 857; the best score was first reached in round 4. Round 4 passed through level 857 and timed out at level 858; round 5 confirmed 857 and found no solution for 858. Round 6 was not evaluated. Wall time is approximate, based on the last saved status (November 6, 2026, 20:20:05 UTC); output, code, and OpenRouter totals include surviving round 6 work. The completed evaluations count as a valid result.
 
+Run `20261118-102102-opencode-openrouter-tencent-hy4` was recovered after the runner was killed during round 7. Six evaluations completed with scores of 231, 231, 231, 238, 275, and 275. The run first reached 275 in round 5. Round 6 confirmed that score and timed out at level 276. The runner did not complete an evaluation in round 7. Wall time is approximate and comes from the last saved status. Output, code, and OpenRouter totals include surviving work from round 7.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -116,3 +118,4 @@ Run `20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash` was recover
 | 20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 857 | 4 | 5 | interrupted | 600s | 24h 47m | 9588 | 2943 | 649 | $1.551244 | 120679784 |
 | 20261114-051732-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 287 | 4 | 7 | stale_limit | 600s | 37h 25m | 22030 | 36 | 1546 | $6.837456 | 329493098 |
 | 20261116-163704-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 247 | 2 | 3 | agent_timeout | 600s | 33h 28m | 3253 | 41405 | 771 | $2.633795 | 106875324 |
+| 20261118-102102-opencode-openrouter-tencent-hy4 | opencode-openrouter-tencent-hy4 | opencode | high | 275 | 5 | 6 | interrupted | 600s | 21h 49m | 80198 | 4043 | 607 | $4.521572 | 83300642 |
