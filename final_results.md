@@ -12,6 +12,8 @@ Run `20261105-113244-opencode-openrouter-minimax-minimax-m3-1-flash` was recover
 
 Run `20261118-102102-opencode-openrouter-tencent-hy4` was recovered after the runner was killed during round 7. Six evaluations completed with scores of 231, 231, 231, 238, 275, and 275. The run first reached 275 in round 5. Round 6 confirmed that score and timed out at level 276. The runner did not complete an evaluation in round 7. Wall time is approximate and comes from the last saved status. Output, code, and OpenRouter totals include surviving work from round 7.
 
+Gemini 4 Carbon (High) solved all 1208 levels in continuation run `20261119-224054-gemini-4-carbon-high`. It started from the solver checkpoint saved by `20261119-110755-gemini-4-carbon-high`, which reached level 1154 before an agent idle timeout. The table's run statistics are for the continuation.
+
 | Run ID | Agent | Harness | Effort | Best Score | Best Round | Rounds | Stop Reason | Timeout | Wall Time | Agent Chars | Code Lines Added | OpenRouter Calls | OpenRouter Cost | OpenRouter Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 20260430-102443-codex-5-3 | codex-5.3 | codex | xhigh | 171 | 6 | 9 | stale_limit | 600s | 18h 30m | 9176760 | 442 |  |  |  |
@@ -119,4 +121,4 @@ Run `20261118-102102-opencode-openrouter-tencent-hy4` was recovered after the ru
 | 20261114-051732-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 287 | 4 | 7 | stale_limit | 600s | 37h 25m | 22030 | 36 | 1546 | $6.837456 | 329493098 |
 | 20261116-163704-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 247 | 2 | 3 | agent_timeout | 600s | 33h 28m | 3253 | 41405 | 771 | $2.633795 | 106875324 |
 | 20261118-102102-opencode-openrouter-tencent-hy4 | opencode-openrouter-tencent-hy4 | opencode | high | 275 | 5 | 6 | interrupted | 600s | 21h 49m | 80198 | 4043 | 607 | $4.521572 | 83300642 |
-| 20261119-110755-gemini-4-carbon-high | gemini-4-carbon-high | antigravity | high | 1154 | 1 | 1 | agent_idle_timeout | 600s | 4h 25m | 586084 | 2396 |  |  |  |
+| 20261119-224054-gemini-4-carbon-high | gemini-4-carbon-high | antigravity | high | 1208 | 1 | 1 | all_levels_solved | 600s | 2h 40m | 289558 | 670 |  |  |  |
