@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: November 16, 2026.
+Last researched: November 20, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -31,6 +31,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Gemini | Gemini 3.5 Flash (High) | May 19, 2026 | America | false |
 | Gemini | Gemini 3.6 Flash (High) | July 21, 2026 | America | false |
 | Gemini | Gemini 4 Argon | October 13, 2026 | America | false |
+| Gemini | Gemini 4 Carbon | November 10, 2026 | America | false |
 | Grok | Grok 4.3 | April 17, 2026 | America | false |
 | Grok | Grok 4.5 | July 8, 2026 | America | false |
 | Grok | Grok 4.6 | August 12, 2026 | America | false |
@@ -41,6 +42,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Inkling | Inkling | July 15, 2026 | America | true |
 | Sakana Fugu | Fugu Ultra | June 22, 2026 | Japan | false |
 | Tencent Hunyuan | Tencent Hy3 | July 7, 2026 | China | true |
+| Tencent Hunyuan | Tencent Hy4 | November 4, 2026 | China | true |
 | GLM | GLM-4.5 | July 28, 2025 | China | true |
 | GLM | GLM-5.1 | April 7, 2026 | China | true |
 | GLM | GLM-5.2 | June 16, 2026 | China | true |
@@ -110,6 +112,9 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Gemini 4 Carbon: [Google public launch](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-carbon-now-available/), [developer availability](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-4-carbon-developers/). Uses November 10 public availability, not the October 28 announcement and restricted Fairwind access. Hosted model without public weights; effort variants normalize to the same version.
+- Tencent Hy4: [OpenRouter release listing](https://openrouter.ai/tencent/hy4), [official public weights](https://huggingface.co/tencent/Hy4). Uses the November 4 release of Hy4, distinct from Hy4 Preview; model weights are publicly available.
 
 - Kimi K3.1 Pro: [official October 24 launch](https://www.kimi.com/news/kimi-k3-1-pro), [technical announcement](https://www.kimi.com/en/blog/kimi-k3-1-pro), [public weights](https://huggingface.co/moonshotai/Kimi-K3.1-Pro). Full weights are publicly downloadable as of November 4. The older [Kimi K3 weights](https://huggingface.co/moonshotai/Kimi-K3) were also verified as available on that date.
 
