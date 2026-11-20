@@ -119,3 +119,4 @@ Run `20261118-102102-opencode-openrouter-tencent-hy4` was recovered after the ru
 | 20261114-051732-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 287 | 4 | 7 | stale_limit | 600s | 37h 25m | 22030 | 36 | 1546 | $6.837456 | 329493098 |
 | 20261116-163704-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 247 | 2 | 3 | agent_timeout | 600s | 33h 28m | 3253 | 41405 | 771 | $2.633795 | 106875324 |
 | 20261118-102102-opencode-openrouter-tencent-hy4 | opencode-openrouter-tencent-hy4 | opencode | high | 275 | 5 | 6 | interrupted | 600s | 21h 49m | 80198 | 4043 | 607 | $4.521572 | 83300642 |
+| 20261119-110755-gemini-4-carbon-high | gemini-4-carbon-high | antigravity | high | 1154 | 1 | 1 | agent_idle_timeout | 600s | 4h 25m | 586084 | 2396 |  |  |  |
