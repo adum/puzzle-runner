@@ -122,3 +122,4 @@ Gemini 4 Carbon (High) solved all 1208 levels in continuation run `20261119-2240
 | 20261116-163704-opencode-openrouter-minimax-minimax-m3-1-flash | opencode-openrouter-minimax-minimax-m3.1-flash | opencode | high | 247 | 2 | 3 | agent_timeout | 600s | 33h 28m | 3253 | 41405 | 771 | $2.633795 | 106875324 |
 | 20261118-102102-opencode-openrouter-tencent-hy4 | opencode-openrouter-tencent-hy4 | opencode | high | 275 | 5 | 6 | interrupted | 600s | 21h 49m | 80198 | 4043 | 607 | $4.521572 | 83300642 |
 | 20261119-224054-gemini-4-carbon-high | gemini-4-carbon-high | antigravity | high | 1208 | 1 | 1 | all_levels_solved | 600s | 2h 40m | 289558 | 670 |  |  |  |
+| 20261120-124519-opencode-openrouter-qwen-qwen4-max | opencode-openrouter-qwen-qwen4-max | opencode | high | 363 | 3 | 6 | stale_limit | 600s | 26h 15m | 74820 | 5480 | 965 | $49.111375 | 154348736 |
