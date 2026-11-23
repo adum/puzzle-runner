@@ -1,6 +1,6 @@
 # Model Metadata
 
-Last researched: November 20, 2026.
+Last researched: November 23, 2026.
 
 This table normalizes runner and provider prefixes from `final_results.md` to the underlying public model. Origins are mapped by the model developer's home country or region: America, China, Europe, or Japan.
 
@@ -66,6 +66,7 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 | Qwen | Qwen3 Coder Plus | September 23, 2025 | China | false |
 | Qwen | Qwen3.7-Max | May 21, 2026 | China | false |
 | Qwen | Qwen3.8-Max | July 19, 2026 | China | false |
+| Qwen | Qwen4-Max | November 16, 2026 | China | false |
 | DeepSeek | DeepSeek R1 | January 20, 2025 | China | true |
 | DeepSeek | DeepSeek V4 Flash | April 24, 2026 | China | true |
 | DeepSeek | DeepSeek V4 Pro | April 24, 2026 | China | true |
@@ -112,6 +113,8 @@ This table normalizes runner and provider prefixes from `final_results.md` to th
 - GLM-5.2 uses OpenRouter's listed release date for the tested API model and is true for open weights because Z.AI and Hugging Face publish the model weights under an MIT license.
 
 ## Sources
+
+- Qwen4-Max: [official public launch](https://qwen.ai/blog?id=qwen4-max), [OpenRouter listing](https://openrouter.ai/qwen/qwen4-max). Released November 16 via hosted products and APIs. No public Max weights; the announcement promises smaller open-source Qwen4 models separately.
 
 - Gemini 4 Carbon: [Google public launch](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-carbon-now-available/), [developer availability](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-4-carbon-developers/). Uses November 10 public availability, not the October 28 announcement and restricted Fairwind access. Hosted model without public weights; effort variants normalize to the same version.
 - Tencent Hy4: [OpenRouter release listing](https://openrouter.ai/tencent/hy4), [official public weights](https://huggingface.co/tencent/Hy4). Uses the November 4 release of Hy4, distinct from Hy4 Preview; model weights are publicly available.
